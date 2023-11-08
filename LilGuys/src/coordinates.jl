@@ -1,5 +1,12 @@
+module Coordinates
+export Point, PhasePoint
+export to_galcen, to_sky
+
+
+using ..Units
 using PyCall
 using Printf
+
 
 const u = PyNULL()
 const astropy_coords = PyNULL()
@@ -134,3 +141,22 @@ function Base.show(io::IO, obs::Observation)
 end
 
 
+function Base.Vector{Point}(m::Matrix)
+    s = size(m)
+    if s[1] == 3
+        N = s[2]
+        return [Point(m[:,i]) for i in 1:N]
+    elseif s[1] == 3
+        N = s[2]
+        return [Point(m[i,:]) for i in 1:N]
+    end
+        
+end
+
+function Point(v::Vector)
+    if length(v) == 3
+        return Point(v...)
+    end
+end
+
+end
