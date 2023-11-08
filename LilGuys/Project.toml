@@ -1,0 +1,9 @@
+name = "LilGuys"
+uuid = "1391d4f3-b950-46e7-ae93-86515cdc2b0b"
+authors = ["aeyobd <aeyobd@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
