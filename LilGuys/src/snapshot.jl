@@ -1,11 +1,3 @@
-module SnapshotUtils
-export Particle, Snapshot, write!
-export r, v
-
-using ..Units
-using ..Coordinates
-using ..HDF5Utils
-
 using HDF5
 using LinearAlgebra: norm
 using Printf
@@ -27,67 +19,89 @@ const snapcols = (:pos, :vel, :acc, :Φ, :Φ_ext, :h, :filename, :header, :m, :i
 
 
 Base.@kwdef struct Particle
-    pos::Point
-    vel::Point
-    acc::Point
+    pos::Vector{F}
+    vel::Vector{F}
+    acc::Vector{F}
     m::F
     Φ::F = NaN
     Φ_ext::F = NaN
     h::F = NaN
+    index::Int
 end
 
 
-Base.@kwdef mutable struct Snapshot <: AbstractArray{Particle, 1}
-    pos::Vector{Point}
-    vel::Vector{Point}
-    acc::Vector{Point}
+Base.@kwdef struct Snapshot <: AbstractArray{Particle, 1}
+    pos::Matrix{F}
+    vel::Matrix{F}
+    acc::Matrix{F}
     Φ::Vector{F}
     Φ_ext::Vector{F}
-    index::Vector{Int}
-    h::F = NaN
     filename::String
     header::Dict{String, Any}
     m::F
+    index::Vector{Int}
+    sort::Vector{Int} = []
+    h::F = NaN
 end
 
 
-function Snapshot(filename::String)
+function Snapshot(filename::String; mmap=false)
     kwargs = Dict{Symbol, Any}()
 
     h5open(filename, "r") do h5f
-        index = get_vector(h5f, "ParticleIDs")
-        perm = sortperm(index)
-
         for (var, header) in h5scalars
-            kwargs[var] = get_vector(h5f, header)[perm]
+            kwargs[var] = get_vector(h5f, header, mmap=mmap)
         end
         for (var, header) in h5vectors
-            kwargs[var] = get_vector(h5f, header)[:, perm]
+            kwargs[var] = get_vector(h5f, header, mmap=mmap)
         end
 
         header = get_header(h5f)
         kwargs[:header] = header
         kwargs[:m] = header["MassTable"][1]
         kwargs[:filename] = filename
-
     end
     return Snapshot(; kwargs...)
 end
+
+
 
 # snapshot methods
 
 Base.size(snap::Snapshot) = (length(snap.index),)
 Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
+
+
 function Base.getindex(snap::Snapshot, i::Int)
     kwargs = Dict{Symbol, Any}()
     kwargs[:m] = snap.m
     kwargs[:h] = snap.h
 
-    for sym in [:pos, :vel, :Φ, :Φ_ext, :acc]
+    for sym in [:Φ, :Φ_ext, :index]
         kwargs[sym] = getproperty(snap, sym)[i]
     end
+    for sym in [:pos, :vel, :acc]
+        kwargs[sym] = getproperty(snap, sym)[:, i]
+    end
     return Particle(; kwargs...)
+end
+
+
+function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector})
+    kwargs = Dict{Symbol, Any}()
+    kwargs[:m] = snap.m
+    kwargs[:h] = snap.h
+    kwargs[:header] = snap.header
+    kwargs[:filename] = snap.filename
+
+    for sym in [:Φ, :Φ_ext, :index]
+        kwargs[sym] = getproperty(snap, sym)[idx]
+    end
+    for sym in [:pos, :vel, :acc]
+        kwargs[sym] = getproperty(snap, sym)[:, idx]
+    end
+    return Snapshot(; kwargs...)
 end
 
 
@@ -97,7 +111,7 @@ function Base.setindex!(snap::Snapshot, p::Particle, i::Int)
     for sym in [:pos, :vel, :Φ, :Φ_ext, :acc]
         getproperty(snap, sym)[i] = getproperty(particle, sym)
     end
-    return snap[i]
+    return snap[idx]
 end
 
 
@@ -119,7 +133,7 @@ end
 # high level methods
 
 function write(snap::Snapshot)
-    write(snap.filename, snap)
+    write!(snap.filename, snap)
 end
 
 function write!(filename::String, snap::Snapshot)
@@ -139,9 +153,6 @@ end
 
 
 
-function index_of(snap::Snapshot, id::Int)
-    findfirst(x->x==i, snap.index)
-end
 
 
 
@@ -154,4 +165,3 @@ end
 r(p::Particle) = norm(p.pos)
 v(p::Particle) = norm(p.vel)
 
-end # module

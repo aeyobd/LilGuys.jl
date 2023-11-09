@@ -1,11 +1,4 @@
-module HDF5Utils
-export make_default_header, set_header!, get_header
-export set_vector!, get_vector
-export get_epsilon
-
-
 using HDF5
-using ..Units
 
 
 # Make a default header for an HDF5 file
@@ -39,8 +32,13 @@ function get_header(h5f::HDF5.File)
 end
 
 # gets a vector from an HDF5 file
-function get_vector(h5f::HDF5.File, key::String)
-    return read(h5f["PartType1/" * key])
+function get_vector(h5f::HDF5.File, key::String; mmap=false, group="PartType1")
+    path = group * "/" * key
+    if mmap
+        return HDF5.readmmap(h5f[path])
+    else
+        return read(h5f[path])
+    end
 end
 
 function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
@@ -48,7 +46,7 @@ function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
         create_group(h5f, group)
     end
     path = group * "/" * key
-    write(h5f, path, val)
+    h5f[path] = val
 end
 
 function set_header_attr(h5f::HDF5.File, key::String, val)
@@ -56,16 +54,4 @@ function set_header_attr(h5f::HDF5.File, key::String, val)
     header[key] = val
 end
 
-function get_epsilon(dir::String)
-    filename = joinpath(dir, "parameters-usedvalues")
-    for line in eachline(filename)
-        if startswith(line, "SofteningComovingClass0")
-            m = collect(eachmatch(r"\d*\.?\d+", line))[end]
-            return parse(F, m.match)
-        end
-    end
-    return nothing
-end
 
-
-end # module HDF5Utils

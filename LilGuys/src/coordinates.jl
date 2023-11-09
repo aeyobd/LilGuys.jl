@@ -1,11 +1,5 @@
-module Coordinates
-export Point, PhasePoint
-export to_galcen, to_sky
-
-
 import Base: +, -, *
 
-using ..Units
 using PyCall
 using Printf
 
@@ -192,4 +186,3 @@ end
 
 (*)(a::F, p::Point) = p*a
 
-end

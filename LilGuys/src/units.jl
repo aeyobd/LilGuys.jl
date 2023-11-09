@@ -1,5 +1,4 @@
 
-module Units
 export G, M_0, R_0, T_0, V_0, F
 
 const G = 1.
@@ -10,4 +9,3 @@ const V_0 = 207.4 # km/s
 
 F = Float64
 
-end

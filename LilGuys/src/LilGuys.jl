@@ -1,14 +1,15 @@
 module LilGuys
 
+export Snapshot
+export Output
+export Point, PhasePoint
+export to_galcen, to_sky
+
 include("units.jl")
 include("coordinates.jl")
 include("hdf5_utils.jl")
 include("snapshot.jl")
-
-using .Units
-using .Coordinates
-using .HDF5Utils
-using .SnapshotUtils
+include("output.jl")
 
 
 end # module LilGuys
