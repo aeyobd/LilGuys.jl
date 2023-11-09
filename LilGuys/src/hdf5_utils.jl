@@ -43,11 +43,12 @@ function get_vector(h5f::HDF5.File, key::String)
     return read(h5f["PartType1/" * key])
 end
 
-function set_vector!(h5f::HDF5.File, key::String, val)
-    if "PartType1" ∉ keys(h5f)
-        create_group(h5f, "PartType1")
+function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
+    if group ∉ keys(h5f)
+        create_group(h5f, group)
     end
-    h5f["PartType1/" * key] = val
+    path = group * "/" * key
+    write(h5f, path, val)
 end
 
 function set_header_attr(h5f::HDF5.File, key::String, val)
