@@ -80,17 +80,22 @@ function to_galcen(obs::Observation)
 
     pos = [tc.x[], tc.y[], tc.z[]]
     vel = [tc.v_x[], tc.v_y[], tc.v_z[]]
+
+    pos ./= R0
+    vel ./= V0
     return PhasePoint(pos, vel)
 end
 
 
 function to_sky(phase::PhasePoint)
-    sc = astropy_coords.SkyCoord(x = phase.pos.x * u.kpc,
-                  y = phase.pos.y * u.kpc,
-                  z = phase.pos.z * u.kpc,
-                  v_x = phase.vel.x * u.km/u.s,
-                  v_y = phase.vel.y * u.km/u.s,
-                  v_z = phase.vel.z * u.km/u.s,
+    pos = phase.pos * R0
+    vel = phase.vel * V0
+    sc = astropy_coords.SkyCoord(x = pos.x * u.kpc,
+                  y = pos.y * u.kpc,
+                  z = pos.z * u.kpc,
+                  v_x = vel.x * u.km/u.s,
+                  v_y = vel.y * u.km/u.s,
+                  v_z = vel.z * u.km/u.s,
                   frame = galcen_frame
                  )
     tc = sc.transform_to(geocen_frame)

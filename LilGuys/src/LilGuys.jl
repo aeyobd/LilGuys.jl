@@ -4,6 +4,7 @@ export Snapshot
 export Output
 export Point, PhasePoint
 export to_galcen, to_sky
+export write!
 
 include("units.jl")
 include("coordinates.jl")

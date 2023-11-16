@@ -3,19 +3,18 @@ using LinearAlgebra: norm
 using Printf
 
 
-const h5scalars = Dict(
+const h5vectors = Dict(
     :Φ=>"Potential",
     :Φ_ext=>"ExtPotential",
-    :index=>"ParticleIDs"
-   )
-
-const h5vectors = Dict(
+    :index=>"ParticleIDs",
     :pos=>"Coordinates",
     :vel=>"Velocities",
     :acc=>"Acceleration",
    )
 
 const snapcols = (:pos, :vel, :acc, :Φ, :Φ_ext, :h, :filename, :header, :m, :index)
+const partcols = (:pos, :vel, :acc, :Φ, :Φ_ext, :m, :index)
+
 
 
 Base.@kwdef struct Particle
@@ -23,24 +22,34 @@ Base.@kwdef struct Particle
     vel::Vector{F}
     acc::Vector{F}
     m::F
-    Φ::F = NaN
-    Φ_ext::F = NaN
+    Φ::F = nothing
+    Φ_ext::F = nothing
     h::F = NaN
     index::Int
+end
+
+function Base.:(==)(p::Particle, q::Particle)
+    for sym in partcols
+        x = getproperty(p, sym) 
+        y = getproperty(q, sym) 
+        if any(x .=== y)
+            return false
+        end
+    end
+    return true
 end
 
 
 Base.@kwdef struct Snapshot <: AbstractArray{Particle, 1}
     pos::Matrix{F}
     vel::Matrix{F}
-    acc::Matrix{F}
-    Φ::Vector{F}
-    Φ_ext::Vector{F}
-    filename::String
-    header::Dict{String, Any}
     m::F
-    index::Vector{Int}
-    sort::Vector{Int} = []
+    acc::Matrix{F} = zeros(size(pos))
+    Φ::Vector{F} = zeros(size(pos, 2))
+    Φ_ext::Vector{F} = zeros(size(pos, 2))
+    header::Dict{String, Any} = make_default_header(size(pos, 2), m)
+    index::Vector{Int} = collect(1:size(pos, 2))
+    filename::String = ""
     h::F = NaN
 end
 
@@ -49,9 +58,6 @@ function Snapshot(filename::String; mmap=false)
     kwargs = Dict{Symbol, Any}()
 
     h5open(filename, "r") do h5f
-        for (var, header) in h5scalars
-            kwargs[var] = get_vector(h5f, header, mmap=mmap)
-        end
         for (var, header) in h5vectors
             kwargs[var] = get_vector(h5f, header, mmap=mmap)
         end
@@ -88,7 +94,7 @@ function Base.getindex(snap::Snapshot, i::Int)
 end
 
 
-function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector})
+function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon})
     kwargs = Dict{Symbol, Any}()
     kwargs[:m] = snap.m
     kwargs[:h] = snap.h
@@ -115,10 +121,6 @@ function Base.setindex!(snap::Snapshot, p::Particle, i::Int)
 end
 
 
-function Base.show(io::IO, snap::Snapshot)
-    print(io, "<snapshot with $(length(snap)) particles>")
-    return io
-end
 
 
 
@@ -138,12 +140,8 @@ end
 
 function write!(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
-        for (var, col) in h5scalars
-            val = getproperty(snap, var)
-            set_vector!(h5f, col, val)
-        end
         for (var, col) in h5vectors
-            val = Matrix(getproperty(snap, var))
+            val = getproperty(snap, var) # matrix is unneccesary,
             set_vector!(h5f, col, val)
         end
 
@@ -158,6 +156,11 @@ end
 
 function Base.show(io::IO, p::Particle)
     @printf io "particle at (%4.2f, %4.2f, %4.2f)" p.pos...
+    return io
+end
+
+function Base.show(io::IO, snap::Snapshot)
+    print(io, "<snapshot with $(length(snap)) particles>")
     return io
 end
 

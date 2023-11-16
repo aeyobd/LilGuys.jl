@@ -49,6 +49,12 @@ function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
     h5f[path] = val
 end
 
+
+function set_vector_ele!(h5f::HDF5.File, key::String, el::Int, val, group="PartType1")
+    path = group * "/" * key
+    h5f[path][el] = val
+end
+
 function set_header_attr(h5f::HDF5.File, key::String, val)
     header = attrs(h5f["Header"])
     header[key] = val
