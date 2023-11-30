@@ -59,12 +59,14 @@ function Snapshot(filename::String; mmap=false)
 
     h5open(filename, "r") do h5f
         for (var, header) in h5vectors
-            kwargs[var] = get_vector(h5f, header, mmap=mmap)
+            if header ∈ keys(h5f["PartType1"])
+                kwargs[var] = get_vector(h5f, header, mmap=mmap)
+            end
         end
 
         header = get_header(h5f)
         kwargs[:header] = header
-        kwargs[:m] = header["MassTable"][1]
+        kwargs[:m] = header["MassTable"][2]
         kwargs[:filename] = filename
     end
     return Snapshot(; kwargs...)
@@ -78,6 +80,9 @@ Base.size(snap::Snapshot) = (length(snap.index),)
 Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
 
+function iloc(snap::Snapshot, i::Int)
+    # return sortperm(snap.index)[i]
+end
 
 function Base.getindex(snap::Snapshot, i::Int)
     kwargs = Dict{Symbol, Any}()
@@ -94,7 +99,7 @@ function Base.getindex(snap::Snapshot, i::Int)
 end
 
 
-function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon})
+function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector})
     kwargs = Dict{Symbol, Any}()
     kwargs[:m] = snap.m
     kwargs[:h] = snap.h

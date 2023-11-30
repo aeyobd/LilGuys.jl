@@ -110,6 +110,26 @@ function to_sky(phase::PhasePoint)
             )
 end
 
+function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
+    observations = Observation[]
+
+    for i in 1:length(snap)
+        if verbose
+            print("converting $(i)/($(length(snap))\r")
+        end
+        particle = snap[i]
+        if invert_velocity
+            vel = -1 * particle.vel
+        else
+            vel = particle.vel
+        end
+        phase = PhasePoint(particle.pos, -1 * particle.vel)
+        obs = to_sky(phase)
+        push!(observations, obs)
+    end
+    return observations
+end
+
 function rand_coord(obs::Observation, err::Observation)
     return Observation(
         ra = obs.ra,

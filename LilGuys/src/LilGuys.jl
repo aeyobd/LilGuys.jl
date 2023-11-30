@@ -7,10 +7,12 @@ export to_galcen, to_sky
 export write!
 
 include("units.jl")
+include("snapshot.jl")
 include("coordinates.jl")
 include("hdf5_utils.jl")
-include("snapshot.jl")
 include("output.jl")
+include("profile.jl")
+include("centre.jl")
 
 
 end # module LilGuys
