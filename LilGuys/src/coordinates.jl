@@ -53,6 +53,13 @@ Base.@kwdef struct PhasePoint
     vel::Point
 end
 
+Base.@kwdef struct FuzzyPhase
+    pos::Point
+    vel::Point
+    δx::F
+    δv::F
+end
+
 
 Base.@kwdef struct Observation
     ra::F
@@ -61,6 +68,20 @@ Base.@kwdef struct Observation
     pm_ra::F
     pm_dec::F
     radial_velocity::F
+end
+
+Base.@kwdef struct FuzzyObservation
+    ra::F
+    dec::F
+    distance::F
+    pm_ra::F
+    pm_dec::F
+    radial_velocity::F
+
+    distance_err::F
+    pm_ra_err::F
+    pm_dec_err::F
+    radial_velocity_err::F
 end
 
 

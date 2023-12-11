@@ -40,7 +40,7 @@ function Base.:(==)(p::Particle, q::Particle)
 end
 
 
-Base.@kwdef struct Snapshot <: AbstractArray{Particle, 1}
+Base.@kwdef mutable struct Snapshot <: AbstractArray{Particle, 1}
     pos::Matrix{F}
     vel::Matrix{F}
     m::F
