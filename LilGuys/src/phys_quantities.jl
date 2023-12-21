@@ -3,6 +3,9 @@ function r(x::Matrix{F})
     return reshape(sqrt.(sum(x.^2, dims=1)), :)
 end
 
+r(p::Particle) = r(p.pos)
+v(p::Particle) = r(p.vel)
+
 function r(x::Vector{F})
     if length(x) != 3
         error("Vector must have length 3")

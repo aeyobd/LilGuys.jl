@@ -11,13 +11,13 @@ using LilGuys
     index = collect(1:N)
     Φ = -rand(N)
     Φ_ext = -rand(N)
-    mass = 0
+    m = LilGuys.ConstVector(0.1, N)
     h=rand()
     filename = "test.hdf5"
-    header = LilGuys.make_default_header(N, mass)
+    header = LilGuys.make_default_header(N, m[1])
 
-    snap = Snapshot(pos=pos, vel=vel, acc=acc,
-                    Φ=Φ, Φ_ext=Φ_ext, m=mass, index=index, h=h, 
+    snap = Snapshot(m=m, pos=pos, vel=vel,
+                    acc=acc, Φ=Φ, Φ_ext=Φ_ext, index=index, h=h, 
                     filename=filename, header=header)
 
 
@@ -25,13 +25,19 @@ using LilGuys
     @test all(snap.vel .== vel)
     @test all(snap.acc .== acc)
     @test all(snap.Φ .== Φ)
-    @test snap.m == mass
+    @test snap.m[1] ≈ m[1]
 
-    write!(filename, snap)
 
+    save(filename, snap)
     snap1 = Snapshot(filename)
-    @test all(snap1.pos .== snap.pos)
-    @test all(snap1 .== snap)
-
+    for attr in fieldnames(Snapshot)
+        if attr ∉ [:h, :header]
+            @test all(getfield(snap, attr) .== getfield(snap1, attr))
+        end
+    end
+    @test snap1.header == snap.header
 end
 
+function load_snap()
+    return Snapshot("test.hdf5")
+end

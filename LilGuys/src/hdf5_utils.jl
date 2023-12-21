@@ -4,9 +4,9 @@ using HDF5
 # Make a default header for an HDF5 file
 function make_default_header(N, mass)
     header = Dict{String,Any}()
-    header["NumPart_ThisFile"] = [0, N]
-    header["NumPart_Total"] = [0, N]
-    header["MassTable"] = [0.0, mass]
+    header["NumPart_ThisFile"] = F[0, N]
+    header["NumPart_Total"] = F[0, N]
+    header["MassTable"] = F[0.0, mass]
     header["Time"] = 0.0
     header["Redshift"] = 0.0
     header["BoxSize"] = 350.0

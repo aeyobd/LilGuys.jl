@@ -23,107 +23,82 @@
 import StatsBase as sb
 import SpecialFunctions: erf
 import NearestNeighbors as nn
-import Interpolations: linear_interpolation, Line
-
-
-
-"""Finds the centre using the shrinking sphere method"""
-function ss_centre(snap::Snapshot, perc=95, min_frac=0.2)
-    N = length(snap)
-    N_min = ceil(min_frac * N)
-
-    snap1 = copy(snap)
-    idx0 = argmin(snap1.Φ)
-    xs = []
-    vs = []
-
-
-    x0 = snap1.pos[:, idx0]
-    v0 = snap1.vel[:, idx0]
-
-    while length(snap1) > N_min
-        push!(xs, x0)
-        push!(vs, v0)
-
-        snap1 = cut_outside(snap1, x0, perc)
-        calc_Φ!(snap1)
-        snap1 = cut_unbound(snap1, x0, v0)
-
-        x0, v0 = centroid(snap1.pos)
-    end
-
-    print(std(xs))
-    print(std(vs))
-
-    return x0, v0
-end
-
-
-
-
-
-function phase_volume(snap::Snapshot; k=5)
-    δrs = []
-    δvs = []
-    tree = nn.KDTree(snap.pos)
-    for i in 1:length(snap)
-        δr, δv = phase_volume(snap, tree, i)
-        push!(δrs, δr)
-        push!(δvs, δv)
-    end
-    return δrs, δvs
-end
-
-
-function phase_volume(snap, tree, idx; k=10, s=5, η=0.3)
-    idxs, dists = nn.knn(tree, snap.pos[:, idx], k)
-    filt = dists .> 0
-    idxs = idxs[filt]
-    dists = dists[filt]
-
-    r_std = maximum(dists) / sqrt(k)
-    vs = r(snap.vel[:, idxs] .- snap.vel[:, idx])
-    v = sb.mean(sort(vs)[1:s])
-    v_std = η * v / sqrt(s)
-    return r_std, v_std
-end
-
-
-
-
-function fuzzy_centre(snap::Snapshot, p::PhasePoint; percen=5, )
-    cen = potential_centre(snap, percen=percen)
-    δr, δv = phase_volume(snap, p, k=10)
-
-    weights = ones(length(snap))
-
-    for i in 1:10
-        weights = bound_probabilities(snap, k=10)
-    end
-end
 
 
 """
-given a centered snapshot, returns a interpolated potential a a function 
-of r"""
-function calc_radial_Φ(snap::Snapshot)
-    # work outside in 
-    rs = sort(r(snap.pos))
-    m = snap.m
+Computes the centre of a snapshot while accounting for uncertanties
 
-    N = length(snap)
-    M_inside = m * collect(1:N)
+Parameters
+----------
+snap : Snapshot
+    The snapshot to find the centre of
+p0 : FuzzyPhase
+    The initial guess for the centre with uncertanties
+threshold : Float
+    The threshold for the probability distribution. Any point with a 
+    probability less than this will be ignored.
+γ : Float
+    Momentum decay on centres.
+"""
+function fuzzy_centre(snap::Snapshot, p0::FuzzyPhase; 
+        min_fraction=0.1, threshold=0.1, β=0.9, dx_min=0.05, dv_min=0.001, max_iter=10)
+    snap_c = copy(snap)
+    snap_c.w = ones(length(snap))
+    cen = copy(p0)
+    xc = cen.pos
+    vc = cen.vel
+    dx = zeros(3)
+    dv = zeros(3)
+    dcen = copy(cen)
 
-    Φ_inside = -G * M_inside ./ rs
-    
-    Φ_outside = -G*snap.m .* [ sum(1 ./ rs[i:end]) for i in 1:N+1]
+    for _ in 1:max_iter
+        update_weights!(snap_c, threshold=threshold, β=β)
+        cen = centroid(snap_c, snap_c.m .* snap_c.w)
 
-    pushfirst!(rs, 0)
-    pushfirst!(Φ_inside, 0)
+        dx = β*dx + (1-β) * cen.pos
+        dv = β*dv + (1-β) * cen.vel
+        δx = β*dcen.δx + (1-β) * (norm(dx) + cen.δx)
+        δv = β*dcen.δv + (1-β) * (norm(dv) + cen.δv)
+        dcen = FuzzyPhase(dx, dv, δx, δv)
 
-    Φs = Φ_inside .+ Φ_outside
+        update_centre!(snap_c, dcen)
+        frac = mean(snap_c.w .> threshold)
+        xc = xc .+ dx
+        vc = vc .+ dv
 
-    return linear_interpolation(rs, Φs, extrapolation_bc=Line())
+        if (norm(dx) < dx_min) && (norm(dv) < dv_min)
+            break
+        end
+
+        println("f = ", frac)
+        println(cen)
+        if frac < min_fraction
+            break
+        end
+    end
+
+    cen = FuzzyPhase(xc, vc, cen.δx, cen.δv)
+    return cen, snap_c.w
+end
+
+function update_weights!(snap::Snapshot; β=0.5, threshold=0)
+    weights = bound_probabilities(snap, k=10)
+    weights = β * snap.w .+ (1-β) * weights
+    weights[weights .< threshold] .= 0
+    snap.w = weights
+    return snap
+end
+
+function update_centre!(snap::Snapshot, p::FuzzyPhase; percen=0.5)
+    cen = potential_centre(snap, percen=percen)
+    δrs, δvs = phase_volumes(snap, k=10)
+    δrs .= cen.δx
+    δvs .+= cen.δv
+    snap.pos .-= cen.pos 
+    snap.vel .-= cen.vel
+    snap.δr = δrs
+    snap.δv = δvs
+    return snap
 end
 
 
@@ -132,7 +107,7 @@ end
 
 function bound_probabilities(snap::Snapshot; k=5)
     Φ = calc_radial_Φ(snap)
-    δxs, δvs = knn_err(snap, k=k)
+    δxs, δvs = phase_volumes(snap, k=k)
 
     probs = zeros(length(snap))
 
@@ -162,19 +137,29 @@ end
 
 ### Utilities for finding the center
 #
-function centroid(x::Matrix{F}, 
-        weights::Vector{F}=ones(length(x))
-    return sum(x .* w, dims=2) /sum(weights)
+function centroid(x::Matrix{F}, weights::Vector{F})
+    w = reshape(weights, :, 1) ./ sum(weights)
+    return (x * w)[:, 1]
 end
 
-function centroid_err(x::Matrix{F}, 
-        weights::Vector{F}=ones(length(x))
-    variance= sum((x.^2 .* w), dims=2) / sum(weights)
+function centroid(x::Matrix{F})
+    c =  sum(x, dims=2) / size(x, 2)
+    return c[:, 1]
+end
+
+function centroid_err(x::Matrix{F}, weights::Vector{F})
+    w = reshape(weights, :, 1) ./ sum(weights)
+    variance = mean(x.^2 * w)
+    return sqrt(variance)
+end
+
+function centroid_err(x::Matrix{F})
+    variance= mean(sum(x.^2, dims=2) / size(x, 2))
     return sqrt(variance)
 end
 
 
-function centroid(snap::Snapshot, weights::Vector{F}=ones(length(snap))
+function centroid(snap::Snapshot, weights::Vector{F}=ones(length(snap)))
     pos_c = centroid(snap.pos, weights)
     vel_c = centroid(snap.vel, weights)
     δx = centroid_err(snap.pos .- pos_c, weights)
@@ -192,30 +177,37 @@ end
 
 
 
-function cut_outside(snap, cerc=95)
-    r = r(snap.pos)
-    r_cut = percentile(r, perc)
-    println(r_cut)
-    filt = r .<= r_cut
-    return snap[filt]
-end
-
-
-function cut_unbound(snap::Snapshot, x0, v0)
-    x1 = snap.pos .- x0
-    v1 = snap.vel .- v0
-
-    E_kin = 0.5 * r(v1).^2
-    E_spec = snap.Φ .+ E_kin
-
-    filt = E_spec .< 0
-    return snap[filt]
-end
-
-
 function normal_cdf(x, μ, σ)
     z = (x - μ) / σ
     return 0.5 * (1 + erf(z / sqrt(2)))
 end
 
+
+
+# 
+function phase_volumes(snap::Snapshot; k=5)
+    δrs = []
+    δvs = []
+    tree = nn.KDTree(snap.pos)
+    for i in 1:length(snap)
+        δr, δv = phase_volume(snap, tree, i)
+        push!(δrs, δr)
+        push!(δvs, δv)
+    end
+    return δrs, δvs
+end
+
+
+function phase_volume(snap, tree, idx; k=10, s=5, η=0.3)
+    idxs, dists = nn.knn(tree, snap.pos[:, idx], k)
+    filt = dists .> 0
+    idxs = idxs[filt]
+    dists = dists[filt]
+
+    r_std = maximum(dists) / sqrt(k)
+    vs = r(snap.vel[:, idxs] .- snap.vel[:, idx])
+    v = sb.mean(sort(vs)[1:s])
+    v_std = η * v / sqrt(s)
+    return r_std, v_std
+end
 
