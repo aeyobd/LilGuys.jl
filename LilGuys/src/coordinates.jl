@@ -73,12 +73,12 @@ end
 function to_sky(phase::PhasePoint)
     pos = phase.pos * R0
     vel = phase.vel * V0
-    sc = astropy_coords.SkyCoord(x = pos.x * u.kpc,
-                  y = pos.y * u.kpc,
-                  z = pos.z * u.kpc,
-                  v_x = vel.x * u.km/u.s,
-                  v_y = vel.y * u.km/u.s,
-                  v_z = vel.z * u.km/u.s,
+    sc = astropy_coords.SkyCoord(x = pos[1] * u.kpc,
+                                 y = pos[2] * u.kpc,
+                                 z = pos[3] * u.kpc,
+                                 v_x = vel[1] * u.km/u.s,
+                  v_y = vel[2] * u.km/u.s,
+                  v_z = vel[3] * u.km/u.s,
                   frame = galcen_frame
                  )
     tc = sc.transform_to(geocen_frame)

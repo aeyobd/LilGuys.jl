@@ -14,8 +14,9 @@ const h5vectors = Dict(
    )
 
 
+AbstractSnapshot = AbstractArray{Particle, 1}
 
-Base.@kwdef mutable struct Snapshot <: AbstractArray{Particle, 1}
+Base.@kwdef struct Snapshot <: AbstractSnapshot
     pos::Matrix{F}
     vel::Matrix{F}
     m::Vector{F}
@@ -26,10 +27,6 @@ Base.@kwdef mutable struct Snapshot <: AbstractArray{Particle, 1}
     index::Vector{Int} = collect(1:size(pos, 2))
     filename::String = ""
     h::F = NaN
-
-    δr::Vector{F} = []
-    δv::Vector{F} = []
-    w::Vector{F} = []
 end
 
 

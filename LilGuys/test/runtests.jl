@@ -12,3 +12,8 @@ end
 @testset "profile" begin
     include("profile_tests.jl")
 end
+
+@testset "coordinates" begin
+    include("coord_tests.jl")
+end
+

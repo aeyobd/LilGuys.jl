@@ -2,6 +2,15 @@ using HDF5
 using LilGuys
 
 
+function assert_equal(a::Snapshot, b::Snapshot)
+    @test a.header == b.header
+    @test a.m == b.m
+    @test a.pos == b.pos
+    @test a.vel == b.vel
+    @test a.acc == b.acc
+    @test a.Φ == b.Φ
+end
+
 # Test for creating a default header
 @testset "Snapshot Creation" begin
     N = 1000
@@ -29,15 +38,27 @@ using LilGuys
 
 
     save(filename, snap)
-    snap1 = Snapshot(filename)
-    for attr in fieldnames(Snapshot)
-        if attr ∉ [:h, :header]
-            @test all(getfield(snap, attr) .== getfield(snap1, attr))
-        end
-    end
-    @test snap1.header == snap.header
+    snap_saved = Snapshot(filename)
+    assert_equal(snap, snap_saved)
 end
 
 function load_snap()
     return Snapshot("test.hdf5")
+end
+
+@testset "copy snapshot" begin
+    snap = load_snap()
+    snap2 = copy(snap)
+    assert_equal(snap, snap2)
+
+    N = 1000
+    snap2.pos .+= [1,2,3]
+    snap2.vel .-= [1,2,3]
+    snap2.acc .*= 2
+    snap2.Φ .*= 2
+
+    @test snap2.pos != snap.pos
+    @test snap2.vel != snap.vel
+    @test snap2.acc != snap.acc
+    @test snap2.Φ != snap.Φ
 end
