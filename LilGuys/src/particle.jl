@@ -1,15 +1,19 @@
 using Printf
 
+OptVector = Union{Vector{F}, Nothing}
+OptMatrix = Union{Matrix{F}, Nothing}
+OptF = Union{F, Nothing}
+
 
 Base.@kwdef struct Particle
     m::F
     pos::Vector{F}
     vel::Vector{F}
-    acc::Vector{F} = []
-    Φ::F = nothing
-    Φ_ext::F = nothing
-    h::F = NaN
     index::Int
+    acc::OptVector = nothing
+    Φ::OptF = nothing
+    Φ_ext::OptF = nothing
+    h::F = NaN
     weight::F = NaN
 end
 

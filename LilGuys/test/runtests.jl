@@ -17,3 +17,6 @@ end
     include("coord_tests.jl")
 end
 
+@testset "phys_quantities" begin
+    include("phys_quantities_tests.jl")
+end

@@ -56,6 +56,8 @@ end
     snap2.vel .-= [1,2,3]
     snap2.acc .*= 2
     snap2.Φ .*= 2
+    println(typeof(snap2))
+    println(typeof(snap))
 
     @test snap2.pos != snap.pos
     @test snap2.vel != snap.vel

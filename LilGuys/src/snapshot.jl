@@ -1,6 +1,7 @@
 using HDF5
 using LinearAlgebra: norm
 using Printf
+import Base: @kwdef
 
 
 # this maps the gadget vectors to the snapshot attributes
@@ -16,13 +17,13 @@ const h5vectors = Dict(
 
 AbstractSnapshot = AbstractArray{Particle, 1}
 
-Base.@kwdef struct Snapshot <: AbstractSnapshot
+@kwdef struct Snapshot <: AbstractSnapshot
     pos::Matrix{F}
     vel::Matrix{F}
     m::Vector{F}
-    acc::Matrix{F} = []
-    Φ::Vector{F} = []
-    Φ_ext::Vector{F} = []
+    acc::OptMatrix = nothing
+    Φ::OptVector = nothing
+    Φ_ext::OptVector = nothing
     header::Dict{String, Any} = make_default_header(size(pos, 2), m[1]) #TODO: more robustly deal with variable masses
     index::Vector{Int} = collect(1:size(pos, 2))
     filename::String = ""
@@ -61,19 +62,23 @@ end
 function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
-    for sym in [:m, :Φ, :Φ_ext, :index]
-        kwargs[sym] = getproperty(snap, sym)[idx]
-    end
-    for sym in [:pos, :vel, :acc]
-        kwargs[sym] = getproperty(snap, sym)[:, idx]
+    for sym in fieldnames(Snapshot)
+        if getproperty(snap, sym) === nothing
+            continue
+        elseif !isa(idx, Int) && sym ∈ [:header, :filename]
+            kwargs[sym] = getproperty(snap, sym)
+        elseif sym ∈ [:pos, :vel, :acc]
+            kwargs[sym] = getproperty(snap, sym)[:, idx]
+        elseif sym ∈ [:m, :Φ, :Φ_ext, :index]
+            kwargs[sym] = getproperty(snap, sym)[idx]
+        else
+            continue
+        end
     end
 
     if isa(idx, Int)
         return Particle(; kwargs...)
     end
-
-    kwargs[:header] = snap.header
-    kwargs[:filename] = snap.filename
     return Snapshot(; kwargs...)
 end
 

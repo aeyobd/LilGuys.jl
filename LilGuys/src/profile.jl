@@ -1,13 +1,20 @@
+using Base: @kwdef
 using StatsBase
 
 """
 A 1-d representation of the profile of a galaxy.
 """
-@Base.kwdef struct Profile
-    r::Vector{F}
-    M::Vector{F}
-    ρ::Vector{F}
-    V_circ::Vector{F}
+@kwdef struct Profile
+    snap::Snapshot
+    δx::OptVector = nothing
+    δv::OptVector = nothing
+    p0::Point = [0,0,0]
+    v0::Point = [0,0,0]
+
+    r::OptVector = nothing
+    M::OptVector = nothing
+    ρ::OptVector = nothing
+    V_circ::OptVector = nothing
 end
 
 
@@ -25,6 +32,16 @@ function Profile(snap::Snapshot, r_s, n, Nr=20, Ne=20)
     return Profile(r, M, ν, V_circ)
 end
 
+
+function Base.getproperty(p::Profile, s::Symbol)
+    if s ∈ fieldnames(Profile)
+        return getfield(p, s)
+    elseif s ∈ fieldnames(Snapshot)
+        return getfield(p.snap, s)
+    else
+        error("Profile has no field $s")
+    end
+end
 
 function create_r_bins(r_min, r_max, n_bins)
     return exp10.(range(log10(r_min), stop=log10(r_max), length=n_bins+1))
