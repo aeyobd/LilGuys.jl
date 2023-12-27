@@ -5,12 +5,7 @@ using StatsBase
 A 1-d representation of the profile of a galaxy.
 """
 @kwdef struct Profile
-    snap::Snapshot
-    δx::OptVector = nothing
-    δv::OptVector = nothing
-    p0::Point = [0,0,0]
-    v0::Point = [0,0,0]
-
+    cen::FuzzyPhase
     r::OptVector = nothing
     M::OptVector = nothing
     ρ::OptVector = nothing

@@ -1,25 +1,3 @@
-# Finding the center of a snapshot
-# This process turns out to be more nuanced, so 
-# we have several methods here
-#
-# Mean
-#   The mean center is the most straightforward, but
-#   during late-stage tidal stripping, this stops being as useful.
-#   The uncertanty is simply the standard error on the mean.
-#
-# Shrinking Spheres
-#
-#
-# Potential center
-#   
-#
-# Statistical center
-#   By combining the above methods, we can find a bayesian estimate
-#   of the center given a prior. 
-#
-#
-
-
 import StatsBase as sb
 import SpecialFunctions: erf
 import NearestNeighbors as nn
@@ -32,27 +10,19 @@ Parameters
 ----------
 snap : Snapshot
     The snapshot to find the centre of
-p0 : FuzzyPhase
-    The initial guess for the centre with uncertanties
 threshold : Float
     The threshold for the probability distribution. Any point with a 
     probability less than this will be ignored.
 γ : Float
     Momentum decay on centres.
 """
-function fuzzy_centre(snap::Snapshot, p0::FuzzyPhase; 
-        min_fraction=0.1, threshold=0.1, β=0.9, dx_min=0.05, dv_min=0.001, max_iter=10)
-    snap_c = copy(snap)
-    snap_c.w = ones(length(snap))
-    cen = copy(p0)
-    xc = cen.pos
-    vc = cen.vel
-    dx = zeros(3)
-    dv = zeros(3)
+function fuzzy_centre!(snap_i::FSnapshot; min_fraction=0.1, threshold=0.1, 
+        β=0.9, dx_min=0.05, dv_min=0.001, max_iter=10)
+    snap = copy(snap_i)
     dcen = copy(cen)
 
     for _ in 1:max_iter
-        update_weights!(snap_c, threshold=threshold, β=β)
+        update_weights!(snap, threshold=threshold, β=β)
         cen = centroid(snap_c, snap_c.m .* snap_c.w)
 
         dx = β*dx + (1-β) * cen.pos
@@ -81,7 +51,8 @@ function fuzzy_centre(snap::Snapshot, p0::FuzzyPhase;
     return cen, snap_c.w
 end
 
-function update_weights!(snap::Snapshot; β=0.5, threshold=0)
+
+function update_weights!(snap::FSnapshot; β=0.5, threshold=0)
     weights = bound_probabilities(snap, k=10)
     weights = β * snap.w .+ (1-β) * weights
     weights[weights .< threshold] .= 0
@@ -89,7 +60,8 @@ function update_weights!(snap::Snapshot; β=0.5, threshold=0)
     return snap
 end
 
-function update_centre!(snap::Snapshot, p::FuzzyPhase; percen=0.5)
+
+function update_centre!(snap::FSnapshot, p::FuzzyPhase; percen=0.5)
     cen = potential_centre(snap, percen=percen)
     δrs, δvs = phase_volumes(snap, k=10)
     δrs .= cen.δx
@@ -100,7 +72,6 @@ function update_centre!(snap::Snapshot, p::FuzzyPhase; percen=0.5)
     snap.δv = δvs
     return snap
 end
-
 
 
 
@@ -159,17 +130,26 @@ function centroid_err(x::Matrix{F})
 end
 
 
-function centroid(snap::Snapshot, weights::Vector{F}=ones(length(snap)))
+function centroid(snap::AbstractSnapshot)
+    pos_c = centroid(snap.pos)
+    vel_c = centroid(snap.vel)
+    δr = centroid_err(snap.pos .- pos_c)
+    δv = centroid_err(snap.vel .- vel_c)
+
+    return FuzzyPhase(pos_c, vel_c, δr, δv)
+end
+
+function centroid(snap::AbstractSnapshot, weights::Vector{F})
     pos_c = centroid(snap.pos, weights)
     vel_c = centroid(snap.vel, weights)
-    δx = centroid_err(snap.pos .- pos_c, weights)
+    δr = centroid_err(snap.pos .- pos_c, weights)
     δv = centroid_err(snap.vel .- vel_c, weights)
 
-    return FuzzyPhase(pos_c, vel_c, δx, δv)
+    return FuzzyPhase(pos_c, vel_c, δr, δv)
 end
 
 
-function potential_centre(snap::Snapshot; percen=5)
+function potential_centre(snap::AbstractSnapshot; percen=5)
     threshhold = percentile(snap.Φ, percen)
     filt = snap.Φ .< threshhold
     return centroid(snap[filt])
@@ -179,13 +159,16 @@ end
 
 function normal_cdf(x, μ, σ)
     z = (x - μ) / σ
+    return normal_cdf(z)
+end
+
+function normal_cdf(z)
     return 0.5 * (1 + erf(z / sqrt(2)))
 end
 
 
 
-# 
-function phase_volumes(snap::Snapshot; k=5)
+function phase_volumes(snap::AbstractSnapshot; k=5)
     δrs = []
     δvs = []
     tree = nn.KDTree(snap.pos)

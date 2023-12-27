@@ -20,9 +20,6 @@ function __init__()
 end
 
 
-
-
-
 Base.@kwdef struct Observation
     ra::F
     dec::F
@@ -129,8 +126,8 @@ function rand_coords(obs::Observation, err::Observation, N::Int)
 end
 
 function PhasePoint(x::F, y::F, z::F, vx::F, vy::F, vz::F)
-    pos = Point([x,y,z])
-    vel = Point([vx,vy,vz])
+    pos = [x,y,z]
+    vel = [vx,vy,vz]
     return PhasePoint(pos, vel)
 end
 
@@ -140,10 +137,6 @@ function Base.show(io::IO, pp::PhasePoint)
     return io
 end
 
-function Base.show(io::IO, pp::Point)
-    @printf io "point(%4.4f, %4.4f, %4.4f)" pp...
-    return io
-end
 
 function Base.show(io::IO, obs::Observation)
     @printf io "observation at (%4.2f, %4.2f)"  obs.ra obs.dec

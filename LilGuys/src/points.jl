@@ -69,37 +69,7 @@ function Point(v::Vector)
     end
 end
 
-Base.@kwdef struct PhasePoint
-    pos::Vector{F}
-    vel::Vector{F}
+function Base.show(io::IO, pp::Point)
+    @printf io "point(%4.4f, %4.4f, %4.4f)" pp...
+    return io
 end
-
-Base.@kwdef struct FuzzyPhase
-    pos::Point
-    vel::Point
-    δx::F
-    δv::F
-end
-
-function (+)(p::FuzzyPhase, q::FuzzyPhase)
-    return FuzzyPhase(p.pos + q.pos, p.vel + q.vel, p.δx + q.δx, p.δv + q.δv)
-end
-
-function copy(p::FuzzyPhase)
-    return FuzzyPhase(copy(p.pos), copy(p.vel), p.δx, p.δv)
-end
-
-function (*)(a::F, p::FuzzyPhase)
-    return FuzzyPhase(a * p.pos, a * p.vel, a * p.δx, a * p.δv)
-end
-
-
-struct ConstVector <: AbstractArray{F, 1}
-    val::F
-    size::Int
-end
-
-Base.getindex(v::ConstVector, i::Int) = v.val
-Base.show(io::IO, v::ConstVector) = print(io, v.val)
-Base.size(v::ConstVector) = (v.size,)
-Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()

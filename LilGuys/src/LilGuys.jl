@@ -2,14 +2,14 @@ module LilGuys
 
 export Snapshot
 export Output
-export Point, PhasePoint
+export Observation, PhasePoint
 export to_galcen, to_sky
 export save
 
 include("units.jl")
-include("points.jl")
 include("particle.jl")
 include("snapshot.jl")
+include("fuzzy_snapshot.jl")
 include("coordinates.jl")
 include("hdf5_utils.jl")
 include("phys_quantities.jl")

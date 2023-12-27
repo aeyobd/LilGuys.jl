@@ -1,4 +1,5 @@
 using Printf
+import Base: +, *
 
 OptVector = Union{Vector{F}, Nothing}
 OptMatrix = Union{Matrix{F}, Nothing}
@@ -58,3 +59,37 @@ function Base.show(io::IO, p::Particle)
     return io
 end
 
+Base.@kwdef struct PhasePoint
+    pos::Vector{F}
+    vel::Vector{F}
+end
+
+Base.@kwdef struct FuzzyPhase
+    pos::Vector{F}
+    vel::Vector{F}
+    δx::F
+    δv::F
+end
+
+function (+)(p::FuzzyPhase, q::FuzzyPhase)
+    return FuzzyPhase(p.pos + q.pos, p.vel + q.vel, p.δx + q.δx, p.δv + q.δv)
+end
+
+function Base.copy(p::FuzzyPhase)
+    return FuzzyPhase(copy(p.pos), copy(p.vel), p.δx, p.δv)
+end
+
+function (*)(a::F, p::FuzzyPhase)
+    return FuzzyPhase(a * p.pos, a * p.vel, a * p.δx, a * p.δv)
+end
+
+
+struct ConstVector <: AbstractArray{F, 1}
+    val::F
+    size::Int
+end
+
+Base.getindex(v::ConstVector, i::Int) = v.val
+Base.show(io::IO, v::ConstVector) = print(io, v.val)
+Base.size(v::ConstVector) = (v.size,)
+Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()

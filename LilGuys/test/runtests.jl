@@ -9,6 +9,10 @@ end
     include("snapshot_tests.jl")
 end
 
+@testset "fuzzy snapshot " begin
+    include("fuzzy_snapshot_tests.jl")
+end
+
 @testset "profile" begin
     include("profile_tests.jl")
 end
@@ -19,4 +23,8 @@ end
 
 @testset "phys_quantities" begin
     include("phys_quantities_tests.jl")
+end
+
+@testset "centre" begin
+    include("centre_tests.jl")
 end

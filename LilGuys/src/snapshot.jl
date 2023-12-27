@@ -59,7 +59,7 @@ function iloc(snap::Snapshot, i::Int)
 end
 
 
-function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
+function Base.getindex(snap::AbstractSnapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
     for sym in fieldnames(Snapshot)
