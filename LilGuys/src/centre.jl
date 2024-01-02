@@ -1,4 +1,3 @@
-import StatsBase as sb
 import SpecialFunctions: erf
 import NearestNeighbors as nn
 
@@ -157,23 +156,34 @@ end
 
 
 
-function normal_cdf(x, μ, σ)
-    z = (x - μ) / σ
-    return normal_cdf(z)
-end
 
-function normal_cdf(z)
-    return 0.5 * (1 + erf(z / sqrt(2)))
-end
+"""
+Computes the sizes of each particle in phase space
 
+Parameters
+----------
+k : Int
+    The number of nearest neighbours to use
+s : Int
+    The number of nearest neighbours to use for the velocity
+η : Float
+    The fraction of the velocity to use for the velocity standard deviation
+"""
+function phase_volumes(snap::AbstractSnapshot; k=5, kwargs...)
+    tree = nn.KDTree(snap.pos)
+    idxs, dists = nn.knn(tree, snap.pos, k+1)
 
-
-function phase_volumes(snap::AbstractSnapshot; k=5)
     δrs = []
     δvs = []
-    tree = nn.KDTree(snap.pos)
+
     for i in 1:length(snap)
-        δr, δv = phase_volume(snap, tree, i)
+        idx = idxs[i][2:end]
+        rs = dists[i][2:end]
+
+        vel_0 = snap.vel[:, i]
+        vs = r(snap.vel[:, idx] .- vel_0)
+
+        δr, δv = phase_volume(rs, vs; kwargs...)
         push!(δrs, δr)
         push!(δvs, δv)
     end
@@ -181,15 +191,15 @@ function phase_volumes(snap::AbstractSnapshot; k=5)
 end
 
 
-function phase_volume(snap, tree, idx; k=10, s=5, η=0.3)
-    idxs, dists = nn.knn(tree, snap.pos[:, idx], k)
-    filt = dists .> 0
-    idxs = idxs[filt]
-    dists = dists[filt]
+function phase_volume(rs::Vector{F}, vs::Vector{F}; η=0.3, s=nothing)
+    k = length(rs)
 
-    r_std = maximum(dists) / sqrt(k)
-    vs = r(snap.vel[:, idxs] .- snap.vel[:, idx])
-    v = sb.mean(sort(vs)[1:s])
+    if s === nothing
+        s = k
+    end
+
+    r_std = maximum(rs) / sqrt(k)
+    v = mean(sort(vs)[1:s])
     v_std = η * v / sqrt(s)
     return r_std, v_std
 end

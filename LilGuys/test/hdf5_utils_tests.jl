@@ -1,11 +1,9 @@
-using HDF5
-using LilGuys
 
 # Test for creating a default header
 @testset "Default Header Creation" begin
     N = 100
     mass = 1.0
-    header = LilGuys.make_default_header(N, mass)
+    header = lguys.make_default_header(N, mass)
 
     @test header["NumPart_ThisFile"] == [0, N]
     @test header["NumPart_Total"] == [0, N]
@@ -22,12 +20,12 @@ end
     m = 1.0
 
     h5open(testfile, "w") do h5_f
-        header = LilGuys.make_default_header(N, m)
-        LilGuys.set_header!(h5_f, header)
+        header = lguys.make_default_header(N, m)
+        lguys.set_header!(h5_f, header)
     end
 
     h5open(testfile, "r") do h5_f
-        header = LilGuys.get_header(h5_f)
+        header = lguys.get_header(h5_f)
         @test header["NumPart_ThisFile"] == [0, N]
         @test header["MassTable"] == [0.0, m]
     end
@@ -42,11 +40,11 @@ end
     vector_val = [1.0, 2.0, 3.0]
 
     h5open(testfile, "w") do h5_f
-        LilGuys.set_vector!(h5_f, vector_key, vector_val)
+        lguys.set_vector!(h5_f, vector_key, vector_val)
     end
 
     h5open(testfile, "r") do h5_f
-        retrieved_vector = LilGuys.get_vector(h5_f, vector_key)
+        retrieved_vector = lguys.get_vector(h5_f, vector_key)
         @test all(retrieved_vector .== vector_val)
     end
 
@@ -67,7 +65,7 @@ end
     end
 
     # Test the epsilon value extraction function
-    epsilon = LilGuys.get_epsilon(directory)
+    epsilon = lguys.get_epsilon(directory)
     @test epsilon === ϵ
 
     # Cleanup the temporary directory

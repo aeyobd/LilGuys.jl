@@ -1,28 +1,69 @@
-
 import Interpolations: linear_interpolation, Line
 
-function ρ_E21(x, x0, r_s, r_t, c)
-end
 
 """
 given a centered snapshot, returns a interpolated potential a a function 
-of r"""
+of r
+"""
 function calc_radial_Φ(snap::Snapshot)
-    # work outside in 
-    rs = sort(r(snap.pos))
-    m = snap.m[1:end]
+    rs = calc_r(snap.pos)
+    # work inside out
+    idx = sortperm(rs)
+    rs = rs[idx]
+    m = snap.m[idx]
 
     N = length(snap)
-    M_inside = cumsum(m)
+    M_in = 0
+    Φs = zeros(N)
 
-    Φ_inside = -G * M_inside ./ rs
-    Φ_outside = -G * [ sum(snap.m[i] ./ rs[i:end]) for i in 1:N]
-    push!(Φ_outside, 0)
+    for i in 1:N
+        Φ_out = calc_Φ(m[i:end], rs[i:end])
+        Φ_in = calc_Φ(M_in, rs[i])
+        Φs[i] = Φ_out + Φ_in
 
-    pushfirst!(rs, 0)
-    pushfirst!(Φ_inside, 0)
+        M_in += m[i]
+    end
 
-    Φs = Φ_inside .+ Φ_outside
 
-    return linear_interpolation(rs, Φs, extrapolation_bc=Line())
+    lerp =  linear_interpolation(rs, Φs, extrapolation_bc=Line())
+
+    function Φ(r)
+        if r < rs[1]
+            return lerp(r)
+        else
+            return calc_Φ(M_in, r)
+        end
+    end
+
+    return Φ
+end
+
+function calc_Φ(snap::Snapshot, pos)
+    return calc_Φ(snap.pos, snap.m, pos)
+end
+
+function calc_Φ(pos::Matrix{T}, m::Vector{T}, x) where T <: Real
+    rs = calc_r(pos .- x)
+    return calc_Φ(m, rs)
+end
+
+function calc_Φ(m::Vector{T}, rs::Vector{T}) where T <: Real
+    return -G * sum(m ./ rs)
+end
+
+function calc_Φ(m::Real, R::Real)
+    return -G * m / R
+end
+
+function calc_F_grav(snap::Snapshot, pos)
+    return calc_F_grav(snap.pos, snap.m, pos)
+end
+
+function calc_F_grav(pos::Matrix{F}, m::Vector{F}, x)
+    dr = x .- pos 
+    rs = calc_r(dr)
+    r_hat = dr ./ rs
+    f =  -G * sum(m .* r_hat ./ rs.^2, dims=2)
+    f[:, rs .== 0] .= 0
+    return f
 end

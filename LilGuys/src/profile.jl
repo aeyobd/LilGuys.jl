@@ -1,5 +1,4 @@
 using Base: @kwdef
-using StatsBase
 
 """
 A 1-d representation of the profile of a galaxy.

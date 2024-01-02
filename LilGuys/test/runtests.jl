@@ -1,30 +1,10 @@
-using Test
-using LilGuys
+include("setup.jl")
 
-@testset "hdf5 utils" begin
-    include("hdf5_utils_tests.jl")
-end
 
-@testset "snapshot " begin
-    include("snapshot_tests.jl")
-end
+tests = ["utils", "hdf5_utils", "snapshot", "fuzzy_snapshot", "profile", "coordinates", "phys_quantities", "gravity", "centre"]
 
-@testset "fuzzy snapshot " begin
-    include("fuzzy_snapshot_tests.jl")
-end
-
-@testset "profile" begin
-    include("profile_tests.jl")
-end
-
-@testset "coordinates" begin
-    include("coord_tests.jl")
-end
-
-@testset "phys_quantities" begin
-    include("phys_quantities_tests.jl")
-end
-
-@testset "centre" begin
-    include("centre_tests.jl")
+for test in tests
+    @testset "$test" begin
+        include("$(test)_tests.jl")
+    end
 end

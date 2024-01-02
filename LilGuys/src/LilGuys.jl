@@ -7,6 +7,7 @@ export to_galcen, to_sky
 export save
 
 include("units.jl")
+include("utils.jl")
 include("particle.jl")
 include("snapshot.jl")
 include("fuzzy_snapshot.jl")

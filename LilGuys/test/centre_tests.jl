@@ -1,5 +1,3 @@
-using LilGuys
-
 
 @testset "centroid" begin
     x = [1. 5;
@@ -7,7 +5,7 @@ using LilGuys
          -1 1;]
 
     expected = [3., 1, 0]
-    cen = LilGuys.centroid(x)
+    cen = lguys.centroid(x)
 
     @test cen ≈ expected
 end
@@ -21,7 +19,7 @@ end
 
     expected = [3., 2., 1/3]
 
-    cen = LilGuys.centroid(x, w)
+    cen = lguys.centroid(x, w)
     @test cen ≈ expected
 end
 
@@ -42,50 +40,92 @@ end
     N = 10
     pos = transpose(hcat(ones(N), zeros(N), -ones(N)))
     vel = transpose(hcat(zeros(N), 2*ones(N), zeros(N)))
-    m = LilGuys.ConstVector(1., N)
-    snap = LilGuys.Snapshot(pos=pos, vel=vel, m=m)
+    m = lguys.ConstVector(1., N)
+    snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
 
-    cen = LilGuys.centroid(snap)
+    cen = lguys.centroid(snap)
 
     @test cen.pos ≈ [1., 0., -1.]
     @test cen.vel ≈ [0., 2., 0.]
 end
 
 
-@testset "normal cdf" begin
 
-    N = 1000
-    μ = randn(N)
-    σ = 0.5 .+ abs.(randn(N))
-    x = randn(N)
 
-    actual = LilGuys.normal_cdf.(μ, μ, σ)
-    expected = fill(0.5, N)
-    @test actual ≈ expected
+"""
+given the number of points, the cdf of radii (f_x) and the cdf of velocities given r, f_v, creates a snapshot
+"""
+function make_snap(N, f_x, f_v, f_m=x->1.)
+    rs = f_x.(rand(N))
+    vs = f_v.(rs, rand(N))
 
-    actual = @. LilGuys.normal_cdf(μ + σ, μ, σ) - LilGuys.normal_cdf(μ - σ, μ, σ)
-    expected = fill(0.682689492137, N)
-    @test actual ≈ expected
-
-    actual = @. LilGuys.normal_cdf(μ + 100σ, μ, σ)
-    expected = ones(N)
-    @test actual ≈ expected
-
-    actual = @. LilGuys.normal_cdf(μ - 100σ, μ, σ)
-    expected = zeros(N)
-    @test actual ≈ expected
-
-    actual = LilGuys.normal_cdf.(μ .+ x, μ, σ)
-    expected = @. 1 - LilGuys.normal_cdf(μ - x, μ, σ)
-    @test actual ≈ expected
+    pos = lguys.rand_unit(N) * reshape(rs, 1, N)
+    vel = lguys.rand_unit(N) * reshape(vs, 1, N)
+    m = f_m.(rand(N))
+    return lguys.Snapshot(pos=pos, vel=vel, m=m)
 end
 
 
+function uniform_snap(N=1000)
+    f_x(p) = p
+    f_v(r, p) = 0.1*p
+    return make_snap(N, f_x, f_v)
+end
+
+
+
+@testset "phase volume" begin
+    rs = [0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3]
+    vs = zeros(7)
+    δr, δv = lguys.phase_volume(rs, vs)
+
+
+    expected = 0.1
+    @test δr ≈ expected rtol=0.1
+    @test δv ≈ 0 atol=1e-10
+
+
+    N = 1000
+    k = 10
+    δrs = zeros(N)
+    δvs = zeros(N)
+    for i in 1:N
+        rs = sort(sqrt.(rand(k)))
+        vs = rand(k)
+        δr, δv = lguys.phase_volume(rs, vs)
+        δrs[i] = δr
+        δvs[i] = δv
+    end
+
+    δr = lguys.mean(δrs)
+    δv = lguys.mean(δvs)
+    expected = N^(-1/3)
+    @test δr ≈ expected rtol=0.1
+    @test δv ≈ expected rtol=0.1
+
+end
 
 
 @testset "phase volumes" begin
+    N = 6
+    snap = uniform_snap(N)
 
+    δr, δv = lguys.phase_volumes(snap, k=4)
+
+    μ_r = lguys.mean(δr)
+    σ_r = lguys.std(δr)
+
+    println("r: $μ_r ± $σ_r")
+    actual = μ_r * N^(1/3)
+    expected = 1.0
+    @test actual ≈ expected rtol=0.1
 
 end
 
 
+@testset "uniform disk" begin
+
+    f_x(p) = √p
+    f_v(r, p) = 0.1*√p
+
+end
