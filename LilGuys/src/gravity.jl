@@ -13,29 +13,25 @@ function calc_radial_Φ(snap::Snapshot)
     m = snap.m[idx]
 
     N = length(snap)
-    M_in = 0
-    Φs = zeros(N)
+    M_in = cumsum(m)
 
+    Φ_out = zeros(N)
     for i in 1:N
-        Φ_out = calc_Φ(m[i:end], rs[i:end])
-        Φ_in = calc_Φ(M_in, rs[i])
-        Φs[i] = Φ_out + Φ_in
-
-        M_in += m[i]
+        Φ_out[i] = calc_Φ(m[i+1:end], rs[i+1:end])
     end
+    Φ_cen = calc_Φ(m, rs)
 
-
-    lerp =  linear_interpolation(rs, Φs, extrapolation_bc=Line())
-
-    function Φ(r)
+    function f(r)
         if r < rs[1]
-            return lerp(r)
-        else
-            return calc_Φ(M_in, r)
+            return Φ_cen
         end
+        idx = searchsortedlast(rs, r)
+        Φ_in = calc_Φ(M_in[idx], r)
+        Φ = Φ_out[idx] + Φ_in
+        return Φ
     end
 
-    return Φ
+    return f
 end
 
 function calc_Φ(snap::Snapshot, pos)
@@ -52,6 +48,9 @@ function calc_Φ(m::Vector{T}, rs::Vector{T}) where T <: Real
 end
 
 function calc_Φ(m::Real, R::Real)
+    if R == 0
+        return -Inf
+    end
     return -G * m / R
 end
 
