@@ -1,7 +1,7 @@
 include("setup.jl")
 
 
-tests = ["utils", "hdf5_utils", "snapshot", "fuzzy_snapshot", "profile", "coordinates", "phys_quantities", "gravity", "centre"]
+tests = ["utils", "snapshot", "profile", "coordinates", "phys_quantities", "gravity", "centre_shrinking_spheres"]
 
 for test in tests
     @testset "$test" begin

@@ -1,15 +1,15 @@
 
 
 function create_snapshot()
-    pos = F[1  0  0;
-            0 -1  0;
-            0  0  1]
+    pos = [1  0  0;
+           0 -1  0;
+           0  0  1]
 
-    vel = F[0 -2  0;
-            1  0  0;
-            0  0 -1.5]
+    vel = [0 -2  0;
+           1  0  0;
+           0  0 -1.5]
 
-    m = F[1, 1, 1]
+    m = [1, 1, 1]
 
     snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
     return snap
@@ -29,13 +29,13 @@ end
 
 
 @testset "r (snap)" begin
-    pos = F[1  0  0.5;
-            0 -4  1.2;
-            0  3  0.0]
+    pos = [1.  0  0.5;
+           0 -4  1.2;
+           0  3  0.0]
 
     vel = randn(3, 3)
 
-    m = F[1, 1, 1]
+    m = [1, 1, 1]
 
     snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
     actual = lguys.calc_r.(snap)
@@ -57,9 +57,9 @@ end
 @testset "angular momentum" begin
     snap = create_snapshot()
     actual = lguys.calc_angular_momentum(snap)
-    expected = F[0  0  0;
-                 0  0  0;
-                 1 -2  0]
+    expected = [0.  0  0;
+                0  0  0;
+                1 -2  0]
                 
     @test actual ≈ expected
     

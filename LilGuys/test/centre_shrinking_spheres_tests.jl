@@ -1,39 +1,4 @@
 
-@testset "centroid" begin
-    x = [1. 5;
-         0.5 1.5;
-         -1 1;]
-
-    expected = [3., 1, 0]
-    cen = lguys.centroid(x)
-
-    @test cen ≈ expected
-end
-
-
-@testset "centroid weights" begin
-    x = [1. 4 10;
-         0 3 0;
-         -1 1 -11.3;]
-    w = [1., 2, 0]
-
-    expected = [3., 2., 1/3]
-
-    cen = lguys.centroid(x, w)
-    @test cen ≈ expected
-end
-
-
-@testset "centroid err" begin
-
-
-end
-
-
-@testset "centroid weights err" begin
-
-
-end
 
 
 @testset "centroid snap" begin

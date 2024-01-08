@@ -10,14 +10,13 @@ include("units.jl")
 include("utils.jl")
 include("particle.jl")
 include("snapshot.jl")
-include("fuzzy_snapshot.jl")
 include("coordinates.jl")
-include("hdf5_utils.jl")
 include("phys_quantities.jl")
 include("gravity.jl")
 include("output.jl")
 include("profile.jl")
-include("centre.jl")
+include("centre_fuzzy.jl")
+include("centre_shrinking_spheres.jl")
 
 
 end # module LilGuys

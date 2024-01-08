@@ -1,5 +1,16 @@
 import SpecialFunctions: erf
 import NearestNeighbors as nn
+import Base: @kwdef
+
+
+@kwdef struct FuzzyCentreState
+    snap::Snapshot
+    cen::FuzzyPhase
+    weights::Vector{F}
+    δr::OptVector = nothing
+    δv::OptVector = nothing
+    w::OptVector = nothing
+end
 
 
 """
@@ -15,7 +26,7 @@ threshold : Float
 γ : Float
     Momentum decay on centres.
 """
-function fuzzy_centre!(snap_i::FSnapshot; min_fraction=0.1, threshold=0.1, 
+function fuzzy_centre!(snap_i::Snapshot; min_fraction=0.1, threshold=0.1, 
         β=0.9, dx_min=0.05, dv_min=0.001, max_iter=10)
     snap = copy(snap_i)
     dcen = copy(cen)
@@ -51,7 +62,7 @@ function fuzzy_centre!(snap_i::FSnapshot; min_fraction=0.1, threshold=0.1,
 end
 
 
-function update_weights!(snap::FSnapshot; β=0.5, threshold=0)
+function update_weights!(snap::Snapshot; β=0.5, threshold=0)
     weights = bound_probabilities(snap, k=10)
     weights = β * snap.w .+ (1-β) * weights
     weights[weights .< threshold] .= 0
@@ -60,7 +71,7 @@ function update_weights!(snap::FSnapshot; β=0.5, threshold=0)
 end
 
 
-function update_centre!(snap::FSnapshot, p::FuzzyPhase; percen=0.5)
+function update_centre!(snap::Snapshot, p::FuzzyPhase; percen=0.5)
     cen = potential_centre(snap, percen=percen)
     δrs, δvs = phase_volumes(snap, k=10)
     δrs .= cen.δx
@@ -104,59 +115,6 @@ function bound_probabilities(snap::Snapshot; k=5)
 end
 
 
-
-### Utilities for finding the center
-#
-function centroid(x::Matrix{F}, weights::Vector{F})
-    w = reshape(weights, :, 1) ./ sum(weights)
-    return (x * w)[:, 1]
-end
-
-function centroid(x::Matrix{F})
-    c =  sum(x, dims=2) / size(x, 2)
-    return c[:, 1]
-end
-
-function centroid_err(x::Matrix{F}, weights::Vector{F})
-    w = reshape(weights, :, 1) ./ sum(weights)
-    variance = mean(x.^2 * w)
-    return sqrt(variance)
-end
-
-function centroid_err(x::Matrix{F})
-    variance= mean(sum(x.^2, dims=2) / size(x, 2))
-    return sqrt(variance)
-end
-
-
-function centroid(snap::AbstractSnapshot)
-    pos_c = centroid(snap.pos)
-    vel_c = centroid(snap.vel)
-    δr = centroid_err(snap.pos .- pos_c)
-    δv = centroid_err(snap.vel .- vel_c)
-
-    return FuzzyPhase(pos_c, vel_c, δr, δv)
-end
-
-function centroid(snap::AbstractSnapshot, weights::Vector{F})
-    pos_c = centroid(snap.pos, weights)
-    vel_c = centroid(snap.vel, weights)
-    δr = centroid_err(snap.pos .- pos_c, weights)
-    δv = centroid_err(snap.vel .- vel_c, weights)
-
-    return FuzzyPhase(pos_c, vel_c, δr, δv)
-end
-
-
-function potential_centre(snap::AbstractSnapshot; percen=5)
-    threshhold = percentile(snap.Φ, percen)
-    filt = snap.Φ .< threshhold
-    return centroid(snap[filt])
-end
-
-
-
-
 """
 Computes the sizes of each particle in phase space
 
@@ -169,7 +127,7 @@ s : Int
 η : Float
     The fraction of the velocity to use for the velocity standard deviation
 """
-function phase_volumes(snap::AbstractSnapshot; k=5, kwargs...)
+function phase_volumes(snap::Snapshot; k=5, kwargs...)
     tree = nn.KDTree(snap.pos)
     idxs, dists = nn.knn(tree, snap.pos, k+1)
 
@@ -183,7 +141,7 @@ function phase_volumes(snap::AbstractSnapshot; k=5, kwargs...)
         vel_0 = snap.vel[:, i]
         vs = r(snap.vel[:, idx] .- vel_0)
 
-        δr, δv = phase_volume(rs, vs; kwargs...)
+        δr, δv = _phase_volume(rs, vs; kwargs...)
         push!(δrs, δr)
         push!(δvs, δv)
     end
@@ -191,7 +149,7 @@ function phase_volumes(snap::AbstractSnapshot; k=5, kwargs...)
 end
 
 
-function phase_volume(rs::Vector{F}, vs::Vector{F}; η=0.3, s=nothing)
+function _phase_volume(rs::Vector{F}, vs::Vector{F}; η=0.3, s=nothing)
     k = length(rs)
 
     if s === nothing

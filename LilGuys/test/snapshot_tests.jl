@@ -1,5 +1,3 @@
-using HDF5
-using LilGuys
 
 
 function assert_equal(a::Snapshot, b::Snapshot)
@@ -20,10 +18,10 @@ end
     index = collect(1:N)
     Φ = -rand(N)
     Φ_ext = -rand(N)
-    m = LilGuys.ConstVector(0.1, N)
+    m = lguys.ConstVector(0.1, N)
     h=rand()
     filename = "test.hdf5"
-    header = LilGuys.make_default_header(N, m[1])
+    header = lguys.make_default_header(N, m[1])
 
     snap = Snapshot(m=m, pos=pos, vel=vel,
                     acc=acc, Φ=Φ, Φ_ext=Φ_ext, index=index, h=h, 
@@ -37,7 +35,7 @@ end
     @test snap.m[1] ≈ m[1]
 
 
-    save(filename, snap)
+    lguys.save(filename, snap)
     snap_saved = Snapshot(filename)
     assert_equal(snap, snap_saved)
 end
@@ -62,3 +60,77 @@ end
     @test snap2.acc != snap.acc
     @test snap2.Φ != snap.Φ
 end
+
+# Test for creating a default header
+@testset "Default Header Creation" begin
+    N = 100
+    mass = 1.0
+    header = lguys.make_default_header(N, mass)
+
+    @test header["NumPart_ThisFile"] == [0, N]
+    @test header["NumPart_Total"] == [0, N]
+    @test header["MassTable"] == [0.0, mass]
+
+    expected_attrs = ["Time", "Redshift", "BoxSize", "NumFilesPerSnapshot"]
+    @test all(k->k ∈ keys(header), expected_attrs)
+end
+
+# Test for getting and setting header attributes in an HDF5 file
+@testset "HDF5 Header Get/Set" begin
+    testfile = "test_header.h5"
+    N = 100
+    m = 1.0
+
+    h5open(testfile, "w") do h5_f
+        header = lguys.make_default_header(N, m)
+        lguys.set_header!(h5_f, header)
+    end
+
+    h5open(testfile, "r") do h5_f
+        header = lguys.get_header(h5_f)
+        @test header["NumPart_ThisFile"] == [0, N]
+        @test header["MassTable"] == [0.0, m]
+    end
+
+    rm(testfile)
+end
+
+# Test for getting and setting vectors in an HDF5 file
+@testset "HDF5 Vector Get/Set" begin
+    testfile = "test_vector.h5"
+    vector_key = "Velocity"
+    vector_val = [1.0, 2.0, 3.0]
+
+    h5open(testfile, "w") do h5_f
+        lguys.set_vector!(h5_f, vector_key, vector_val)
+    end
+
+    h5open(testfile, "r") do h5_f
+        retrieved_vector = lguys.get_vector(h5_f, vector_key)
+        @test all(retrieved_vector .== vector_val)
+    end
+
+    rm(testfile)
+end
+
+
+# Test for the epsilon value extraction
+@testset "Epsilon Value Extraction" begin
+    # Create a test file with the expected content
+    ϵ = 0.0512
+    directory = mktempdir()
+    testfile = joinpath(directory, "parameters-usedvalues")
+    open(testfile, "w") do file
+        write(file, "SomeParameter 1.0\n")
+        write(file, "SofteningComovingClass0 $(ϵ)\n")
+        write(file, "AnotherParameter 2.0\n")
+    end
+
+    # Test the epsilon value extraction function
+    epsilon = lguys.get_epsilon(directory)
+    @test epsilon === ϵ
+
+    # Cleanup the temporary directory
+    rm(directory, recursive=true)
+end
+

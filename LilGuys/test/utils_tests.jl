@@ -52,3 +52,35 @@ end
     @test σ > 0.3
 
 end
+
+
+# centroid tests
+#
+@testset "centroid" begin
+    x = [1. 5;
+         0.5 1.5;
+         -1 1;]
+
+    expected = [3., 1, 0]
+    exp_err = lguys.std(x)
+    cen, err = lguys.centroid(x)
+
+    @test cen ≈ expected
+    @test err ≈ exp_err
+end
+
+
+@testset "centroid weights" begin
+    x = [1. 4 10;
+         0 3 0;
+         -1 1 -11.3;]
+    w = [1., 2, 0]
+
+    expected = [3., 2., 1/3]
+    exp_err = lguys.std(x) # TODO: incorrect
+    cen, err = lguys.centroid(x, w)
+    @test cen ≈ expected
+    @test err ≈ -1
+end
+
+
