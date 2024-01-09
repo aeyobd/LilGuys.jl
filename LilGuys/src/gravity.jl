@@ -5,14 +5,14 @@ import Interpolations: linear_interpolation, Line
 given a centered snapshot, returns a interpolated potential a a function 
 of r
 """
-function calc_radial_Φ(snap::Snapshot)
-    rs = calc_r(snap.pos)
+function calc_radial_Φ(pos::Matrix{T}, m) where T <: Real
+    rs = calc_r(pos)
     # work inside out
     idx = sortperm(rs)
     rs = rs[idx]
-    m = snap.m[idx]
+    m = m[idx]
 
-    N = length(snap)
+    N = length(m)
     M_in = cumsum(m)
 
     Φ_out = zeros(N)

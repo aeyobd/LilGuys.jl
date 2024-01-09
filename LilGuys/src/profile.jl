@@ -16,7 +16,7 @@ function Profile(snap::Snapshot, r_s, n, Nr=20, Ne=20)
     sorted = sort_by_r(center(snap))
 
     N = length(sorted)
-    r = get_r(sorted)
+    r = calc_r(sorted)
     r_bins = create_r_bins(r[1], r[-1], Nr)
 
     m = snap.m
@@ -50,7 +50,6 @@ function get_ν(r, m, r_bins)
 end
 
 
-get_r(snapshot::Snapshot) = get_r(snapshot.pos)
 
 # check these!
 ρ_s(r, r_s, n) = exp(-(r/r_s)^n)
@@ -60,13 +59,13 @@ get_r(snapshot::Snapshot) = get_r(snapshot.pos)
 
 
 function get_V_circ_max(snap::Snapshot)
-    r = get_r(snap.pos)
+    r = calc_r(snap.pos)
     M = arange(length(snapshot)) .* snapshot.m
     return max(get_V_circ(M, r))
 end
 
 function get_V_circ(snap::Snapshot, r)
-    rs = get_r(snap)
+    rs = calc_r(snap)
     M = sum(rs < r) * snap.m
     return V_circ(M, r)
 end
@@ -74,5 +73,5 @@ end
 
 
 function sort_by_r(snap::Snapshot)
-    return snap[sortperm(get_r(snap.pos))]
+    return snap[sortperm(calc_r(snap.pos))]
 end

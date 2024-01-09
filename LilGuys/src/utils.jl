@@ -7,6 +7,7 @@ function mean(x::Array{T}) where T<:Real
     return sum(x) / N
 end
 
+
 """
 The variance of a vector of numbers.
 """
@@ -15,6 +16,7 @@ function var(x::Array{T}) where T<:Real
     μ = mean(x)
     return sum((x .- μ).^2) / (N - 1)
 end
+
 
 """
 The standard deviation of a vector of numbers.
@@ -28,19 +30,35 @@ end
 Computes the centroid of a 3xN matrix of points, returning the mean and standard deviation.
 """
 function centroid(x::Matrix{T}) where T<:Real
-    c = sum(x, dims=2) / size(x, 2)
-    c = c[:, 1]
-    variance = mean(sum((x .- c).^2, dims=2) / size(x, 2))
-    return c, sqrt(variance)
+    N = size(x, 2)
+    
+    cen = sum(x, dims=2) / N
+    return cen[:, 1]
 end
 
+function centroid_err(x::Matrix{T}) where T<:Real
+    c = centroid(x)
+    s = sum((x.-c).^2)
+    err = sqrt(s) / √N / sqrt(N-1) # √N for sample error, √N-1 for varience
+    return err
+end
+
+
 function centroid(x::Matrix{T}, weights::Vector{T}) where T<:Real
+    N = size(x, 2)
     w = reshape(weights, :, 1) ./ sum(weights)
-    c = (x * w)[:, 1]
-    variance = mean((x .- c).^2 * w)
-    err = sqrt(variance)
+
+    cen = (x * w)
+    return cen[:, 1]
+end
+
+function centroid_err(x::Matrix{T}, weights::Vector{T}) where T<:Real
+    c = centroid(x, weights)
+    s = sum((x .- c).^2 * w)
+    err = sqrt(s) / sqrt(N-1)
     return c, err
 end
+
 
 
 """
@@ -60,6 +78,7 @@ function normal_cdf(x::Real, μ::Real, σ::Real)
     z = (x - μ) / σ
     return normal_cdf(z)
 end
+
 
 function normal_cdf(z::Real)
     return 0.5 * (1 + erf(z / sqrt(2)))

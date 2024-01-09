@@ -62,25 +62,50 @@ end
          -1 1;]
 
     expected = [3., 1, 0]
-    exp_err = lguys.std(x)
+    exp_err = sqrt(2) * sqrt(2^2 + 0.5^2 + 1) / √2 # factor for duplication and mean
     cen, err = lguys.centroid(x)
 
     @test cen ≈ expected
     @test err ≈ exp_err
+
+    x = [1 1 1;
+         2 1 0;
+         -2 0 2]
+
+    expected = [1, 1, 0]
+    exp_err = sqrt(0 + 2*1^2 + 2*2^2) / sqrt(3) / sqrt(2)
+    cen, err = lguys.centroid(x)
+
+    @test cen ≈ expected
+    @test err ≈ exp_err
+
 end
 
 
 @testset "centroid weights" begin
-    x = [1. 4 10;
-         0 3 0;
-         -1 1 -11.3;]
-    w = [1., 2, 0]
+    x = [ 1. 4  10;
+          0  3   0;
+         -1  1 -11.3;]
+    w = [1., 2,  0]
 
-    expected = [3., 2., 1/3]
-    exp_err = lguys.std(x) # TODO: incorrect
+    expected = [3., 
+                2., 
+                1/3]
+
+    exp_err = sqrt(1*2^2 + 2*1^2 + 
+                   1*2^2 + 2*1^2 + 
+                   1*(4/3)^2  + 2*(2/3)^2) / sqrt(3) / sqrt(2) 
+    # factors for weights, variance, and sample error
     cen, err = lguys.centroid(x, w)
     @test cen ≈ expected
-    @test err ≈ -1
+    @test err ≈ exp_err
+
+    # does this reduce when weights are all equal?
+    w = fill(1.23, 3)
+    cen, err = lguys.centroid(x, w)
+    cen2, err2 = lguys.centroid(x)
+    @test cen ≈ cen2
+    @test err ≈ err2
 end
 
 
