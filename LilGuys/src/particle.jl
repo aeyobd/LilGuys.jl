@@ -1,19 +1,15 @@
 using Printf
 import Base: +, *
 
-OptVector = Union{Vector{F}, Nothing}
-OptMatrix = Union{Matrix{F}, Nothing}
-OptF = Union{F, Nothing}
-
 
 Base.@kwdef struct Particle
-    m::F
-    pos::Vector{F}
-    vel::Vector{F}
+    mass::F
+    position::Vector{F}
+    velocity::Vector{F}
     index::Int
-    acc::OptVector = nothing
-    Φ::OptF = nothing
-    Φ_ext::OptF = nothing
+    acceleration::OptVector = nothing
+    Φ::F = NaN
+    Φ_ext::F = NaN
     h::F = NaN
     weight::F = NaN
 end

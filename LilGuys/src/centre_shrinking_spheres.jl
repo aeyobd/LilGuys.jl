@@ -1,16 +1,21 @@
 import Base: @kwdef
 import StatsBase: percentile
 
+
 @kwdef mutable struct SS_State
     const N_min::Int
     const percen::Float64 = 95
+    const snap::Snapshot # doesn't enforce no changes....
 
-    snap::Snapshot
+    Φ_func = calc_radial_Φ(snap.x_vecs, snap.m)
+
+    filt::BitVector = trues(length(snap))
     x_c::Vector{Float64}
     v_c::Vector{Float64}
-    iter::Int = 1
+    iter::Int = 0
 
-    # running info
+    # running info, could probably move to a separate struct and be optional
+    # (but im grad student loll)
     xs::Vector{Vector{Float64}} = []
     vs::Vector{Vector{Float64}} = []
     Rmax::Vector{Float64} = []
@@ -30,9 +35,9 @@ function SS_State(snap::Snapshot; kwargs...)
     end
     kwargs[:N_min] = ceil(f_min * length(snap))
 
-    kwargs[:snap] = copy(snap)
-    x_c = centroid(snap.pos)
-    v_c = centroid(snap.vel)
+    kwargs[:snap] = snap
+    x_c = centroid(snap.x_vecs)
+    v_c = centroid(snap.v_vecs)
     kwargs[:x_c] = x_c
     kwargs[:v_c] = v_c
 
@@ -44,14 +49,17 @@ end
 """
 Finds the centre using the shrinking sphere method
 """
-function ss_centre(snap::Snapshot; kwargs...)
+function ss_centre(snap::Snapshot; verbose=false, kwargs...)
     state = SS_State(snap; kwargs...)
 
     while !is_done(state)
-        cut_outside!(state)
+        filter_edges!(state)
         recalc_Φ!(state)
-        cut_unbound!(state)
+        filter_unbound!(state)
         update_centre!(state)
+        if verbose
+            println("iteration ", state.iter)
+        end
     end
 
     return state
@@ -63,47 +71,58 @@ function update_centre!(state::SS_State)
 
     push!(state.xs, state.x_c)
     push!(state.vs, state.v_c)
-    state.x_c = centroid(state.snap.pos)
-    state.v_c = centroid(state.snap.vel)
+    state.x_c = centroid(state.snap.x_vecs[:, state.filt])
+    state.v_c = centroid(state.snap.v_vecs[:, state.filt])
 
-    push!(state.N, length(state.snap))
+    push!(state.N, sum(state.filt))
 end
 
 
 function is_done(state::SS_State)
-    return length(state.snap) <= state.N_min
+    return sum(state.filt) <= state.N_min
 end
 
 
-function cut_outside!(state::SS_State)
-    r = calc_r(state.snap.pos .- state.x_c)
+function filter_edges!(state::SS_State)
+    filt_i = state.filt
+    r = calc_r(state.snap.x_vecs[:, filt_i] .- state.x_c)
     r_cut = percentile(r, state.percen)
 
     filt = r .<= r_cut
-    state.snap = state.snap[filt]
-
-    N_cut = sum(map(!, filt))
+    N = sum(filt_i)
+    N_after = sum(filt)
     push!(state.Rmax, r_cut)
-    push!(state.dN_R, length(state.snap))
+    push!(state.dN_R, N - N_after)
+    state.filt[filt_i] .= filt
 end
 
 
-function cut_unbound!(state::SS_State)
-    x1 = state.snap.pos .- state.x_c
-    v1 = state.snap.vel .- state.v_c
+function filter_unbound!(state::SS_State)
+    filt_i = state.filt
+    N  = sum(filt_i)
 
-    E_kin = 0.5 * calc_r(v1).^2
-    E_spec = state.snap.Φ .+ E_kin
+    r = calc_r(state.snap.x_vecs[:, filt_i] .- state.x_c)
+    v = calc_r(state.snap.v_vecs[:, filt_i] .- state.v_c)
 
-    filt = E_spec .< 0
-    N_cut = sum(map(!, filt))
+    ϵ = calc_E_spec.(state.Φ_func.(r), v)
 
-    state.snap = state.snap[filt]
-    push!(state.dN_bound, N_cut)
+    filt = ϵ .< 0
+    N_after = sum(filt)
+    if N_after < state.N_min
+        filt = trues(length(filt))
+        N_after = N
+    end
+
+    state.filt[filt_i] .= filt
+
+    dN = N - N_after
+    push!(state.dN_bound, dN)
 end
 
 
 function recalc_Φ!(state::SS_State)
-    pos = state.snap.pos .- state.x_c
-    state.snap.Φ .= calc_radial_Φ(pos, state.snap.m).(calc_r(pos))
+    r_vecs = state.snap.x_vecs .- state.x_c
+    ms = state.snap.m[state.filt]
+    r_vecs = r_vecs[:, state.filt]
+    state.Φ_func = calc_radial_Φ(positions, ms)
 end

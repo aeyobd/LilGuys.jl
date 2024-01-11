@@ -8,15 +8,6 @@ function calc_r(x::Matrix{T}) where T<:Real
 end
 
 
-function calc_r(p::Particle) 
-    return calc_r(p.pos)
-end
-
-
-function calc_v(p::Particle) 
-    return calc_r(p.vel)
-end
-
 
 function calc_r(x::Vector{T}) where T<:Real
     if length(x) != 3
@@ -46,18 +37,29 @@ function calc_E_spec(Φ::Real, v::Real)
 end
 
 
-function calc_E_tot(snap::Snapshot, v0=zeros(3))
-    return sum(snap.m .* E_spec_kin(snap, v0) .+ 0.5*snap.m .* snap.Φ .+ snap.m .* snap.Φ_ext)
+function calc_E_tot(snap::Snapshot, v_vec_0=zeros(3))
+    ms = snap.masses
+    return sum(ms .* E_spec_kin(snap, v_vec) 
+               .+ 1/2*ms .* snap.Φs 
+               .+ ms .* snap.Φs_ext)
 end
 
 
-function calc_angular_momentum(snap::Snapshot)
+function calc_L(snap::Snapshot)
     L = Matrix{F}(undef, 3, length(snap))
+
     for i in 1:length(snap)
         p = snap[i]
-        L[:, i] .= p.pos × p.vel .* p.m
+        x_vec = p.positions[:, i]
+        v_vec = p.velocities[:, i]
+        m = p.masses[i]
+        L[:, i] .= m .* (x_vec × v_vec)
     end
     return L
+end
+
+function calc_L_tot(snap::Snapshot)
+    return sum(calc_L(snap), dims=2)
 end
 
 

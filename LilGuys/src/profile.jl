@@ -4,11 +4,10 @@ using Base: @kwdef
 A 1-d representation of the profile of a galaxy.
 """
 @kwdef struct Profile
-    cen::FuzzyPhase
-    r::OptVector = nothing
-    M::OptVector = nothing
+    rs::OptVector = nothing
+    ms_in::OptVector = nothing 
     ρ::OptVector = nothing
-    V_circ::OptVector = nothing
+    Φs::OptVector = nothing
 end
 
 
@@ -35,6 +34,40 @@ function Base.getproperty(p::Profile, s::Symbol)
     else
         error("Profile has no field $s")
     end
+end
+
+
+"""
+given a centered snapshot, returns a interpolated potential a a function 
+of r
+"""
+function calc_radial_Φ(positions::Matrix{T}, m) where T <: Real
+    rs = calc_r(positions)
+    # work inside out
+    idx = sortperm(rs)
+    rs = rs[idx]
+    m = m[idx]
+
+    N = length(m)
+    M_in = cumsum(m)
+
+    Φ_out = zeros(N)
+    for i in 1:N
+        Φ_out[i] = calc_Φ(m[i+1:end], rs[i+1:end])
+    end
+    Φ_cen = calc_Φ(m, rs)
+
+    function f(r)
+        if r < rs[1]
+            return Φ_cen
+        end
+        idx = searchsortedlast(rs, r)
+        Φ_in = calc_Φ(M_in[idx], r)
+        Φ = Φ_out[idx] + Φ_in
+        return Φ
+    end
+
+    return f
 end
 
 function create_r_bins(r_min, r_max, n_bins)

@@ -4,28 +4,42 @@ using Printf
 import Base: @kwdef
 
 
+
+OptVector = Union{Vector{F}, Nothing}
+OptMatrix = Union{Matrix{F}, Nothing}
+
 # this maps the gadget vectors to the snapshot attributes
 const h5vectors = Dict(
     :Φ=>"Potential",
     :Φ_ext=>"ExtPotential",
     :index=>"ParticleIDs",
-    :pos=>"Coordinates",
-    :vel=>"Velocities",
-    :acc=>"Acceleration",
+    :positions=>"Coordinates",
+    :velocities=>"Velocities",
+    :accelerations=>"Acceleration",
    )
 
 
-AbstractSnapshot = AbstractArray{Particle, 1}
+"""
+A snapshot of a gadget simulation. Units are all code units.
 
-@kwdef struct Snapshot <: AbstractSnapshot
-    pos::Matrix{F}
-    vel::Matrix{F}
-    m::Vector{F}
-    acc::OptMatrix = nothing
-    Φ::OptVector = nothing
+Attributes
+----------
+positions : 3xN matrix
+    The positions of the particles
+velocities : 3xN matrix
+    The velocities of the particles
+masses : N vector
+
+"""
+@kwdef struct Snapshot 
+    positions::Matrix{F}
+    velocities::Matrix{F}
+    masses::Vector{F}
+    accelerations::OptMatrix = nothing
+    Φ::OptVector = nothing 
     Φ_ext::OptVector = nothing
-    header::Dict{String, Any} = make_default_header(size(pos, 2), m[1]) #TODO: more robustly deal with variable masses
-    index::Vector{Int} = collect(1:size(pos, 2))
+    header::Dict{String, Any} = make_default_header(size(x_vec, 2), m[1]) #TODO: more robustly deal with variable masses
+    index::Vector{Int} = collect(1:size(x_vec, 2))
     filename::String = ""
     h::Real = NaN
 end
@@ -43,7 +57,7 @@ function Snapshot(filename::String; mmap=false)
         header = get_header(h5f)
         kwargs[:header] = header
         m = header["MassTable"][2]
-        kwargs[:m] = ConstVector(m, size(kwargs[:pos], 2))
+        kwargs[:m] = ConstVector(m, size(kwargs[:x_vec], 2))
         kwargs[:filename] = filename
     end
     return Snapshot(; kwargs...)
@@ -54,10 +68,6 @@ Base.size(snap::Snapshot) = (length(snap.index),)
 Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
 
-function iloc(snap::Snapshot, i::Int)
-    # return sortperm(snap.index)[i]
-end
-
 
 function Base.getindex(snap::AbstractSnapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
     kwargs = Dict{Symbol, Any}()
@@ -67,31 +77,17 @@ function Base.getindex(snap::AbstractSnapshot, idx::Union{UnitRange, Vector, Col
             continue
         elseif !isa(idx, Int) && sym ∈ [:header, :filename]
             kwargs[sym] = getproperty(snap, sym)
-        elseif sym ∈ [:pos, :vel, :acc]
+        elseif sym ∈ [:positions, :velocities, :accelerations]
             kwargs[sym] = getproperty(snap, sym)[:, idx]
-        elseif sym ∈ [:m, :Φ, :Φ_ext, :index]
+        elseif sym ∈ [:masses, :Φs, :Φs_ext, :index]
             kwargs[sym] = getproperty(snap, sym)[idx]
         else
             continue
         end
     end
 
-    if isa(idx, Int)
-        return Particle(; kwargs...)
-    end
     return Snapshot(; kwargs...)
 end
-
-
-function Base.setindex!(snap::Snapshot, p::Particle, i::Int)
-    kwargs = Dict{Symbol, Any}()
-
-    for sym in [:m, :pos, :vel, :Φ, :Φ_ext, :acc]
-        getproperty(snap, sym)[i] = getproperty(particle, sym)
-    end
-    return snap[idx]
-end
-
 
 
 function Base.copy(snap::Snapshot)
@@ -125,6 +121,8 @@ function Base.show(io::IO, snap::Snapshot)
     return io
 end
 
+
+##### HDF5 functions #####
 
 
 # Make a default header for an HDF5 file

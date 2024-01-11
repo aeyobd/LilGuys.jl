@@ -5,64 +5,96 @@ import Interpolations: linear_interpolation, Line
 given a centered snapshot, returns a interpolated potential a a function 
 of r
 """
-function calc_radial_Φ(pos::Matrix{T}, m) where T <: Real
-    rs = calc_r(pos)
+function calc_radial_Φ(positions::Matrix{T}, masses) where T <: Real
+    radii = calc_r(positions)
     # work inside out
     idx = sortperm(rs)
     rs = rs[idx]
-    m = m[idx]
+    ms = masses[idx]
 
-    N = length(m)
-    M_in = cumsum(m)
+    N = length(ms)
+    M_in = cumsum(ms)
 
-    Φ_out = zeros(N)
-    for i in 1:N
-        Φ_out[i] = calc_Φ(m[i+1:end], rs[i+1:end])
+    Φs_out = zeros(F, N)
+    for i in 2:N
+        Φs_out[i-1] = calc_Φ(m[i:end], rs[i:end])
     end
     Φ_cen = calc_Φ(m, rs)
 
-    function f(r)
-        if r < rs[1]
-            return Φ_cen
-        end
-        idx = searchsortedlast(rs, r)
-        Φ_in = calc_Φ(M_in[idx], r)
-        Φ = Φ_out[idx] + Φ_in
-        return Φ
+    return r -> _interpolated_Φ(r, rs, Ms_in, Φs_out, Φ_cen)
+end
+
+function _interpolated_Φ(r, rs, Ms_in, Φs_out, Φ_cen)
+    if r < rs[1]
+        return Φ_cen
     end
-
-    return f
+    idx = searchsortedlast(rs, r)
+    Φ_in = calc_Φ(M_in[idx], r)
+    Φ = Φ_out[idx] + Φ_in
+    return Φ
 end
 
-function calc_Φ(snap::Snapshot, pos)
-    return calc_Φ(snap.pos, snap.m, pos)
+
+
+"""
+Gravitational potential due to particles in snapshot at position x_vec
+"""
+function calc_Φ(snap::Snapshot, x_vec)
+    return calc_Φ(snap.x_vec, snap.m, x_vec)
 end
 
-function calc_Φ(pos::Matrix{T}, m::Vector{T}, x) where T <: Real
-    rs = calc_r(pos .- x)
-    return calc_Φ(m, rs)
+
+"""
+Gravitational potential due to ensemble of masses at positions evaluated at x_vec
+"""
+function calc_Φ(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
+    radii = calc_r(positions .- x_vec)
+    return calc_Φ(masses, radii)
 end
 
-function calc_Φ(m::Vector{T}, rs::Vector{T}) where T <: Real
-    return -G * sum(m ./ rs)
+
+
+"""
+Potential due to a collection of masses at given radii, or equivalently
+potential inside centred shells of masses and radii
+"""
+function calc_Φ(masses::Vector{T}, radii::Vector{T}) where T <: Real
+    return sum(Φ_point.(masses, radii))
 end
 
-function calc_Φ(m::Real, R::Real)
+
+"""
+One point potential law (-Gm/r)
+"""
+function calc_Φ(mass::Real, radius::Real)
     if R == 0
         return -Inf
     end
-    return -G * m / R
+    return -G * mass / radius
 end
 
-function calc_F_grav(snap::Snapshot, pos)
-    return calc_F_grav(snap.pos, snap.m, pos)
-end
 
-function calc_F_grav(pos::Matrix{F}, m::Vector{F}, x)
-    dr = x .- pos 
+"""
+Force of gravity from masses at given positions evaluated at x_vec
+"""
+function calc_F_grav(positions::Matrix{F}, masses::Vector{F}, x_vec)
+    dr = x_vec .- positions
     rs = calc_r(dr)
     r_hat = dr ./ rs
-    f =  -G * sum(m .* r_hat ./ rs.^2, dims=2)
-    f[:, rs .== 0] .= 0
-    return f
+    force =  sum(calc_F_point.(masses, rs) .* r_hat, dims=2)
+    force[:, rs .== 0] .= 0  # remove divergences
+    return force
+end
+
+
+function calc_F_grav(snap::Snapshot, x_vec)
+    return calc_F_grav(snap.x_vec, snap.m, x_vec)
+end
+
+
+function calc_F_point(mass::Real, radius::Real)
+    if radius == 0
+        return 0
+    end
+    return -G * mass / radius^2
 end

@@ -1,9 +1,9 @@
 using Glob
 
 
-Base.@kwdef struct Output <: AbstractArray{Particle, 2}
+Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
     snapshots::Vector{Snapshot}
-    time::Vector{F}
+    times::Vector{F}
     softening::F
     particle_index::Matrix{Int}
 end
@@ -53,9 +53,8 @@ end
 
 Base.IndexStyle(::Type{<:Output}) = IndexCartesian()
 
-function Base.getindex(out::Output, i::Int, j)
-    j0 = out.particle_index[i, j]
-    return out.snapshots[i][j0]
+function Base.getindex(out::Output, i::Int)
+    return out.snapshots[i]
 end
 
 
@@ -69,6 +68,12 @@ function get_epsilon(dir::String)
         end
     end
     return nothing
+end
+
+
+function extract(out::Output, func::Function, idx_P=(:))
+    Nt, Np = size(out)
+    return [func(out[i])]
 end
 
 

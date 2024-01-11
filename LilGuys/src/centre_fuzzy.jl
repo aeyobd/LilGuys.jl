@@ -5,7 +5,10 @@ import Base: @kwdef
 
 @kwdef struct FuzzyCentreState
     snap::Snapshot
-    cen::FuzzyPhase
+
+    x_c::Vector{F}
+    v_c::Vector{F}
+
     weights::Vector{F}
     δr::OptVector = nothing
     δv::OptVector = nothing
