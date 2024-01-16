@@ -5,18 +5,19 @@ import Base: @kwdef
 
 
 
-OptVector = Union{Vector{F}, Nothing}
-OptMatrix = Union{Matrix{F}, Nothing}
 
 # this maps the gadget vectors to the snapshot attributes
 const h5vectors = Dict(
-    :Φ=>"Potential",
-    :Φ_ext=>"ExtPotential",
+    :Φs=>"Potential",
+    :Φs_ext=>"ExtPotential",
     :index=>"ParticleIDs",
     :positions=>"Coordinates",
     :velocities=>"Velocities",
     :accelerations=>"Acceleration",
    )
+
+const snap_matricies = [:positions, :velocities, :accelerations]
+const snap_vectors = [:masses, :Φs, :Φs_ext, :index]
 
 
 """
@@ -34,12 +35,12 @@ masses : N vector
 @kwdef struct Snapshot 
     positions::Matrix{F}
     velocities::Matrix{F}
-    masses::Vector{F}
+    masses::Union{Vector{F}, ConstVector}
     accelerations::OptMatrix = nothing
-    Φ::OptVector = nothing 
-    Φ_ext::OptVector = nothing
-    header::Dict{String, Any} = make_default_header(size(x_vec, 2), m[1]) #TODO: more robustly deal with variable masses
-    index::Vector{Int} = collect(1:size(x_vec, 2))
+    Φs::OptVector = nothing  # potentials
+    Φs_ext::OptVector = nothing
+    header::Dict{String, Any} = make_default_header(size(positions, 2), masses[1]) #TODO: more robustly deal with variable masses
+    index::Vector{Int} = collect(1:size(positions, 2))
     filename::String = ""
     h::Real = NaN
 end
@@ -49,15 +50,16 @@ function Snapshot(filename::String; mmap=false)
     kwargs = Dict{Symbol, Any}()
 
     h5open(filename, "r") do h5f
-        for (var, header) in h5vectors
-            if header ∈ keys(h5f["PartType1"])
-                kwargs[var] = get_vector(h5f, header, mmap=mmap)
+        for (var, col) in h5vectors
+            if col ∈ keys(h5f["PartType1"])
+                kwargs[var] = get_vector(h5f, col, mmap=mmap)
             end
+
         end
         header = get_header(h5f)
         kwargs[:header] = header
         m = header["MassTable"][2]
-        kwargs[:m] = ConstVector(m, size(kwargs[:x_vec], 2))
+        kwargs[:masses] = ConstVector(m, size(kwargs[:positions], 2))
         kwargs[:filename] = filename
     end
     return Snapshot(; kwargs...)
@@ -65,11 +67,12 @@ end
 
 
 Base.size(snap::Snapshot) = (length(snap.index),)
-Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
+Base.length(snap::Snapshot) = length(snap.index)
+# Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
 
 
-function Base.getindex(snap::AbstractSnapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
+function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
     for sym in fieldnames(Snapshot)
@@ -77,9 +80,9 @@ function Base.getindex(snap::AbstractSnapshot, idx::Union{UnitRange, Vector, Col
             continue
         elseif !isa(idx, Int) && sym ∈ [:header, :filename]
             kwargs[sym] = getproperty(snap, sym)
-        elseif sym ∈ [:positions, :velocities, :accelerations]
+        elseif sym ∈ snap_matricies
             kwargs[sym] = getproperty(snap, sym)[:, idx]
-        elseif sym ∈ [:masses, :Φs, :Φs_ext, :index]
+        elseif sym ∈ snap_vectors
             kwargs[sym] = getproperty(snap, sym)[idx]
         else
             continue
@@ -108,6 +111,14 @@ function save(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
         for (var, col) in h5vectors
             val = getproperty(snap, var) # matrix is unneccesary,
+            if val === nothing
+                println("warning: $var is nothing")
+                if col ∈ ["Potential", "ExtPotential"]
+                    val = zeros(F, length(snap))
+                else
+                    val = zeros(F, 3, length(snap))
+                end
+            end
             set_vector!(h5f, col, val)
         end
 

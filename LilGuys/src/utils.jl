@@ -1,31 +1,5 @@
 import StatsBase: mean, std
 
-# """
-# The mean of a vector of numbers.
-# """
-# function mean(x::Array{T}) where T<:Real
-#     N = length(x)
-#     return sum(x) / N
-# end
-# 
-# 
-# """
-# The variance of a vector of numbers.
-# """
-# function var(x::Array{T}) where T<:Real
-#     N = length(x)
-#     μ = mean(x)
-#     return sum((x .- μ).^2) / (N - 1)
-# end
-# 
-# 
-# """
-# The standard deviation of a vector of numbers.
-# """
-# function std(x::Array{T}) where T<:Real
-#     return sqrt(var(x))
-# end
-# 
 
 """
 Computes the centroid of a 3xN matrix of points, returning the mean and standard deviation.
@@ -35,24 +9,26 @@ function centroid(x_vec::Matrix{T}) where T<:Real
     return cen[:, 1]
 end
 
+
 function centroid_err(x::Matrix{T}) where T<:Real
     N = size(x, 2)
-    L = length(x)
-    return std(x) * sqrt(L - 1) / sqrt(N * (N-1))
+    σs = std(x, dims=2) / sqrt(N) # standard error of mean
+    return sqrt(mean(σs.^2))
 end
 
 
 function centroid(x::Matrix{T}, weights::Vector{T}) where T<:Real
     N = size(x, 2)
     w = reshape(weights, :, 1) ./ sum(weights)
-    cen = (x * weights)
+    cen = (x * w)
     return cen[:, 1]
 end
 
 function centroid_err(x::Matrix{T}, weights::Vector{T}) where T<:Real
     N = size(x, 2)
     c = centroid(x, weights)
-    s = sum((x .- c).^2 * weights)
+    w = reshape(weights, :, 1) ./ sum(weights)
+    s = mean((x .- c).^2 * w)
     err = sqrt(s) / sqrt(N-1)
     return err
 end

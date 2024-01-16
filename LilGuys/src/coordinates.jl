@@ -11,11 +11,8 @@ const geocen_frame = PyNULL()
 function __init__()
     copy!(u, pyimport("astropy.units"))
     copy!(astropy_coords, pyimport("astropy.coordinates"))
-    copy!(galcen_frame, astropy_coords.Galactocentric(
-        galcen_distance = 8.29*u.kpc,
-        z_sun=0*u.pc,
-        galcen_v_sun = [11.1, 240.3+12.24, 7.25] * (u.km/u.s)
-       ))
+    astropy_coords.galactocentric_frame_defaults.set("v4.0")
+    copy!(galcen_frame, astropy_coords.Galactocentric()) 
     copy!(geocen_frame, astropy_coords.ICRS())
 end
 
@@ -28,22 +25,6 @@ Base.@kwdef struct Observation
     pm_dec::F
     radial_velocity::F
 end
-
-Base.@kwdef struct FuzzyObservation
-    ra::F
-    dec::F
-    distance::F
-    pm_ra::F
-    pm_dec::F
-    radial_velocity::F
-
-    distance_err::F
-    pm_ra_err::F
-    pm_dec_err::F
-    radial_velocity_err::F
-end
-
-
 
 
 
@@ -90,6 +71,10 @@ function to_sky(phase::PhasePoint)
             )
 end
 
+
+"""
+Returns a list of observations based on snapshot particles
+"""
 function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
     observations = Observation[]
 
@@ -97,18 +82,18 @@ function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false
         if verbose
             print("converting $(i)/($(length(snap))\r")
         end
-        particle = snap[i]
+        pos = snap.positions[:, i]
+        vel = snap.velocities[:, i]
         if invert_velocity
-            vel = -1 * particle.vel
-        else
-            vel = particle.vel
+            vel *=-1
         end
-        phase = PhasePoint(particle.pos, -1 * particle.vel)
+        phase = PhasePoint(pos, vel)
         obs = to_sky(phase)
         push!(observations, obs)
     end
     return observations
 end
+
 
 function rand_coord(obs::Observation, err::Observation)
     return Observation(

@@ -1,8 +1,8 @@
 @testset "f grav" begin
-    pos = [0.;0;0;;]
-    mass = ones(1)
+    positions = [0.;0;0;;]
+    masses = ones(1)
     
-    f(x) = lguys.calc_F_grav(pos, mass, x)
+    f(x) = lguys.calc_F_grav(positions, masses, x)
 
     x = [0.;0;0]
     @test f(x) ≈ [0.;0;0]
@@ -15,16 +15,16 @@ end
     pos = [0.;0;0;;]
     mass = ones(1)
 
-    f(x) = lguys.calc_Φ(pos, mass, x)
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
 
-    x = [0.;0;0]
-    @test f(x) === -Inf
+    x_vec = [0.;0;0]
+    @test f(x_vec) === -Inf
 
-    x = [1.;0;0]
-    @test f(x) ≈ -1.
+    x_vec = [1.;0;0]
+    @test f(x_vec) ≈ -1.
 
-    x = [10.;0;0]
-    @test f(x) ≈ -1/10
+    x_vec = [10.;0;0]
+    @test f(x_vec) ≈ -1/10
 
 
     pos = [
@@ -33,7 +33,7 @@ end
            0. 0.
           ]
     mass = ones(2)
-    f(x) = lguys.calc_Φ(pos, mass, x)
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
     @test f([1.;0;0]) ≈ -2.
 
     pos = [
@@ -44,20 +44,22 @@ end
 
     mass = [1., 2, 3, 4, 5, 6]
 
-    f(x) = lguys.calc_Φ(pos, mass, x)
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
     @test f([0.;0;0]) ≈ -6.
 
 end
 
 function make_rad_Φ(rs)
+    println("here")
     N = length(rs)
     rs = reshape(rs, 1, N)
-    pos = rs .* lguys.rand_unit(N) 
-    m = ones(N)
-    vel = zeros(3, N)
-    snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
+    positions = rs .* lguys.rand_unit(N) 
+    masses = ones(N)
+    velocities = zeros(3, N)
+    snap = lguys.Snapshot(positions=positions, masses=masses, velocities=velocities)
     return lguys.calc_radial_Φ(snap)
 end
+
 
 @testset "radial Φ" begin
     f = make_rad_Φ([0.0, 1])
@@ -78,13 +80,14 @@ end
     @test f(10) ≈ -3/10
 end
 
+
 @testset "radial Φ approx" begin
     N = 10000
     rs = rand(1, N) 
-    pos = rs .* lguys.rand_unit(N) 
-    m = rand(N)
-    vel = zeros(3, N)
-    snap =  lguys.Snapshot(pos=pos, vel=vel, m=m)
+    positions = rs .* lguys.rand_unit(N) 
+    masses = rand(N)
+    velocities = zeros(3, N)
+    snap =  lguys.Snapshot(positions=positions, masses=masses, velocities=velocities)
 
     rs = [0.0, 0.5, 1, 5, 10, 100]
     Φr = lguys.calc_radial_Φ(snap)

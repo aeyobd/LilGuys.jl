@@ -9,16 +9,16 @@ function create_snapshot()
            1  0  0;
            0  0 -1.5]
 
-    m = [1, 1, 1]
+    m = [1., 1, 1]
 
-    snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
+    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=m)
     return snap
 end
 
 
 @testset "r (matrix)" begin
     a = [1., 2., 3.]
-    @test lguys.calc_r(a) ≈ 3.741657386773941
+    @test lguys.calc_r(a) ≈ 3.741657386773941 
 
     b = [1. 0 1;
          2. 0 1;
@@ -35,10 +35,10 @@ end
 
     vel = randn(3, 3)
 
-    m = [1, 1, 1]
+    m = [1., 1, 1]
 
-    snap = lguys.Snapshot(pos=pos, vel=vel, m=m)
-    actual = lguys.calc_r.(snap)
+    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=m)
+    actual = lguys.calc_r(snap)
     expected = [1, 5, 1.3]
 
     @test actual ≈ expected
@@ -56,7 +56,7 @@ end
 
 @testset "angular momentum" begin
     snap = create_snapshot()
-    actual = lguys.calc_angular_momentum(snap)
+    actual = lguys.calc_L(snap)
     expected = [0.  0  0;
                 0  0  0;
                 1 -2  0]

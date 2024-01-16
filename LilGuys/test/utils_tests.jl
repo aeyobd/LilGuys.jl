@@ -62,7 +62,7 @@ end
          -1 1;]
 
     expected = [3., 1, 0]
-    exp_err = sqrt(2) * sqrt(2^2 + 0.5^2 + 1) / √2 # factor for duplication and mean
+    exp_err = sqrt(2) * sqrt(1/3*(2^2 + 0.5^2 + 1)) / √2 # factor for duplication and mean
     cen = lguys.centroid(x)
     err = lguys.centroid_err(x)
 
@@ -74,7 +74,7 @@ end
          -2 0 2]
 
     expected = [1, 1, 0]
-    exp_err = sqrt(0 + 2*1^2 + 2*2^2) / sqrt(3) / sqrt(2)
+    exp_err = sqrt(0 + 2*1^2 + 2*2^2) / sqrt(3*3) / sqrt(2)
     cen = lguys.centroid(x)
     err = lguys.centroid_err(x)
 
@@ -96,7 +96,7 @@ end
 
     exp_err = sqrt(1*2^2 + 2*1^2 + 
                    1*2^2 + 2*1^2 + 
-                   1*(4/3)^2  + 2*(2/3)^2) / sqrt(3) / sqrt(2) 
+                   1*(4/3)^2  + 2*(2/3)^2) / sqrt(3*3) / sqrt(2) 
     # factors for weights, variance, and sample error
     cen = lguys.centroid(x, w)
     err = lguys.centroid_err(x, w)
@@ -114,3 +114,13 @@ end
 end
 
 
+@testset "centroid stat" begin
+    N = 100000
+    x = randn(3, N)
+    cen = lguys.centroid(x)
+    err = lguys.centroid_err(x)
+
+    σ = 1/sqrt(N)
+    @test cen ≈ zeros(3) atol=5σ
+    @test err ≈ 1/sqrt(N) atol=5σ
+end

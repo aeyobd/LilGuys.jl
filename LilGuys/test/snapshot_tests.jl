@@ -1,12 +1,11 @@
 
 
 function assert_equal(a::Snapshot, b::Snapshot)
-    @test a.header == b.header
-    @test a.m == b.m
-    @test a.pos == b.pos
-    @test a.vel == b.vel
-    @test a.acc == b.acc
-    @test a.Φ == b.Φ
+    for attr in fieldnames(Snapshot)
+        if attr != :h
+            @test getfield(a, attr) == getfield(b, attr)
+        end
+    end
 end
 
 # Test for creating a default header
@@ -23,16 +22,16 @@ end
     filename = "test.hdf5"
     header = lguys.make_default_header(N, m[1])
 
-    snap = Snapshot(m=m, pos=pos, vel=vel,
-                    acc=acc, Φ=Φ, Φ_ext=Φ_ext, index=index, h=h, 
+    snap = Snapshot(masses=m, positions=pos, velocities=vel,
+                    accelerations=acc, Φs=Φ, Φs_ext=Φ_ext, index=index, h=h, 
                     filename=filename, header=header)
 
 
-    @test all(snap.pos .== pos)
-    @test all(snap.vel .== vel)
-    @test all(snap.acc .== acc)
-    @test all(snap.Φ .== Φ)
-    @test snap.m[1] ≈ m[1]
+    @test all(snap.positions .== pos)
+    @test all(snap.velocities .== vel)
+    @test all(snap.accelerations .== acc)
+    @test all(snap.Φs .== Φ)
+    @test snap.masses[1] ≈ m[1]
 
 
     lguys.save(filename, snap)
@@ -50,15 +49,15 @@ end
     assert_equal(snap, snap2)
 
     N = 1000
-    snap2.pos .+= [1,2,3]
-    snap2.vel .-= [1,2,3]
-    snap2.acc .*= 2
-    snap2.Φ .*= 2
+    snap2.positions .+= [1,2,3]
+    snap2.velocities .-= [1,2,3]
+    snap2.accelerations .*= 2
+    snap2.Φs .*= 2
 
-    @test snap2.pos != snap.pos
-    @test snap2.vel != snap.vel
-    @test snap2.acc != snap.acc
-    @test snap2.Φ != snap.Φ
+    @test snap2.positions != snap.positions
+    @test snap2.velocities != snap.velocities
+    @test snap2.accelerations != snap.accelerations
+    @test snap2.Φs != snap.Φs
 end
 
 # Test for creating a default header

@@ -44,10 +44,10 @@ function Output(directory::String)
     return out
 end
 
+
 function Base.size(out::Output)
-    Nt = length(out.snapshots)
-    Np = length(out.snapshots[1])
-    return (Nt, Np)
+    N = length(out.snapshots)
+    return (N,)
 end
 
 
@@ -70,32 +70,52 @@ function get_epsilon(dir::String)
     return nothing
 end
 
-
-function extract(out::Output, func::Function, idx_P=(:))
-    Nt, Np = size(out)
-    return [func(out[i])]
+function extract(out::Output, sym::Symbol)
+    result = []
+    for snap in out
+        idx = sortperm(snap.index)
+        attr = getfield(snap, sym)
+        if sym in [:positions, :velocities]
+            val = attr[:, idx]
+        else
+            val = attr[idx]
+        end
+        push!(result, val)
+    end
+    return result
 end
 
 
-function peris_apos(out::Output)
-    Nt, Np = size(out)
-    
-    r0 = [norm(p.pos) for p in out[1, :]]
-    peris = r0
-    apos = r0
+function peris_apos(out::Output; verbose::Bool=false)
+    r0 = calc_r(out[1].positions)
+    peris = apos = r0
 
-    println("begining")
-    for i in 2:Nt
-        if i % 100 == 0
-            print("$(i)/$(Nt)\r")
+    idx0 = sort(out[1].index)
+
+    if verbose
+        println("begining peri apo calculation")
+    end
+
+    N = length(out)
+    for i in 2:N
+        if verbose && i % 100 == 0
+            print("$(i)/$(N)\r")
         end
         
-        ps = out[i, :]
-        r = [norm(p.pos) for p in ps]
+        snap = out[i]
+        idx = sortperm(snap.index)
+
+        r = calc_r(snap.positions[:, idx])
         apos = max.(apos, r)
         peris = min.(peris, r)
+
+        if any(snap.index[idx] .!= idx0)
+            error("Non-constant index")
+        end
     end
     
-    println("\r finished")
-    return peris, apos  
+    if verbose
+        println("completed peri apo calculation")
+    end
+    return idx0, peris, apos  
 end

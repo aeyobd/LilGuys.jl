@@ -8,3 +8,5 @@ const T0 = 4.718e6 # years
 const V0 = 207.4 # km/s
 
 F = Float64
+OptVector = Union{Vector{F}, Nothing}
+OptMatrix = Union{Matrix{F}, Nothing}
