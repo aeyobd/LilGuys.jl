@@ -4,10 +4,12 @@ using Base: @kwdef
 A 1-d representation of the profile of a galaxy.
 """
 @kwdef struct Profile
+    snap::Snapshot
     rs::OptVector = nothing
-    ms_in::OptVector = nothing 
-    ρ::OptVector = nothing
+    Ms::OptVector = nothing 
+    ρs::OptVector = nothing
     Φs::OptVector = nothing
+    V_circs::OptVector = nothing
 end
 
 
@@ -22,19 +24,9 @@ function Profile(snap::Snapshot, r_s, n, Nr=20, Ne=20)
     M = collect(1:N) .* m
     ν = get_ν(r, m, r_bins)
     V_circ = map(r->get_V_circ(sorted, r), r_bins)
-    return Profile(r, M, ν, V_circ)
+    return Profile(snap=snapshot, rs=r, ms_in=M)
 end
 
-
-function Base.getproperty(p::Profile, s::Symbol)
-    if s ∈ fieldnames(Profile)
-        return getfield(p, s)
-    elseif s ∈ fieldnames(Snapshot)
-        return getfield(p.snap, s)
-    else
-        error("Profile has no field $s")
-    end
-end
 
 
 function create_r_bins(r_min, r_max, n_bins)
@@ -50,11 +42,9 @@ function get_ν(r, m, r_bins)
 end
 
 
-
 # check these!
 ρ_s(r, r_s, n) = exp(-(r/r_s)^n)
 ρ_s_int(r, r_s, n) = -r_s^n * exp(-(r/r_s)^n) * (r/r_s)^n * (n+1)
-
 
 
 

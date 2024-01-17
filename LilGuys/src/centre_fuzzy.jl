@@ -74,7 +74,7 @@ function update_weights!(snap::Snapshot; β=0.5, threshold=0)
 end
 
 
-function update_centre!(snap::Snapshot, p::FuzzyPhase; percen=0.5)
+function update_centre!(snap::Snapshot, p; percen=0.5)
     cen = potential_centre(snap, percen=percen)
     δrs, δvs = phase_volumes(snap, k=10)
     δrs .= cen.δx

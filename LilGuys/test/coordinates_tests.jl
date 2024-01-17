@@ -5,16 +5,16 @@
 
     phase = lguys.to_galcen(gc)
 
-    @test all(abs.(phase.pos) .< 1e-2)
-    @test phase.vel*lguys.V0 ≈ [0,0,0] atol=0.2 # TODO this is really high
+    @test all(abs.(phase.position) .< 1e-2)
+    @test phase.velocity*lguys.V0 ≈ [0,0,0] atol=0.2 # TODO this is really high
 
 
 
     sun = lguys.Observation(ra = 0, dec=-0, distance=0,
                              pm_ra=0, pm_dec=0, radial_velocity=0)
     phase = lguys.to_galcen(sun)
-    @test phase.pos ≈ [-8.122, 0, 0] rtol=3e-3
-    @test phase.vel*lguys.V0 ≈ [12.9, 245.6, 7.78] rtol=3e-3
+    @test phase.position ≈ [-8.122, 0, 0] rtol=3e-3
+    @test phase.velocity*lguys.V0 ≈ [12.9, 245.6, 7.78] rtol=3e-3
 end
 
 
@@ -40,8 +40,8 @@ end
     for i in 1:N
         p = phase[i]
         q = phase2[i]
-        @test p.pos ≈ q.pos rtol=1e-2
-        @test p.vel ≈ q.vel rtol=1e-2
+        @test p.position ≈ q.position rtol=1e-2
+        @test p.velocity ≈ q.velocity rtol=1e-2
     end
 
 end

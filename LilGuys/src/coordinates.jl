@@ -1,20 +1,26 @@
-using PyCall
 using Printf
 
-
-const u = PyNULL()
-const astropy_coords = PyNULL()
-
-const galcen_frame = PyNULL()
-const geocen_frame = PyNULL()
-
-function __init__()
-    copy!(u, pyimport("astropy.units"))
-    copy!(astropy_coords, pyimport("astropy.coordinates"))
-    astropy_coords.galactocentric_frame_defaults.set("v4.0")
-    copy!(galcen_frame, astropy_coords.Galactocentric()) 
-    copy!(geocen_frame, astropy_coords.ICRS())
+Base.@kwdef struct PhasePoint
+    x::F
+    y::F
+    z::F
+    v_x::F
+    v_y::F
+    v_z::F
 end
+
+function Base.getproperty(pp::PhasePoint, sym::Symbol)
+    if sym == :position
+        return [pp.x, pp.y, pp.z]
+    elseif sym == :velocity
+        return [pp.v_x, pp.v_y, pp.v_z]
+    elseif sym ∈ fieldnames(PhasePoint)
+        return getfield(pp, sym)
+    else
+        error("$(sym) is not a valid field")
+    end
+end
+
 
 
 Base.@kwdef struct Observation
@@ -26,10 +32,53 @@ Base.@kwdef struct Observation
     radial_velocity::F
 end
 
+function Observation(skycoord::PyObject)
+    return Observation(
+        skycoord.ra[],
+        skycoord.dec[],
+        skycoord.distance[],
+        skycoord.pm_ra_cosdec[],
+        skycoord.pm_dec[],
+        skycoord.radial_velocity[],
+        )
+end
 
+function PhasePoint(pos::Vector{F}, vel::Vector{F})
+    if length(pos) != 3
+        error("position must be a 3-vector")
+    end
+    if length(vel) != 3
+        error("velocity must be a 3-vector")
+    end
+    return PhasePoint(pos..., vel...)
+end
+
+function PhasePoint(skycoord::PyObject)
+    pos = [skycoord.x[], skycoord.y[], skycoord.z[]]
+    vel = [skycoord.v_x[], skycoord.v_y[], skycoord.v_z[]]
+    pos ./= R0
+    vel ./= V0
+    return PhasePoint(pos, vel)
+end
 
 function to_galcen(obs::Observation)
-    sc = astropy_coords.SkyCoord(
+    skycoord = to_astropy(obs)
+    transformed_coord = skycoord.transform_to(galcen_frame)
+    return PhasePoint(transformed_coord)
+end
+
+
+function to_sky(phase::PhasePoint)
+
+    skycoord = to_astropy(phase)
+    transformed_coord = skycoord.transform_to(geocen_frame)
+
+    return Observation(transformed_coord)
+end
+
+
+function to_astropy(obs::Observation)
+    skycoord = astropy_coords.SkyCoord(
         ra = obs.ra * u.degree,
         dec = obs.dec * u.degree,
         distance = obs.distance * u.kpc,
@@ -37,38 +86,23 @@ function to_galcen(obs::Observation)
         pm_ra_cosdec = obs.pm_ra * u.mas/u.yr,
         pm_dec = obs.pm_dec * u.mas/u.yr
         )  
-    tc = sc.transform_to(galcen_frame)
-
-    pos = [tc.x[], tc.y[], tc.z[]]
-    vel = [tc.v_x[], tc.v_y[], tc.v_z[]]
-
-    pos ./= R0
-    vel ./= V0
-    return PhasePoint(pos, vel)
+    return skycoord
 end
 
+function to_astropy(phase::PhasePoint)
+    pos = phase.position * R0
+    vel = phase.velocity * V0
+    skycoord = astropy_coords.SkyCoord(
+        x = pos[1] * R_U,
+        y = pos[2] * R_U,
+        z = pos[3] * R_U,
+        v_x = vel[1] * V_U,
+        v_y = vel[2] * V_U,
+        v_z = vel[3] * V_U,
+        frame = galcen_frame
+        )
 
-function to_sky(phase::PhasePoint)
-    pos = phase.pos * R0
-    vel = phase.vel * V0
-    sc = astropy_coords.SkyCoord(x = pos[1] * u.kpc,
-                                 y = pos[2] * u.kpc,
-                                 z = pos[3] * u.kpc,
-                                 v_x = vel[1] * u.km/u.s,
-                  v_y = vel[2] * u.km/u.s,
-                  v_z = vel[3] * u.km/u.s,
-                  frame = galcen_frame
-                 )
-    tc = sc.transform_to(geocen_frame)
-
-    return Observation(
-           tc.ra[],
-           tc.dec[],
-           tc.distance[],
-           tc.pm_ra_cosdec[],
-           tc.pm_dec[],
-           tc.radial_velocity[],
-            )
+    return skycoord
 end
 
 
@@ -110,15 +144,12 @@ function rand_coords(obs::Observation, err::Observation, N::Int)
     return [rand_coord(obs, err) for _ in 1:N]
 end
 
-function PhasePoint(x::F, y::F, z::F, vx::F, vy::F, vz::F)
-    pos = [x,y,z]
-    vel = [vx,vy,vz]
-    return PhasePoint(pos, vel)
-end
 
 function Base.show(io::IO, pp::PhasePoint)
-    @printf io "(%4.2f, %4.2f, %4.2f) kpc, " pp.pos...
-    @printf io "(%4.4f, %4.4f, %4.4f) km/s" pp.vel...
+    x = pp.position * R0
+    v = pp.velocity * V0
+    @printf io "(%4.2f, %4.2f, %4.2f) kpc, " x...
+    @printf io "(%4.2f, %4.2f, %4.2f) km/s" v...
     return io
 end
 
