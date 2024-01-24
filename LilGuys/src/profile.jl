@@ -9,7 +9,7 @@ A 1-d representation of the profile of a galaxy.
     Ms::OptVector = nothing 
     ρs::OptVector = nothing
     Φs::OptVector = nothing
-    V_circs::OptVector = nothing
+    Vs_circ::OptVector = nothing
 end
 
 
@@ -19,14 +19,41 @@ function Profile(snap::Snapshot, r_s, n, Nr=20, Ne=20)
     N = length(sorted)
     r = calc_r(sorted)
     r_bins = create_r_bins(r[1], r[-1], Nr)
+    r_mids = (r_bins[1:end-1] + r_bins[2:end]) / 2
 
-    m = snap.m
+    m = snap.masses
     M = collect(1:N) .* m
     ν = get_ν(r, m, r_bins)
     V_circ = map(r->get_V_circ(sorted, r), r_bins)
-    return Profile(snap=snapshot, rs=r, ms_in=M)
+    ρs = calc_ρ_profile(r_s, M, r_bins)
+
+    return Profile(snap=snapshot, rs=r_mids, Ms=M, 
+                   ρs=ρs, V_circ=V_circ)
 end
 
+
+function calc_ρ_profile(r_s, ms, r_bins)
+    N = length(r_bins) - 1
+
+    ρs = zeros(N)
+    for i in 1:N
+        r_min = r_bins[i]
+        r_max = r_bins[i+1]
+        M = sum(ms[r_min .< rs .< r_max])
+        V = 4/3 * π * (r_max^3 - r_min^3)
+        ρs[i] = M / V
+    end
+
+    return ρs
+end
+
+function centre(snap::Snapshot)
+    cen = ss_center(snap)
+    snap1 = copy(snap)
+    snap1.postions .-= cen.x_c
+    snap1.velocities .-= cen.v_c
+    return snap1
+end
 
 
 function create_r_bins(r_min, r_max, n_bins)

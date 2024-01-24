@@ -67,20 +67,61 @@ function get_epsilon(dir::String)
             return parse(F, m.match)
         end
     end
-    return nothing
+    return NaN
 end
 
-function extract(out::Output, sym::Symbol)
-    result = []
-    for snap in out
-        idx = sortperm(snap.index)
-        attr = getfield(snap, sym)
-        if sym in [:positions, :velocities]
-            val = attr[:, idx]
+function extract(out::Output, symbol::Symbol, idx::Int)
+    Nt = length(out)
+    if symbol ∈ (:positions, :velocities, :accelerations)
+        var_is_vec = true
+        result = Array{F}(undef, 3, Nt)
+    else
+        result = Array{F}(undef, Nt)
+        var_is_vec = false
+    end
+
+    for i in 1:Nt
+        snap = out[i]
+        idx_sort = sortperm(snap.index)[idx]
+        attr = getfield(snap, symbol)
+        if var_is_vec
+            val = attr[:, idx_sort]
+            result[:, i] .= val
         else
-            val = attr[idx]
+            val = attr[idx_sort]
+            result[i] = val
         end
-        push!(result, val)
+    end
+    return result
+end
+
+function extract(out::Output, symbol::Symbol, idx=(:))
+    if idx == (:)
+        idx = 1:length(out[1].index)
+    elseif idx isa BitArray
+        idx = findall(idx)
+    end
+    Np = length(idx)
+    Nt = length(out)
+    if symbol ∈ (:positions, :velocities, :accelerations)
+        var_is_vec = true
+        result = Array{F}(undef, 3, Np, Nt)
+    else
+        result = Array{F}(undef, Np, Nt)
+        var_is_vec = false
+    end
+
+    for i in 1:Nt
+        snap = out[i]
+        idx_sort = sortperm(snap.index)[idx]
+        attr = getfield(snap, symbol)
+        if var_is_vec
+            val = attr[:, idx_sort]
+            result[:, :, i] .= val
+        else
+            val = attr[idx_sort]
+            result[:, i] .= val
+        end
     end
     return result
 end

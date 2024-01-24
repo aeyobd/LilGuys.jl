@@ -1,12 +1,18 @@
-using LilGuys
+import LilGuys as lguys
 using ArgParse
 
 
-function rescale(snap::Snapshot, m_scale, r_scale)
-    scaled = copy(snap)
-    scaled.pos .*= r_scale
-    scaled.vel .*= sqrt(LilGuys.G * m_scale / r_scale)
-    scaled.m *= m_scale
+function rescale(snap::lguys.Snapshot, m_scale, r_scale)
+    v_scale = sqrt(lguys.G * m_scale / r_scale)
+
+    scaled = lguys.copy(snap)
+    scaled.positions .*= r_scale
+    scaled.velocities .*= v_scale
+    if scaled.masses isa lguys.ConstVector
+        scaled.masses *= m_scale
+    else
+        scaled.masses .*= m_scale
+    end
     return scaled
 end
 
@@ -16,14 +22,14 @@ function get_args()
     @add_arg_table s begin
         "--mass" , "-m"
             help = "scale mass in 1e10 Msun"
-            arg_type = F
+            arg_type = Float64
         "--radius", "-r"
             help = "scale radius in kpc"
-            arg_type = F
+            arg_type = Float64
         "--max-radius"
             help = "truncate particles outside this radius (kpc)"
             default = nothing
-            arg_type = F
+            arg_type = Float64
         "input"
             help = "snapshot to rescale"
             required = true
@@ -39,22 +45,17 @@ end
 function main()
     args = get_args()
 
-    snap = Snapshot(args["input"])
+    snap = lguys.Snapshot(args["input"])
 
-    r_scale = args["radius"] / LilGuys.R0
-    m_scale = args["mass"]/ LilGuys.M0
-    v_scale = sqrt(LilGuys.G * m_scale / r_scale)
-
-    scaled = copy(snap)
-    scaled.pos .*= r_scale
-    scaled.vel .*= v_scale
-    scaled.m *= m_scale
+    r_scale = args["radius"] / lguys.R0
+    m_scale = args["mass"]/ lguys.M0
+    scaled = rescale(snap, m_scale, r_scale)
 
     if args["max-radius"] !== nothing
-        scaled = scaled[get_r(scaled.pos) .< args["max-radius"]]
+        scaled = scaled[get_r(scaled.positions) .< args["max-radius"]]
     end
 
-    write!(args["output"], scaled)
+    lguys.save(args["output"], scaled)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

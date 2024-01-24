@@ -51,13 +51,16 @@ end
 
 
 """
-Specific energy of each particle
+Specific energy of each particle of a snapshot
 """
 function calc_E_spec(snap::Snapshot)
     return calc_E_spec_kin(snap) .+ snap.Φ
 end
 
 
+"""
+Given potential and velocity, calculate specific energy
+"""
 function calc_E_spec(Φ::Real, v::Real)
     return 0.5v^2 .+ Φ
 end
@@ -72,13 +75,27 @@ end
 
 
 function calc_L_spec(snap::Snapshot)
-    L = Matrix{F}(undef, 3, length(snap))
+    return calc_L_spec(snap.positions, snap.velocities)
+end
 
-    for i in 1:length(snap)
-        x_vec = snap.positions[:, i]
-        v_vec = snap.velocities[:, i]
-        L[:, i] .= x_vec × v_vec
+function calc_L_spec(x::Vector{T}, v::Vector{T}) where T<:Real
+    return x × v
+end
+
+function calc_L_spec(x::Matrix{T}, v::Matrix{T}) where T<:Real
+    if size(x, 1) != 3 || size(v, 1) != 3
+        error("Matrices must have shape 3×N")
     end
+    if size(x, 2) != size(v, 2)
+        error("Matrices must have same number of columns")
+    end
+
+    L = Matrix{F}(undef, 3, size(x, 2))
+
+    for i in 1:size(x, 2)
+        L[:, i] .= x[:, i] × v[:, i]
+    end
+
     return L
 end
 

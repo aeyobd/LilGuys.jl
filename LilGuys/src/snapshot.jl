@@ -14,6 +14,7 @@ const h5vectors = Dict(
     :positions=>"Coordinates",
     :velocities=>"Velocities",
     :accelerations=>"Acceleration",
+    :masses=>"Masses",
    )
 
 const snap_matricies = [:positions, :velocities, :accelerations]
@@ -32,19 +33,50 @@ velocities : 3xN matrix
 masses : N vector
 
 """
-@kwdef struct Snapshot 
+@kwdef mutable struct Snapshot 
     positions::Matrix{F}
     velocities::Matrix{F}
-    masses::Union{Vector{F}, ConstVector}
+    masses::Vector{F}
+    index::Vector{Int}  
+
     accelerations::OptMatrix = nothing
-    Φs::OptVector = nothing  # potentials
+    Φs::OptVector = nothing  
     Φs_ext::OptVector = nothing
-    header::Dict{String, Any} = make_default_header(size(positions, 2), masses[1]) #TODO: more robustly deal with variable masses
-    index::Vector{Int} = collect(1:size(positions, 2))
+
     filename::String = ""
     h::Real = NaN
+    header::Dict{String, Any}
 end
 
+
+function Snapshot(positions, velocities; mass::Real)
+    N = size(positions, 2)
+    masses = ConstVector(mass, N)
+    return Snapshot(positions, velocities, masses)
+end
+
+
+function Snapshot(positions, velocities, masses)
+    N = size(positions, 2)
+    if mass_is_fixed(masses)
+        m_header = masses[1]
+    else
+        m_header = 0.0
+    end
+
+    header = make_default_header(N, m_header)
+    index = collect(1:N)
+    return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index)
+end
+
+
+function mass_is_fixed(snap::Snapshot)
+    return mass_is_fixed(snap.masses)
+end
+
+function mass_is_fixed(masses::Union{Vector, ConstVector})
+    return masses isa ConstVector && masses[1] != 0
+end
 
 function Snapshot(filename::String; mmap=false)
     kwargs = Dict{Symbol, Any}()
@@ -54,14 +86,18 @@ function Snapshot(filename::String; mmap=false)
             if col ∈ keys(h5f["PartType1"])
                 kwargs[var] = get_vector(h5f, col, mmap=mmap)
             end
-
         end
+
         header = get_header(h5f)
         kwargs[:header] = header
-        m = header["MassTable"][2]
-        kwargs[:masses] = ConstVector(m, size(kwargs[:positions], 2))
+        if :masses ∉ keys(kwargs)
+            m = header["MassTable"][2]
+            N = header["NumPart_ThisFile"][2]
+            kwargs[:masses] = ConstVector(m, N)
+        end
         kwargs[:filename] = filename
     end
+
     return Snapshot(; kwargs...)
 end
 
@@ -109,22 +145,31 @@ end
 
 function save(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
-        for (var, col) in h5vectors
-            val = getproperty(snap, var) # matrix is unneccesary,
-            if val === nothing
-                println("warning: $var is nothing")
-                if col ∈ ["Potential", "ExtPotential"]
-                    val = zeros(F, length(snap))
-                else
-                    val = zeros(F, 3, length(snap))
-                end
-            end
-            set_vector!(h5f, col, val)
-        end
-
-        set_header!(h5f, snap.header)
+        save(h5f, snap)
     end
 end
+
+
+function save(h5f::HDF5.File, snap::Snapshot)
+    set_header!(h5f, snap.header)
+
+    for (var, _) in h5vectors
+        save_vector(h5f, snap, var)
+    end
+end
+
+
+function save_vector(h5f::HDF5.File, snap::Snapshot, var::Symbol)
+    col = h5vectors[var]
+    val = getproperty(snap, var) 
+
+    if var == :masses && !mass_is_fixed(snap)
+        set_vector!(h5f, col, val)
+    elseif val !== nothing
+        set_vector!(h5f, col, val)
+    end
+end
+
 
 
 function Base.show(io::IO, snap::Snapshot)
@@ -138,15 +183,31 @@ end
 
 # Make a default header for an HDF5 file
 function make_default_header(N, mass)
-    header = Dict{String,Any}()
-    header["NumPart_ThisFile"] = F[0, N]
-    header["NumPart_Total"] = F[0, N]
-    header["MassTable"] = F[0.0, mass]
-    header["Time"] = 0.0
-    header["Redshift"] = 0.0
-    header["BoxSize"] = 350.0
-    header["NumFilesPerSnapshot"] = 1
-    return header
+
+    return Dict(
+        "NumPart_ThisFile"=>F[0, N],
+        "MassTable"=>F[0.0, mass],
+        "Time"=>0.0,
+        "Redshift"=>0.0,
+        "NumPart_Total"=>F[0, N],
+        "NumFilesPerSnapshot"=>1,
+        "BoxSize"=>1000,
+       )
+
+end
+
+
+function make_gadget2_header(N, mass)
+    return Dict(
+        "NumPart_ThisFile"=>F[0, N, 0, 0, 0, 0],
+        "MassTable"=>F[0.0, mass, 0.0, 0.0, 0.0, 0.0],
+        "Time"=>0.0,
+        "Redshift"=>0.0,
+        "NumPart_Total"=>F[0, N, 0, 0, 0, 0],
+        "NumFilesPerSnapshot"=>1,
+        "Flag_Entropy_ICs"=>0,
+        "NumPart_Total_HighWord"=>F[0, 0, 0, 0, 0, 0],
+    )
 end
 
 # Set the header in an HDF5 file
