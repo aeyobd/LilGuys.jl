@@ -9,10 +9,12 @@ export save
 
 include("units.jl")
 include("utils.jl")
-include("particle.jl")
-include("snapshot.jl")
+# include("particle.jl")
 include("coordinates.jl")
+
+include("snapshot.jl")
 include("phys_quantities.jl")
+include("coord_trans.jl")   
 include("gravity.jl")
 include("output.jl")
 include("profile.jl")
