@@ -1,19 +1,20 @@
+#!/usr/bin/env julia
+
+
 import LilGuys as lguys
 using ArgParse
 
 
+"""
+returns a snapshot scaled by the given mass and radius (using code units)
+"""
 function rescale(snap::lguys.Snapshot, m_scale, r_scale)
     v_scale = sqrt(lguys.G * m_scale / r_scale)
 
-    scaled = lguys.copy(snap)
-    scaled.positions .*= r_scale
-    scaled.velocities .*= v_scale
-    if scaled.masses isa lguys.ConstVector
-        scaled.masses *= m_scale
-    else
-        scaled.masses .*= m_scale
-    end
-    return scaled
+    positions = snap.positions * r_scale
+    velocities = snap.velocities * v_scale
+    masses = snap.masses * m_scale
+    return lguys.Snapshot(positions, velocities, masses)
 end
 
 
@@ -47,8 +48,8 @@ function main()
 
     snap = lguys.Snapshot(args["input"])
 
-    r_scale = args["radius"] / lguys.R0
-    m_scale = args["mass"]/ lguys.M0
+    r_scale = args["radius"] 
+    m_scale = args["mass"]
     scaled = rescale(snap, m_scale, r_scale)
 
     if args["max-radius"] !== nothing

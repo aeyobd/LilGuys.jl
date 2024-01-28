@@ -3,24 +3,24 @@
     gc = lguys.Observation(ra = 266.4051, dec=-28.936175, distance=8.122,
                              pm_ra=-3.151, pm_dec=-5.547, radial_velocity=-12.9)
 
-    phase = lguys.to_galcen(gc)
+    phase = lguys.transform(lguys.Galactocentric, gc)
 
     @test all(abs.(phase.position) .< 1e-2)
-    @test phase.velocity*lguys.V0 ≈ [0,0,0] atol=0.2 # TODO this is really high
+    @test phase.velocity ≈ [0,0,0] atol=0.2 # TODO this is really high
 
 
 
     sun = lguys.Observation(ra = 0, dec=-0, distance=0,
                              pm_ra=0, pm_dec=0, radial_velocity=0)
-    phase = lguys.to_galcen(sun)
+    phase = lguys.transform(lguys.Galactocentric, sun)
     @test phase.position ≈ [-8.122, 0, 0] rtol=3e-3
-    @test phase.velocity*lguys.V0 ≈ [12.9, 245.6, 7.78] rtol=3e-3
+    @test phase.velocity ≈ [12.9, 245.6, 7.78] rtol=3e-3
 end
 
 
 @testset "test to geocen" begin 
-    g = lguys.PhasePoint(zeros(3), zeros(3))
-    obs = lguys.to_sky(g)
+    g = lguys.Galactocentric(zeros(3), zeros(3))
+    obs = lguys.transform(lguys.Observation, g)
 
     @test obs.ra ≈ 266.4168166 rtol=1e-2
     @test obs.dec ≈ -29.00782 rtol=1e-2
@@ -33,9 +33,9 @@ end
 
 @testset "test inverse" begin
     N = 100
-    phase = [lguys.PhasePoint( 20*randn(3), 100*randn(3))
+    phase = [lguys.Galactocentric( 20*randn(3), 100*randn(3))
              for _ in 1:N]
-    phase2 = lguys.to_galcen.(lguys.to_sky.(phase))
+    phase2 = lguys.transform.(lguys.Galactocentric, lguys.transform.(lguys.Observation, phase))
 
     for i in 1:N
         p = phase[i]
@@ -53,7 +53,7 @@ end
                                 10*randn(), 10*randn(), 10*randn())
              for _ in 1:N]
 
-    obs2 = lguys.to_sky.(lguys.to_galcen.(obs))
+    obs2 = lguys.transform.(lguys.Observation, lguys.transform.(lguys.Galactocentric, obs))
 
     for i in 1:N
         p = obs[i]

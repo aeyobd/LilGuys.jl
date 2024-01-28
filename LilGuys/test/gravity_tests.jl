@@ -56,7 +56,7 @@ function make_rad_Φ(rs)
     positions = rs .* lguys.rand_unit(N) 
     masses = ones(N)
     velocities = zeros(3, N)
-    snap = lguys.Snapshot(positions=positions, masses=masses, velocities=velocities)
+    snap = lguys.Snapshot(positions, velocities, masses)
     return lguys.calc_radial_Φ(snap)
 end
 
@@ -87,7 +87,7 @@ end
     positions = rs .* lguys.rand_unit(N) 
     masses = rand(N)
     velocities = zeros(3, N)
-    snap =  lguys.Snapshot(positions=positions, masses=masses, velocities=velocities)
+    snap =  lguys.Snapshot(positions, velocities, masses)
 
     rs = [0.0, 0.5, 1, 5, 10, 100]
     Φr = lguys.calc_radial_Φ(snap)

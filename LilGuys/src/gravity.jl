@@ -1,5 +1,3 @@
-import Interpolations: linear_interpolation, Line
-
 
 """
 given a centered snapshot, returns a interpolated potential a a function 

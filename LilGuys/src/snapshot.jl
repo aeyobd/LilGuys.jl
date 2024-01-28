@@ -90,11 +90,12 @@ function Snapshot(filename::String; mmap=false)
 
         header = get_header(h5f)
         kwargs[:header] = header
-        if :masses ∉ keys(kwargs)
-            m = header["MassTable"][2]
-            N = header["NumPart_ThisFile"][2]
+        m = header["MassTable"][2]
+        N = header["NumPart_ThisFile"][2]
+        if m != 0  || (m == 0 && :masses ∉ keys(kwargs))
             kwargs[:masses] = ConstVector(m, N)
         end
+
         kwargs[:filename] = filename
     end
 

@@ -4,7 +4,7 @@
     pos = transpose(hcat(ones(N), zeros(N), -ones(N)))
     vel = transpose(hcat(zeros(N), 2*ones(N), zeros(N)))
     m = lguys.ConstVector(1., N)
-    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=m)
+    snap = lguys.Snapshot(pos, vel, m)
 
     # cen = lguys.centroid(snap)
 
@@ -23,9 +23,9 @@ function make_snap(N, f_x, f_v, f_m=x->1.)
     vs = f_v.(rs, rand(N))
 
     pos = lguys.rand_unit(N) .* reshape(rs, 1, N)
-    vel = lguys.rand_unit(N) .* reshape(vs, 1, N)
+    vel = lguys.rand_unit(N) .* reshape(vs, 1, N) ./ lguys.V0
     m = f_m.(rand(N))
-    return lguys.Snapshot(positions=pos, velocities=vel, masses=m)
+    return lguys.Snapshot(pos, vel, m)
 end
 
 

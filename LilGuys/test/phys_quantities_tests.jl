@@ -11,7 +11,7 @@ function create_snapshot()
 
     m = [1., 1, 1]
 
-    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=m)
+    snap = lguys.Snapshot(pos, vel, m)
     return snap
 end
 
@@ -37,7 +37,7 @@ end
 
     m = [1., 1, 1]
 
-    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=m)
+    snap = lguys.Snapshot(pos, vel, m)
     actual = lguys.calc_r(snap)
     expected = [1, 5, 1.3]
 
