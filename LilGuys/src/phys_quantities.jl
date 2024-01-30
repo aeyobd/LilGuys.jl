@@ -4,7 +4,7 @@ using EllipsisNotation
 """
 The magnitude of a matrix of 3-vectors of shape 3×N
 """
-function calc_r(x::Matrix{T}) where T<:Real
+function calc_r(x::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3
         error("Matrix must have shape 3×N")
     end
@@ -12,11 +12,11 @@ function calc_r(x::Matrix{T}) where T<:Real
 end
 
 
-function calc_r(a::Array{T}, b::Array{T}) where T<:Real
+function calc_r(a::AbstractArray{T}, b::AbstractArray{T}) where T<:Real
     return calc_r(a .- b)
 end
 
-function calc_r(x::Vector{T}) where T<:Real
+function calc_r(x::AbstractVector{T}) where T<:Real
     if length(x) != 3
         error("Vector must have length 3")
     end
@@ -25,7 +25,7 @@ function calc_r(x::Vector{T}) where T<:Real
 end
 
 
-function _calc_r(x::Array{T}) where T<:Real
+function _calc_r(x::AbstractArray{T}) where T<:Real
     r = sqrt.(sum(x.^2, dims=1))
     return r[1, ..] #sum doesn't actually reduce the dimension
 end
@@ -40,7 +40,7 @@ function calc_v(snap::Snapshot)
     return calc_r(snap.velocities)
 end
 
-function calc_v(snap::Snapshot, v0::Vector{T}) where T<:Real
+function calc_v(snap::Snapshot, v0::AbstractVector{T}) where T<:Real
     return calc_r(snap.velocities .- v0)
 end
 
@@ -67,10 +67,16 @@ end
 
 
 function calc_E_tot(snap::Snapshot, v_vec_0=zeros(3))
-    ms = snap.masses
-    return sum(ms .* E_spec_kin(snap, v_vec) 
-               .+ 1/2*ms .* snap.Φs 
-               .+ ms .* snap.Φs_ext)
+    if snap.Φs_ext == nothing
+        Φs_ext = 0
+    else
+        Φs_ext = snap.Φs_ext
+    end
+    return sum(snap.masses .* (
+               calc_E_spec_kin(snap, v_vec_0) 
+               .+ 1/2 * snap.Φs 
+               .+ Φs_ext)
+              )
 end
 
 
@@ -78,11 +84,11 @@ function calc_L_spec(snap::Snapshot)
     return calc_L_spec(snap.positions, snap.velocities)
 end
 
-function calc_L_spec(x::Vector{T}, v::Vector{T}) where T<:Real
+function calc_L_spec(x::AbstractVector{T}, v::AbstractVector{T}) where T<:Real
     return x × v
 end
 
-function calc_L_spec(x::Matrix{T}, v::Matrix{T}) where T<:Real
+function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3 || size(v, 1) != 3
         error("Matrices must have shape 3×N")
     end
@@ -100,7 +106,8 @@ function calc_L_spec(x::Matrix{T}, v::Matrix{T}) where T<:Real
 end
 
 function calc_L(snap::Snapshot)
-    return calc_L_spec(snap) .* snap.masses
+    m = reshape(snap.masses, 1, :)
+    return calc_L_spec(snap) .* m
 end
 
 function calc_L_tot(snap::Snapshot)
@@ -131,7 +138,7 @@ function get_x(snap::Snapshot)
     return get_x(snap.positions)
 end
 
-function get_x(A::Matrix{T}) where T<:Real
+function get_x(A::AbstractMatrix{T}) where T<:Real
     return A[1, :]
 end
 
@@ -139,7 +146,7 @@ function get_y(snap::Snapshot)
     return get_y(snap.positions)
 end
 
-function get_y(A::Matrix{T}) where T<:Real
+function get_y(A::AbstractMatrix{T}) where T<:Real
     return A[2, :]
 end
 
@@ -147,7 +154,7 @@ function get_z(snap::Snapshot)
     return get_z(snap.positions)
 end
 
-function get_z(A::Matrix{T}) where T<:Real
+function get_z(A::AbstractMatrix{T}) where T<:Real
     return A[3, :]
 end
 

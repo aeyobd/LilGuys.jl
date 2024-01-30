@@ -1,20 +1,25 @@
-using ArgParse
-using LilGuys
+#!/usr/bin/env julia
 
-function set_in_orbit(snap, p, v, max_radius=nothing)
-    centered = center(snap)
+using ArgParse
+import LilGuys as lguys
+
+"""
+Sets a particle in the orbit given by x_vec_0 and v_vec_0 (kpc and km/s)
+"""
+function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
+    centered = lguys.centre(snap)
     if max_radius !== nothing
-        r = get_r(centered)
+        r = lguys.calc_r(centered.positions)
         centered = centered[r .< max_radius]
     end
-    dp = p ./ R_0 
-    dv = v ./ V_0
 
-    centered = shift_snapshot(centered, dp, dv)  # Assuming shift_snapshot is a function you have
-    pf, vf = get_most_bound(centered)  # Assuming get_most_bound is a function you have
+    x0 = x_vec ./ lguys.R0 
+    v0 = v_vec ./ lguys.V0
 
-    println("center at ", pf * R_0)
-    println("moving at ", vf * V_0)
+    println("center at ", x_vec)
+    println("moving at ", v_vec)
+    centered.positions .+= x0
+    centered.velocities .+= v0
 
     return centered
 end
@@ -47,9 +52,9 @@ end
 
 function main()
     args = parse_arguments()
-    snap = Snapshot(args["input"]) 
+    snap = lguys.Snapshot(args["input"]) 
     new_snap = set_in_orbit(snap, args["position"], args["velocity"], args["max_radius"])
-    save(new_snap, args["output"]) 
+    lguys.save(args["output"], new_snap) 
 end
 
 
