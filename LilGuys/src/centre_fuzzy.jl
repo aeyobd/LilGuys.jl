@@ -1,20 +1,36 @@
 import SpecialFunctions: erf
-import NearestNeighbors as nn
 import Base: @kwdef
 
 
 @kwdef struct FuzzyCentreState
     snap::Snapshot
 
-    x_vec_centre::Vector{F}
-    v_vec_centre::Vector{F}
+    x_vec_centre::Vector{F} # normal vectores
+    v_vec_centre::Vector{F} # vector of normal dists.
+    a_vec_centre::Vector{F} # vector of normal dists.
 
-    weights::Vector{F}
-    δr::OptVector = nothing
+    weights::Vector{F} # not sure...  binom?
+    δr::OptVector = nothing #
     δv::OptVector = nothing
     w::OptVector = nothing
 end
 
+
+function centre(out::Output; kwargs...)
+
+    cen = FuzzyCentreState(out[0])
+    time = 0
+    for i in 1:length(out)
+        dt = out.times[i] - time 
+        time = out.times[i]
+
+        predict!(cen, dt) # evolve the centre forward in time (leapfrog)
+
+        snap = out.snapshots[i]
+        update!(cen, snap; kwargs...) # recalculate propabilities and centre
+
+    end
+end
 
 """
 Computes the centre of a snapshot while accounting for uncertanties

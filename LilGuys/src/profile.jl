@@ -20,11 +20,21 @@ A 1-d representation of the profile of a galaxy.
 end
 
 
+function Profile(snap::Snapshot)
+    x_c = centroid(snap.positions)
+    v_c = centroid(snap.velocities)
+
+    return Profile(snap, x_c, v_c)
+end
+
 """
 Given a snaphot, returns a profile object
 """
-function Profile(snap::Snapshot, Nr=20, Ne=20)
-    sorted = sort_by_r(centre(snap))
+function Profile(snap::Snapshot, x_c, v_c, Nr=20, Ne=20)
+    sorted = copy(snap)
+    sorted.positions .-= x_c
+    sorted.velocities .-= v_c
+    sorted = sort_by_r(sorted)
 
     N = length(sorted)
     r = calc_r(sorted)
@@ -73,14 +83,6 @@ function calc_ρ_profile(r, ms, r_bins)
     return ρs
 end
 
-
-function centre(snap::Snapshot)
-    cen = ss_centre(snap)
-    snap1 = copy(snap)
-    snap1.positions .-= cen.x_c
-    snap1.velocities .-= cen.v_c
-    return snap1
-end
 
 
 

@@ -3,8 +3,7 @@
 given a centered snapshot, returns a interpolated potential a a function 
 of r
 """
-function calc_radial_Φ(positions::Matrix{T}, masses) where T <: Real
-    radii = calc_r(positions)
+function calc_radial_Φ(radii::AbstractVector{T}, masses) where T <: Real
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -20,6 +19,12 @@ function calc_radial_Φ(positions::Matrix{T}, masses) where T <: Real
     Φ_cen = calc_Φ(ms_sorted, rs_sorted)
 
     return r -> _interpolated_Φ(r, rs_sorted, Ms_in, Φs_out, Φ_cen)
+end
+
+
+function calc_radial_Φ(positions::Matrix{T}, masses::Vector{T}) where T <: Real
+    radii = calc_r(positions)
+    return calc_radial_Φ(radii, masses)
 end
 
 function calc_radial_Φ(snap::Snapshot)
