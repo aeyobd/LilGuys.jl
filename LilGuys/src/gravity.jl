@@ -1,3 +1,7 @@
+# This file containes methods to evaluate the gravitational 
+# potential and force
+
+
 
 """
 given a centered snapshot, returns a interpolated potential a a function 
@@ -22,7 +26,41 @@ function calc_radial_Φ(radii::AbstractVector{T}, masses) where T <: Real
 end
 
 
-function calc_radial_Φ(positions::Matrix{T}, masses::Vector{T}) where T <: Real
+
+"""
+    calc_discrete_spherical_Φ(radii, masses)
+
+Given a collection of masses at given radii,
+returns the potential at each radius.
+
+The potential is calculated as
+```math
+Φ(r) = -G M(r) / r - \\int_r^\\infty G dm/dr(r') / r' dr'
+```
+"""
+function calc_radial_discrete_Φ(masses::AbstractVector{T}, radii::AbstractVector{T}) where T <: Real
+    # work inside out
+    idx = sortperm(radii)
+    rs_sorted = radii[idx]
+    ms_sorted = masses[idx]
+
+    M_in = cumsum(ms_sorted)
+
+    Φ_shells = calc_Φ.(ms_sorted, rs_sorted)[2:end]
+
+    # include each shell outside the current one...
+    Φ_out = Vector{T}(undef, length(masses))
+    Φ_out[1:end-1] .= reverse(cumsum(reverse(Φ_shells)))
+    Φ_out[end] = 0
+
+    Φ_in = calc_Φ.(M_in, rs_sorted)
+
+    return Φ_out .+ Φ_in
+end
+
+
+
+function calc_radial_Φ(masses::Vector{T}, positions::Matrix{T}) where T <: Real
     radii = calc_r(positions)
     return calc_radial_Φ(radii, masses)
 end
@@ -47,14 +85,14 @@ end
 Gravitational potential due to particles in snapshot at position x_vec
 """
 function calc_Φ(snap::Snapshot, x_vec)
-    return calc_Φ(snap.positions, snap.masses, x_vec)
+    return calc_Φ(snap.masses, snap.positions, x_vec)
 end
 
 
 """
 Gravitational potential due to ensemble of masses at positions evaluated at x_vec
 """
-function calc_Φ(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
+function calc_Φ(masses::Vector{T}, positions::Matrix{T}, x_vec) where T <: Real
     radii = calc_r(positions .- x_vec)
     return calc_Φ(masses, radii)
 end
@@ -84,7 +122,7 @@ end
 """
 Force of gravity from masses at given positions evaluated at x_vec
 """
-function calc_F_grav(positions::Matrix{F}, masses::Vector{F}, x_vec)
+function calc_F_grav(masses::Vector{F}, positions::Matrix{F}, x_vec)
     dr = x_vec .- positions
     rs = calc_r(dr)
     r_hat = dr ./ rs
@@ -95,7 +133,7 @@ end
 
 
 function calc_F_grav(snap::Snapshot, x_vec)
-    return calc_F_grav(snap.positions, snap.masses, x_vec)
+    return calc_F_grav(snap.masses, snap.positions, x_vec)
 end
 
 

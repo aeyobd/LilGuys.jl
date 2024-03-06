@@ -20,6 +20,10 @@ A 1-d representation of the profile of a galaxy.
 end
 
 
+"""
+    Profile(snap)
+Given a snapshot `snap`, returns a profile object.
+"""
 function Profile(snap::Snapshot)
     x_c = centroid(snap.positions)
     v_c = centroid(snap.velocities)
@@ -27,14 +31,29 @@ function Profile(snap::Snapshot)
     return Profile(snap, x_c, v_c)
 end
 
+
+function write(file::IO, profile::Profile)
+    write(file, profile.rs)
+    write(file, profile.Ms)
+    write(file, profile.ρs)
+    write(file, profile.Φs)
+    write(file, profile.Vs_circ)
+end
+
 """
+    Profile(snap, x_c, v_c; Nr=20, Ne=20)
+
 Given a snaphot, returns a profile object
+# Arguments
+- `snap::Snapshot`: the snapshot to be profiled
 """
-function Profile(snap::Snapshot, x_c, v_c, Nr=20, Ne=20)
+function Profile(snap::Snapshot, x_c, v_c; Nr=20, Ne=20)
     sorted = copy(snap)
     sorted.positions .-= x_c
     sorted.velocities .-= v_c
     sorted = sort_by_r(sorted)
+    filt = calc_E_spec(sorted) .< 0
+    sorted = sorted[filt]
 
     N = length(sorted)
     r = calc_r(sorted)
@@ -49,6 +68,19 @@ function Profile(snap::Snapshot, x_c, v_c, Nr=20, Ne=20)
 
     return Profile(snap=snap, rs=r_mids, Ms=M, 
                    ρs=ρs, Vs_circ=V_circ)
+end
+
+
+"""Returns a centred snapshot"""
+function centre_obsolete(snap::Snapshot)
+    x_c = centroid(snap.positions)
+    v_c = centroid(snap.velocities)
+
+    centred = copy(snap)
+    centred.positions .-= x_c
+    centred.velocities .-= v_c
+
+    return centred
 end
 
 
@@ -69,6 +101,7 @@ function calc_m(r, masses, r_bins)
 end
 
 
+"""Calculates the densities given the masses and the radii for a spherical distribution"""
 function calc_ρ_profile(r, ms, r_bins)
     N = length(r_bins) - 1
     ρs = zeros(N)
@@ -82,9 +115,6 @@ function calc_ρ_profile(r, ms, r_bins)
 
     return ρs
 end
-
-
-
 
 
 """
@@ -114,7 +144,7 @@ function make_equal_number_bins(x, n)
 end
 
 
-
+"""Calculates the maximum circular velocity of a snapshot"""
 function get_V_circ_max(snap::Snapshot)
     r = calc_r(snap.positions)
     N = length(snap)
@@ -123,6 +153,7 @@ function get_V_circ_max(snap::Snapshot)
 end
 
 
+"""calculates the circular velocity for each radius of a particle in snap"""
 function get_V_circ(snap::Snapshot, r)
     rs = calc_r(snap)
     M = sum((rs .< r) .* snap.masses)
@@ -130,7 +161,7 @@ function get_V_circ(snap::Snapshot, r)
 end
 
 
-
+"""sorts a snapshot by radius from 0"""
 function sort_by_r(snap::Snapshot)
     return snap[sortperm(calc_r(snap.positions))]
 end

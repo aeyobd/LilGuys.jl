@@ -1,3 +1,7 @@
+# A work in progress method for bayesian centre finding for the 
+# time series of snapshots, so especially for outputs.
+
+
 import SpecialFunctions: erf
 import Base: @kwdef
 
@@ -16,6 +20,7 @@ import Base: @kwdef
 end
 
 
+"""Calculates the centres for each snapshot in an output"""
 function centre(out::Output; kwargs...)
 
     cen = FuzzyCentreState(out[0])

@@ -2,26 +2,32 @@
 
 using ArgParse
 import LilGuys as lguys
+using CSV
+using DataFrames
 
 """
 Sets a particle in the orbit given by x_vec_0 and v_vec_0 (kpc and km/s)
 """
 function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
-    centered = lguys.centre(snap)
+    cen = lguys.ss_centre(snap)
+    centred = copy(snap)
+    centred.positions .-= cen.x_c
+    centred.velocities .-= cen.v_c
+
     if max_radius !== nothing
-        r = lguys.calc_r(centered.positions)
-        centered = centered[r .< max_radius]
+        r = lguys.calc_r(centred.positions)
+        centred = centred[r .< max_radius]
     end
 
-    x0 = x_vec ./ lguys.R0 
-    v0 = v_vec ./ lguys.V0
+    x0 = x_vec
+    v0 = v_vec
 
-    println("center at ", x_vec)
+    println("centred at ", x_vec)
     println("moving at ", v_vec)
-    centered.positions .+= x0
-    centered.velocities .+= v0
+    centred.positions .+= x0
+    centred.velocities .+= v0
 
-    return centered
+    return centred
 end
 
 function parse_arguments()
@@ -36,11 +42,15 @@ function parse_arguments()
         "-p", "--position"
             arg_type=Float64
             nargs='+'
-            help="initial position in kpc"
+            help="initial position in code units"
         "-v", "--velocity"
             arg_type=Float64
             nargs='+'
-            help="initial velocity in km/s"
+            help="initial velocity in code units"
+        "-f", "--file"
+            arg_type=String
+            default=nothing
+            help="file to read position and velocity from, overrides -p and -v. Reads the first row as if a csv assuming labeled columns are x, y, .. v_x, v_y, .. etc."
         "--max_radius"
             arg_type=Float64
             default=nothing
@@ -53,7 +63,19 @@ end
 function main()
     args = parse_arguments()
     snap = lguys.Snapshot(args["input"]) 
-    new_snap = set_in_orbit(snap, args["position"], args["velocity"], args["max_radius"])
+    if args["file"] !== nothing
+        df = CSV.read(args["file"], DataFrame)
+        row = df[1, :]
+        position = [row.x, row.y, row.z]
+        velocity = [row.v_x, row.v_y, row.v_z]
+        println("reading from file ", args["file"])
+        println("position: ", position)
+        println("velocity: ", velocity)
+    else
+        position = read(file["position"])
+        velocity = read(file["velocity"])
+    end
+    new_snap = set_in_orbit(snap, position, velocity, args["max_radius"])
     lguys.save(args["output"], new_snap) 
 end
 

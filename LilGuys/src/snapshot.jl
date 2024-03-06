@@ -74,9 +74,11 @@ function mass_is_fixed(snap::Snapshot)
     return mass_is_fixed(snap.masses)
 end
 
+
 function mass_is_fixed(masses::Union{Vector, ConstVector})
     return masses isa ConstVector && masses[1] != 0
 end
+
 
 function Snapshot(filename::String; mmap=false)
     kwargs = Dict{Symbol, Any}()
@@ -211,6 +213,7 @@ function make_gadget2_header(N, mass)
     )
 end
 
+
 # Set the header in an HDF5 file
 function set_header!(h5f::HDF5.File, header::Dict{String,Any})
     if "Header" ∉ keys(h5f)
@@ -228,6 +231,7 @@ function get_header(h5f::HDF5.File)
     return Dict(attrs(h5f["Header"]))
 end
 
+
 # gets a vector from an HDF5 file
 function get_vector(h5f::HDF5.File, key::String; mmap=false, group="PartType1")
     path = group * "/" * key
@@ -237,6 +241,7 @@ function get_vector(h5f::HDF5.File, key::String; mmap=false, group="PartType1")
         return read(h5f[path])
     end
 end
+
 
 function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
     if group ∉ keys(h5f)
@@ -251,6 +256,7 @@ function set_vector_ele!(h5f::HDF5.File, key::String, el::Int, val, group="PartT
     path = group * "/" * key
     h5f[path][el] = val
 end
+
 
 function set_header_attr(h5f::HDF5.File, key::String, val)
     header = attrs(h5f["Header"])

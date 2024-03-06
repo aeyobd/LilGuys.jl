@@ -5,7 +5,6 @@ import StatsBase: percentile
 @kwdef mutable struct SS_State
     f_min::Float64 = 0.1
     const percen::Float64 = 95
-    # const snap::Snapshot # doesn't enforce no changes....
 
     filt::BitVector
     Φs::Vector{Float64}
@@ -14,7 +13,7 @@ import StatsBase: percentile
     x_c::Vector{Float64}
     v_c::Vector{Float64}
     iter::Int = 0
-    itermax::Int = 10
+    itermax::Int = 100
 
     history = nothing
 end
@@ -33,15 +32,10 @@ end
 function SS_State(snap::Snapshot; kwargs...)
     kwargs = Dict{Symbol,Any}(kwargs)
 
-    # kwargs[:snap] = snap
-    x_c = centroid(snap.positions)
-    v_c = centroid(snap.velocities)
-    rs = calc_r(snap.positions .- x_c)
-    kwargs[:x_c] = x_c
-    kwargs[:v_c] = v_c
-    Φ = calc_radial_Φ(snap.positions .- x_c, snap.masses)
-    kwargs[:Φs] = Φ.(rs)
-    kwargs[:rs] = rs
+    kwargs[:x_c] = zeros(3)
+    kwargs[:v_c] = zeros(3)
+    kwargs[:Φs] = zeros(length(snap))
+    kwargs[:rs] = calc_r(snap.positions)
     kwargs[:filt] = trues(length(snap))
 
     return SS_State(;kwargs...)
@@ -97,23 +91,34 @@ Finds the centre using the shrinking sphere method
 """
 function ss_centre(snap::Snapshot; verbose=false, history=false, kwargs...)
     state = SS_State(snap; kwargs...)
+    update_centre!(state, snap)
 
     while !is_done(state)
-        filter_edges!(state, snap)
+        dN_r, r_cut = filter_edges!(state, snap)
         update_centre!(state, snap)
         dN_bound = filter_unbound!(state, snap)
 
-        dN_r, r_cut = update_centre!(state, snap)
+        update_centre!(state, snap)
         if verbose
             println("iteration ", state.iter)
+            println("r_cut = ", r_cut)
+            println("dN_r = ", dN_r)
+            println("dN_bound = ", dN_bound)
+            println("N = ", sum(state.filt))
         end
         if history
             update_history!(state, r_cut, dN_r, dN_bound)
         end
+
+        if dN_r == 0 && dN_bound == 0
+            break
+        end
+        state.iter += 1
     end
 
     return state
 end
+
 
 function update_history!(state::SS_State, r_cut, dN_r, dN_bound)
     if state.history == nothing
@@ -139,12 +144,13 @@ end
 function filter_edges!(state::SS_State, snap)
     r_cut = percentile(state.rs, state.percen)
 
-    filter_radius!(state, snap, r_cut)
+    dN = filter_radius!(state, snap, r_cut)
 
     if state.history !== nothing
         push!(state.history.Rmax, r_cut)
         push!(state.history.dN_R, dN)
     end
+    return dN, r_cut
 end
 
 
@@ -162,6 +168,8 @@ function filter_radius!(state::SS_State, snap::Snapshot, r_cut)
     end
     state.filt[filt_i] .= filt
     update_centre!(state, snap)
+
+    return N - N_after
 end
 
 
@@ -192,16 +200,15 @@ function filter_unbound!(state::SS_State, snap::Snapshot)
     end
 
     update_centre!(state, snap)
+
+    return N - N_after
 end
 
 
 function recalc_Φ!(state::SS_State, snap)
     ms = snap.masses[state.filt]
     rs = state.rs
-    Φ_func = calc_radial_Φ(rs, ms)
-    Φs = Φ_func.(rs)
-
-    state.Φs = Φs
+    state.Φs = calc_radial_discrete_Φ(ms, rs)
 end
 
 

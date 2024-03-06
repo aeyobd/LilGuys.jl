@@ -54,7 +54,7 @@ end
 Specific energy of each particle of a snapshot
 """
 function calc_E_spec(snap::Snapshot)
-    return calc_E_spec_kin(snap) .+ snap.Φ
+    return calc_E_spec_kin(snap) .+ snap.Φs
 end
 
 
