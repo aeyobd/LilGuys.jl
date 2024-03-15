@@ -199,6 +199,17 @@ function make_default_header(N, mass)
 
 end
 
+function regenerate_header!(snap::Snapshot)
+    if mass_is_fixed(snap)
+        m = snap.masses[1]
+    else
+        m = 0.0
+    end
+
+    N = length(snap)
+    snap.header = make_default_header(N, m)
+end
+
 
 function make_gadget2_header(N, mass)
     return Dict(

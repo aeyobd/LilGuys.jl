@@ -1,3 +1,6 @@
+#!/usr/bin/env julia
+
+
 using ArgParse
 using JSON
 
@@ -14,7 +17,7 @@ function main()
             required=true
         "output"
             help="Output file"
-            default=""
+            required=true
         "-v", "--verbose"
             help="verbose"
             action="store_true"
@@ -38,13 +41,18 @@ function main()
 
     cen = lguys.ss_centre(input, itermax=args["maxiter"], verbose=args["verbose"], percen=args["percentile"])
 
-    if args["output"] == ""
-        println(Dict("x_c" => cen.x_c, "v_c" => cen.v_c))
-    else
-        open(args["output"], "w") do f
-            print(f, Dict("x_c" => cen.x_c, "v_c" => cen.v_c))
-        end
-    end
+    new = lguys.copy(input)
+    new.positions .-= cen.x_c
+    new.velocities .-= cen.v_c
+
+    Φ = lguys.calc_radial_discrete_Φ(new)
+    E = lguys.calc_E_spec_kin(new)
+    filt = Φ .+ E .< 0
+
+    new = new[filt]
+    lguys.regenerate_header!(new)
+    lguys.save(args["output"], new)
+
 end
 
 

@@ -59,15 +59,27 @@ function calc_radial_discrete_Φ(masses::AbstractVector{T}, radii::AbstractVecto
 end
 
 
+function calc_radial_discrete_Φ(masses::AbstractVector{T}, positions::Matrix{T}) where T <: Real
+    radii = calc_r(positions)
+    return calc_radial_discrete_Φ(masses, radii)
+end
+
+
+function calc_radial_discrete_Φ(snap::Snapshot)
+    return calc_radial_discrete_Φ(snap.masses, snap.positions)
+end
+
 
 function calc_radial_Φ(masses::Vector{T}, positions::Matrix{T}) where T <: Real
     radii = calc_r(positions)
     return calc_radial_Φ(radii, masses)
 end
 
+
 function calc_radial_Φ(snap::Snapshot)
     return calc_radial_Φ(snap.positions, snap.masses)
 end
+
 
 function _interpolated_Φ(r, rs, Ms_in, Φs_out, Φ_cen)
     if r < rs[1]
