@@ -54,7 +54,22 @@ end
 Specific energy of each particle of a snapshot
 """
 function calc_E_spec(snap::Snapshot)
-    return calc_E_spec_kin(snap) .+ snap.Φs
+    if snap.Φs == nothing || all(snap.Φs .== 0)
+        Φ = calc_radial_discrete_Φ(snap)
+    else
+        Φ = snap.Φs
+    end
+    return calc_E_spec_kin(snap) .+ Φ
+end
+
+
+"""
+    calc_ϵ(snap)
+
+calculates binding energy of each particle in snapshot
+"""
+function calc_ϵ(snap::Snapshot)
+    return -calc_E_spec(snap)
 end
 
 

@@ -29,6 +29,9 @@ function main()
             help="percentile to keep per round"
             arg_type=Float64
             default=95.
+        "-c", "--cut_unbound"
+            help="cut unbound particles"
+            action="store_true"
     end
 
 
@@ -42,17 +45,20 @@ function main()
     cen = lguys.ss_centre(input, itermax=args["maxiter"], verbose=args["verbose"], percen=args["percentile"])
 
     new = lguys.copy(input)
+    println("shifting by ", cen.x_c, " and ", cen.v_c)
     new.positions .-= cen.x_c
     new.velocities .-= cen.v_c
 
-    Φ = lguys.calc_radial_discrete_Φ(new)
-    E = lguys.calc_E_spec_kin(new)
-    filt = Φ .+ E .< 0
+    if args["cut_unbound"]
+        ϵ = lguys.calc_ϵ(new)
+        println(ϵ[1:10])
+        filt = ϵ .> 0
+        println("removing ", sum(ϵ .<= 0), " unbound particles")
+        new = new[ϵ .> 0]
+        lguys.regenerate_header!(new) # as N has changed
+    end
 
-    new = new[filt]
-    lguys.regenerate_header!(new)
     lguys.save(args["output"], new)
-
 end
 
 

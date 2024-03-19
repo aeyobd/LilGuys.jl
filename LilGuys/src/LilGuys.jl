@@ -19,6 +19,8 @@ include("gravity.jl")
 include("output.jl")
 include("profile.jl")
 
+include("distributions.jl")
+
 include("centre_fuzzy.jl")
 include("centre_shrinking_spheres.jl")
 include("centre_density.jl")
