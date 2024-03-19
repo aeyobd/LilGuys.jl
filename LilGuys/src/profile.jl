@@ -117,31 +117,6 @@ function calc_ρ_profile(r, ms, r_bins)
 end
 
 
-"""
-calculates equal number bins over the array x with n values per bin.
-"""
-function make_equal_number_bins(x, n)
-    N = length(x)
-    xs = sort(x)
-    Nbins = round(Int, N/n) + 1
-    n = N / Nbins
-
-    bins = zeros(Nbins)
-
-    dx1 = xs[2] - xs[1]
-    dx2 = xs[end] - xs[end-1]
-    bins[1] = xs[1] - dx1/2
-    bins[end] = xs[end] + dx2/2
-
-    for i in 2:(Nbins-1)
-        ii = i * n
-        xl = xs[floor(Int, ii)]
-        xh = xs[ceil(Int, ii)]
-        bins[i] = (xl + xh) / 2
-    end
-
-    return bins
-end
 
 
 """Calculates the maximum circular velocity of a snapshot"""

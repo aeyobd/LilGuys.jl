@@ -194,3 +194,106 @@ function logit(p::Real)
     return log(p / (1-p))
 end
 
+
+"""
+    midpoint(x)
+
+Computes the midpoint of each element of a vector (for example, bin centres).
+"""
+function midpoint(x::AbstractVector{T}) where T<:Real
+    return (x[1:end-1] + x[2:end]) / 2
+end
+
+
+
+"""
+    to_tangent(α, δ, α_0, δ_0)
+
+Computes the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
+"""
+function to_tangent(α, δ, α_0, δ_0)
+	denom = @. (sind(δ) * sind(δ_0) 
+		+ cosd(δ) * cosd(δ_0) * cosd(α - α_0)
+	)
+	
+	eta_num = @. (sind(δ_0) * cosd(δ) * cosd(α-α_0)
+		-cosd(δ_0) * sind(δ) 
+	)
+	
+	xi_num = @. cosd(δ) * sind(α - α_0)
+	
+	xi = @. rad2deg(xi_num/denom)
+	eta = @. -rad2deg(eta_num / denom)
+
+	return xi, eta
+end
+
+
+"""
+    calc_r_ell(x, y, a, b, PA)
+
+computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
+"""
+function calc_r_ell(x, y, a, b, PA)
+	θ = @. deg2rad(PA)
+	x_p = @. x * cos(θ) + -y * sin(θ)
+	y_p = @. x * sin(θ) + y * cos(θ)
+
+	r_sq = @. (x_p / a)^2 + (y_p / b)^2
+	return sqrt.(r_sq)
+end
+
+
+
+"""
+calculates equal number bins over the array x with n values per bin.
+"""
+function make_equal_number_bins(x, n)
+    N = length(x)
+    xs = sort(x)
+    Nbins = round(Int, N/n) + 1
+    n = N / Nbins
+
+    bins = zeros(Nbins)
+
+    dx1 = xs[2] - xs[1]
+    dx2 = xs[end] - xs[end-1]
+    bins[1] = xs[1] - dx1/2
+    bins[end] = xs[end] + dx2/2
+
+    for i in 2:(Nbins-1)
+        ii = i * n
+        xl = xs[floor(Int, ii)]
+        xh = xs[ceil(Int, ii)]
+        bins[i] = (xl + xh) / 2
+    end
+
+    return bins
+end
+
+
+"""
+    calc_histogram(x, bins; weights=Nothing)
+
+Computes the histogram of a vector x with respect to the bins with optional weights
+"""
+function calc_histogram(x::AbstractVector, bins::AbstractVector; weights=Nothing)
+    if weights == Nothing
+        weights = ones(length(x))
+    end
+    Nbins = length(bins) - 1
+    hist = zeros(Nbins)
+    for i in 1:Nbins
+        idx = (x .>= bins[i]) .& (x .< bins[i+1])
+        hist[i] = sum(weights[idx])
+    end
+    return bins, hist
+end
+
+function calc_histogram(x::AbstractVector, bins::Int=20; weights=Nothing, xlim=Nothing)
+    if xlim == Nothing
+        xlim = (minimum(x[isfinite.(x)]), maximum(x[isfinite.(x)]))
+    end
+
+    return calc_histogram(x, LinRange(xlim[1], xlim[2], bins); weights=weights)
+end
