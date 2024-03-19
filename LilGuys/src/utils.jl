@@ -44,6 +44,14 @@ function centroid_err(x::Matrix{T}, weights::Vector{T}) where T<:Real
 end
 
 
+"""
+    randu(low, high[ size])
+
+Returns a random number between low and high.
+"""
+function randu(low::Real, high::Real, args...)
+    return low .+ (high - low) * rand(args...)
+end
 
 """
     rand_unit(N)
@@ -126,6 +134,9 @@ end
 Returns a linear interpolation of the given xs and ys
 """
 function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
+    if length(xs) != length(ys)
+        throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))"))
+    end
 
     return function(x::Real)
         if x < xs[1]
@@ -134,14 +145,16 @@ function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
             return ys[end]
         end
         i = searchsortedfirst(xs, x)
-        if i == 1
+        if i <= 1
             return ys[1]
         elseif i > length(xs)
             return ys[end]
-        else
+        elseif 1 < i <= length(xs)
             x1, x2 = xs[i-1], xs[i]
             y1, y2 = ys[i-1], ys[i]
             return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+        else
+            return NaN
         end
     end
 
@@ -194,15 +207,6 @@ function logit(p::Real)
     return log(p / (1-p))
 end
 
-
-"""
-    midpoint(x)
-
-Computes the midpoint of each element of a vector (for example, bin centres).
-"""
-function midpoint(x::AbstractVector{T}) where T<:Real
-    return (x[1:end-1] + x[2:end]) / 2
-end
 
 
 
