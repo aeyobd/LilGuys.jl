@@ -1,5 +1,4 @@
 using LinearAlgebra: ×
-using EllipsisNotation
 
 """
 The magnitude of a matrix of 3-vectors of shape 3×N
@@ -20,15 +19,24 @@ function calc_r(x::AbstractVector{T}) where T<:Real
     if length(x) != 3
         error("Vector must have length 3")
     end
-    #return sqrt(sum(x.^2))
     return _calc_r(x)
 end
 
 
-function _calc_r(x::AbstractArray{T}) where T<:Real
+function _calc_r(x::AbstractVector{T}) where T<:Real
     r = sqrt.(sum(x.^2, dims=1))
-    return r[1, ..] #sum doesn't actually reduce the dimension
+    if length(size(r)) == 1
+        return r[1]
+    else
+        return dropdims(r, dims=1)
+    end
 end
+
+function _calc_r(x::AbstractMatrix{T}) where T<:Real
+    r = sqrt.(sum(x.^2, dims=1))
+    return r[1, :]
+end
+
 
 
 function calc_r(snap::Snapshot)
