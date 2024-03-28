@@ -70,32 +70,65 @@ function get_epsilon(dir::String)
     return NaN
 end
 
+
+"""
+    extract(snap::Snapshot, symbol::Symbol, idx::Int)
+
+Extract the value of a field from a snapshot (at a given index). Returns a list as sorted by index
+"""
+function extract(snap::Snapshot, symbol, idx=(:))
+    idx_sort = sortperm(snap.index)
+    attr = getfield(snap, symbol)
+    val = attr[idx_sort[idx]]
+    return val
+end
+
+
+"""
+    extract_vector(snap::Snapshot, symbol::Symbol, idx::Int)
+
+Extract the value of a field from a snapshot (at a given index). Returns a list as sorted by index
+"""
+function extract_vector(snap::Snapshot, symbol, idx=(:))
+    idx_sort = sortperm(snap.index)
+    attr = getfield(snap, symbol)
+    val = attr[:, idx_sort[idx]]
+    return val
+end
+
+
+"""
+Extracts the given symbol from the output at the given index
+"""
 function extract(out::Output, symbol::Symbol, idx::Int)
     Nt = length(out)
-    if symbol ∈ (:positions, :velocities, :accelerations)
-        var_is_vec = true
-        result = Array{F}(undef, 3, Nt)
-    else
-        result = Array{F}(undef, Nt)
-        var_is_vec = false
-    end
+    result = Array{F}(undef, Nt)
 
     for i in 1:Nt
         snap = out[i]
-        idx_sort = sortperm(snap.index)[idx]
-        attr = getfield(snap, symbol)
-        if var_is_vec
-            val = attr[:, idx_sort]
-            result[:, i] .= val
-        else
-            val = attr[idx_sort]
-            result[i] = val
-        end
+        result[i] = extract(snap, symbol, idx)
     end
     return result
 end
 
-function extract(out::Output, symbol::Symbol, idx=(:))
+
+"""
+Extracts the given symbol from the output at the given index
+"""
+function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3)
+    Nt = length(out)
+    result = Array{F}(undef, dim, Nt)
+
+    for i in 1:Nt
+        snap = out[i]
+        result[:, i] = extract_vector(snap, symbol, idx)
+    end
+    return result
+end
+
+
+
+function extract_vector(out::Output, symbol::Symbol, idx=(:))
     if idx == (:)
         idx = 1:length(out[1].index)
     elseif idx isa BitArray
@@ -103,28 +136,16 @@ function extract(out::Output, symbol::Symbol, idx=(:))
     end
     Np = length(idx)
     Nt = length(out)
-    if symbol ∈ (:positions, :velocities, :accelerations)
-        var_is_vec = true
-        result = Array{F}(undef, 3, Np, Nt)
-    else
-        result = Array{F}(undef, Np, Nt)
-        var_is_vec = false
-    end
+    result = Array{F}(undef, Np, Nt)
 
     for i in 1:Nt
         snap = out[i]
-        idx_sort = sortperm(snap.index)[idx]
-        attr = getfield(snap, symbol)
-        if var_is_vec
-            val = attr[:, idx_sort]
-            result[:, :, i] .= val
-        else
-            val = attr[idx_sort]
-            result[:, i] .= val
-        end
+        result[:, i] .= extract(snap, symbol, idx)
     end
+
     return result
 end
+
 
 
 function peris_apos(out::Output; verbose::Bool=false)

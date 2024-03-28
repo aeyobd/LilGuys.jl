@@ -24,11 +24,11 @@ end
     Profile(snap)
 Given a snapshot `snap`, returns a profile object.
 """
-function Profile(snap::Snapshot)
+function Profile(snap::Snapshot, weights)
     x_c = centroid(snap.positions)
     v_c = centroid(snap.velocities)
 
-    return Profile(snap, x_c, v_c)
+    return Profile(snap, x_c, v_c, weights)
 end
 
 
@@ -47,10 +47,11 @@ Given a snaphot, returns a profile object
 # Arguments
 - `snap::Snapshot`: the snapshot to be profiled
 """
-function Profile(snap::Snapshot, x_c, v_c; Nr=20, Ne=20)
+function Profile(snap::Snapshot, x_c, v_c, weights=ones(length(snap)); Nr=20, Ne=20)
     sorted = copy(snap)
     sorted.positions .-= x_c
     sorted.velocities .-= v_c
+    sorted.masses .*= masses
     sorted = sort_by_r(sorted)
     filt = calc_E_spec(sorted) .< 0
     sorted = sorted[filt]
@@ -102,7 +103,7 @@ end
 
 
 """Calculates the densities given the masses and the radii for a spherical distribution"""
-function calc_ρ_profile(r, ms, r_bins)
+function calc_ρ_profile(r, ms, r_bins::AbstractVector)
     N = length(r_bins) - 1
     ρs = zeros(N)
 
@@ -117,6 +118,32 @@ function calc_ρ_profile(r, ms, r_bins)
 end
 
 
+
+function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
+    if weights == nothing
+        weights = ones(length(r))
+    end
+
+    _, counts = calc_histogram(r, bins, weights=weights)
+
+    Vs = 4/3 * π * diff(bins .^ 3)
+    return bins, counts ./ Vs
+end
+
+
+"""Calculates the density profile given the masses and the radii for a spherical distribution"""
+function calc_ρ_hist(r, r_bins::Int; weights=nothing)
+    x1 = log10(minimum(r))
+    x2 = log10(maximum(r))
+    x = LinRange(x1, x2, r_bins)
+    bins = 10 .^ x
+    return calc_ρ_hist(r, bins; weights=weights)
+end
+
+function calc_ρ_hist(r; weights=nothing)
+    r_bins = round(Int64, 0.1 * sqrt(length(r)))
+    return calc_ρ_hist(r, r_bins, weights=weights)
+end
 
 
 """Calculates the maximum circular velocity of a snapshot"""
