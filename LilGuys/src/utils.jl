@@ -104,7 +104,7 @@ end
 computes the gradient
 """
 function gradient(y::AbstractVector{T}) where T<:Real
-    x = collect(1:length(y))
+    x = collect(1.0:length(y))
     return gradient(y, x)
 end
 
