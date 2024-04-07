@@ -204,6 +204,38 @@ function _coordinate_H_inv(frame::GalactocentricFrame)
 end
 
 
+function Rx_mat(u::Real)
+    c = cos(u)
+    s = sin(u)
+    return [1  0  0
+            0  c  s
+            0 -s  c]
+end
+
+
+function Ry_mat(v::Real)
+    c = cos(u)
+    s = sin(u)
+    return [c  0  s
+            0  1  0
+           -s  0  c]
+end
+
+function Rz_mat(w::Real)
+    c = cos(u)
+    s = sin(u)
+
+    return [c -s  0
+            s  c  0
+            0  0  1]
+end
+
+
+function R_mat(u::Real, v::Real, w::Real)
+    return Rz_mat(w) * Ry_mat(v) * Rx_mat(u)
+end
+
+
 function _coordinate_R1(δ::F)
     R1 = [cosd(δ) 0 sind(δ)
         0 1 0
@@ -235,28 +267,6 @@ end
 
 
 
-
-"""
-Returns a list of observations based on snapshot particles
-"""
-function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
-    observations = Observation[]
-
-    for i in 1:length(snap)
-        if verbose
-            print("converting $(i)/($(length(snap))\r")
-        end
-        pos = snap.positions[:, i]
-        vel = snap.velocities[:, i]
-        if invert_velocity
-            vel *=-1
-        end
-        phase = PhasePoint(pos, vel)
-        obs = to_sky(phase)
-        push!(observations, obs)
-    end
-    return observations
-end
 
 
 

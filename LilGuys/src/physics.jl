@@ -192,3 +192,29 @@ end
 function get_v_z(snap::Snapshot)
     return get_z(snap.velocities)
 end
+
+
+
+
+"""
+Returns a list of observations based on snapshot particles
+"""
+function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
+    observations = Observation[]
+
+    for i in 1:length(snap)
+        if verbose
+            print("converting $(i)/($(length(snap))\r")
+        end
+        pos = snap.positions[:, i]
+        vel = snap.velocities[:, i]
+        if invert_velocity
+            vel *=-1
+        end
+        phase = PhasePoint(pos, vel)
+        obs = to_sky(phase)
+        push!(observations, obs)
+    end
+    return observations
+end
+

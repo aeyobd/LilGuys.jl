@@ -36,6 +36,9 @@ end
 
 function centroid_err(x::Matrix{T}, weights::Vector{T}) where T<:Real
     N = size(x, 2)
+    if N <= 1
+        return NaN
+    end
     c = centroid(x, weights)
     w = reshape(weights, :, 1) ./ sum(weights)
     s = mean((x .- c).^2 * w)

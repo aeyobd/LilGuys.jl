@@ -9,21 +9,24 @@ export save
 
 include("units.jl")
 include("utils.jl")
-# include("particle.jl")
+
 include("coordinates.jl")
 
-include("snapshot.jl")
-include("phys_quantities.jl")
+include("io/snapshot.jl")
+include("io/output.jl")
+
 include("coord_trans.jl")   
+
+include("physics.jl")
 include("gravity.jl")
-include("output.jl")
 include("profile.jl")
 
-include("distributions.jl")
 
-include("centre_fuzzy.jl")
-include("centre_shrinking_spheres.jl")
-include("centre_density.jl")
+include("centres/static_centres.jl")
+include("centres/centre_fuzzy.jl")
+include("centres/shrinking_spheres.jl")
+include("centres/centre_output.jl")
+
 
 using Requires
 function __init__()
