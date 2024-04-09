@@ -13,7 +13,7 @@ function plot_xyz(args...; labels=nothing, kwargs...)
     axis_labels = ["x", "y", "z"]
     Nargs = length(args)
 
-    for (i, j) in [(1, 2), (1, 3), (2, 3)]
+    for (i, j) in [(1, 2), (2, 3), (1, 3)]
         p = plt.plot()
         for k in 1:Nargs
             arg = args[k]
@@ -33,8 +33,20 @@ function plot_xyz(args...; labels=nothing, kwargs...)
 end
 
 
+function plot_xyz_layout(args...; kwargs...)
+    p_xy, p_yz, p_xz = plot_xyz(args...; kwargs...)
 
-function plot_centre!(positions; rotation=(0,0), width=5, marker_z=nothing, kwargs...)
+    layout = plt.@layout([° _; ° ° ])
+
+    plt.plot!(p_xy)
+    plt.plot!(p_xz, legend=false)#, ylabel="", yformatter=_->"")
+	plt.plot!(p_yz, legend=false)
+
+    return plt.plot(p_xy, p_xz, p_yz, layout=layout)
+end
+
+
+function plot_centre!(positions; rotation=(0,0), width=5, marker_z=nothing, label="", kwargs...)
     filt = calc_r(positions) .< width
     x = positions[1, filt]
     y = positions[2, filt]
@@ -46,7 +58,7 @@ function plot_centre!(positions; rotation=(0,0), width=5, marker_z=nothing, kwar
         marker_z = marker_z[filt]
     end
 
-    plt.scatter!(x, y; marker_z=marker_z, kwargs...)
+    plt.scatter!(x, y; marker_z=marker_z, label=label, kwargs...)
 end
 
 

@@ -18,7 +18,7 @@ function main()
             default="out"
         "-o", "--output"
             help="Output file"
-            default="centres.csv"
+            default="data/centres.csv"
         "-v", "--verbose"
             help="verbose"
             action="store_true"

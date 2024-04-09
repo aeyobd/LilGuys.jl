@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
 
   # Track potential minimum
-  orbitfile = open("orbitfileCOD.dat", "w")
+  orbitfile = open("data/rapha_ss_centres.csv", "w")
 
   print ("# time        x       y       z      ", file=orbitfile )
   filenames = np.array(glob("out/snapshot_*.hdf5"))
@@ -100,7 +100,7 @@ if __name__ == "__main__":
       xCOD, yCOD, zCOD, vxCOD, vyCOD, vzCOD = shrinksphere(x,y,z,vx,vy,vz, xMin,yMin,zMin, 0.01/rU, 0.9, 50)
 
       #      1     2        3        4
-      print (T*tU, xCOD*rU, yCOD*rU, zCOD*rU, file=orbitfile )
+      print (f"{T*tU},{xCOD*rU},{yCOD*rU},{zCOD*rU}", file=orbitfile )
     
       f.close()
       
