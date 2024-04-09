@@ -9,10 +9,12 @@ using DataFrames
 Sets a particle in the orbit given by x_vec_0 and v_vec_0 (kpc and km/s)
 """
 function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
-    cen = lguys.ss_centre(snap)
+    cen = lguys.calc_centre(lguys.SS_State, snap)
     centred = copy(snap)
-    centred.positions .-= cen.x_c
-    centred.velocities .-= cen.v_c
+    centred.positions .-= cen.position
+    centred.velocities .-= cen.velocity
+    println("dx cen", cen.position)
+    println("dv cen", cen.velocity)
 
     if max_radius !== nothing
         r = lguys.calc_r(centred.positions)
@@ -22,8 +24,6 @@ function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
     x0 = x_vec
     v0 = v_vec
 
-    println("centred at ", x_vec)
-    println("moving at ", v_vec)
     centred.positions .+= x0
     centred.velocities .+= v0
 

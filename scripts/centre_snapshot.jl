@@ -42,7 +42,7 @@ function main()
     # Read input file
     input = lguys.Snapshot(args["input"])
 
-    cen = lguys.ss_centre(input, itermax=args["maxiter"], verbose=args["verbose"], percen=args["percentile"])
+    cen = lguys.calc_centre(input, itermax=args["maxiter"], verbose=args["verbose"], percen=args["percentile"])
 
     new = lguys.copy(input)
     println("shifting by ", cen.x_c, " and ", cen.v_c)

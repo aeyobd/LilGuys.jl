@@ -19,8 +19,14 @@ end
 
 
 function get_args()
-    s = ArgParseSettings()
+    s = ArgParseSettings(description="rescales a snapshot")
     @add_arg_table s begin
+        "input"
+            help = "snapshot to rescale"
+            required = true
+        "output"
+            help = "output snapshot"
+            required = true
         "--mass" , "-m"
             help = "scale mass in 1e10 Msun"
             arg_type = Float64
@@ -31,12 +37,6 @@ function get_args()
             help = "truncate particles outside this radius (kpc)"
             default = nothing
             arg_type = Float64
-        "input"
-            help = "snapshot to rescale"
-            required = true
-        "output"
-            help = "output snapshot"
-            required = true
     end
 
     return parse_args(s)

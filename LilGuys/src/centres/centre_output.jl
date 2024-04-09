@@ -35,6 +35,20 @@ end
 
 
 
+"""
+    calc_centre(StateType, snap::Snapshot; kwargs...)
+
+Calculates the centres of a snapshot.
+The details of the implementation are based on the given StateType.
+"""
+function calc_centre(StateType, snap::Snapshot; kwargs...)
+    state = StateType(snap; kwargs...)
+    calc_centre!(state, snap)
+    return state.centre
+end
+
+
+
 function update_prior!(state::AbstractState, dt::Real)
     state.centre = leapfrog(state.centre, dt)
 end

@@ -5,7 +5,7 @@ import LilGuys as lguys
 
 function get_args()
     # Parse command line arguments
-    s = ArgParseSettings()
+    s = ArgParseSettings(description = "generates an exopential n-body equilibrium profile. Uses that 1R = 1 half light radius in 2D, and mass integrates to 1. ")
 
     @add_arg_table s begin
         "output"
@@ -33,7 +33,12 @@ function get_args()
 end
 
 
-function main(ρ_in=r->exp(-r))
+function ρ_exp(r)
+    return 1/π * exp(-2r)
+end
+
+
+function main(ρ_in=ρ_exp)
     G = 1
     args = get_args()
     NE = round(Int, args["nE"])
@@ -41,6 +46,7 @@ function main(ρ_in=r->exp(-r))
     N = round(Int64, args["n"])
 
     Mtot = 4π * quadgk(x->x^2 * ρ_in(x), 0, Inf)[1]
+    println("Mtot = $Mtot")
     ρ(r) = ρ_in(r) / Mtot
     M(r) = 4π* quadgk(x->x^2 * ρ(x), 0, r)[1]
 

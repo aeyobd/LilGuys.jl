@@ -49,6 +49,7 @@ function calc_ρ_hist(r; weights=nothing)
 end
 
 
+
 """Calculates the maximum circular velocity of a snapshot"""
 function get_V_circ_max(snap::Snapshot)
     r = calc_r(snap.positions)
