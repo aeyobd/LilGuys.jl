@@ -6,7 +6,7 @@ import Plots as plt
 """
 Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
 """
-function plot_xyz(args...; labels=nothing, kwargs...)
+function plot_xyz(args...; labels=nothing, units=" / kpc", aspect_ratio=1, kwargs...)
 
     plots = []
 
@@ -22,10 +22,10 @@ function plot_xyz(args...; labels=nothing, kwargs...)
             else
                 label = ""
             end
-            plt.plot!(p, arg[i, :], arg[j, :]; label=label, kwargs...)
+            plt.plot!(p, arg[i, :], arg[j, :]; aspect_ratio=aspect_ratio, label=label, kwargs...)
         end
-        plt.xlabel!(p, "$(axis_labels[i]) / kpc")
-        plt.ylabel!(p, "$(axis_labels[j]) / kpc")
+        plt.xlabel!(p, "$(axis_labels[i])$units")
+        plt.ylabel!(p, "$(axis_labels[j])$units")
         push!(plots, p)
     end
 
@@ -33,21 +33,34 @@ function plot_xyz(args...; labels=nothing, kwargs...)
 end
 
 
-function plot_xyz_layout(args...; kwargs...)
-    p_xy, p_yz, p_xz = plot_xyz(args...; kwargs...)
+function plot_xyz_layout(args...; size=(800, 800), labels=nothing, kwargs...)
+    p_xy, p_yz, p_xz = plot_xyz(args...; legend=false, labels=labels, kwargs...)
 
-    layout = plt.@layout([° _; ° ° ])
+    p_legend = plt.plot(axis=false)
+    if labels !== nothing
+        for label in labels
+            plt.plot!(p_legend, [], [], label=label, legend_position=:topleft)
+        end
+    end
 
-    plt.plot!(p_xy)
-    plt.plot!(p_xz, legend=false)#, ylabel="", yformatter=_->"")
-	plt.plot!(p_yz, legend=false)
+    layout = plt.@layout([° °; ° ° ])
 
-    return plt.plot(p_xy, p_xz, p_yz, layout=layout)
+    return plt.plot(p_xy, p_legend, p_xz, p_yz, layout=layout, size=size)
 end
 
 
-function plot_centre!(positions; rotation=(0,0), width=5, marker_z=nothing, label="", kwargs...)
-    filt = calc_r(positions) .< width
+function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere, 
+        marker_z=nothing, label="", kwargs...)
+    if z_filter === :sphere
+        filt = calc_r(positions) .< width
+    elseif z_filter === :box
+        filt = abs.(positions[3, :]) .< width
+    elseif z_filter === :none
+        filt = trues(size(positions, 2))
+    else
+        error("Unknown z_filter: $z_filter")
+    end
+
     x = positions[1, filt]
     y = positions[2, filt]
     z = positions[3, filt]
