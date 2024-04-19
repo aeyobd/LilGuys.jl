@@ -5,7 +5,6 @@ Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
     snapshots::Vector{Snapshot}
     times::Vector{F}
     softening::F
-    particle_index::Matrix{Int}
 end
 
 function Output(directory::String)
@@ -20,7 +19,6 @@ function Output(directory::String)
     snapshots = Snapshot[]
     time = F[]
     softening = get_epsilon(directory)
-    particle_index = Matrix{Int}(undef, Nt, Np)
 
     for i in 1:Nt
         filename = filenames[i]
@@ -34,13 +32,11 @@ function Output(directory::String)
         if sort(idx) != idx0
             error("Non-constant index")
         end
-
-        particle_index[i, :] = sortperm(idx)
     end
     time_index = sortperm(time)
 
     
-    out = Output(snapshots[time_index], time[time_index], softening, particle_index[time_index, :])
+    out = Output(snapshots[time_index], time[time_index], softening)
     return out
 end
 

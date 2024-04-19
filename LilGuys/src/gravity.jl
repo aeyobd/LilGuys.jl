@@ -107,7 +107,8 @@ function calc_radial_discrete_Φ(masses::AbstractVector{T}, radii::AbstractVecto
 
     Φ_in = calc_Φ.(M_in, rs_sorted)
 
-    return Φ_out .+ Φ_in
+    Φ = Φ_out .+ Φ_in
+    return Φ[invperm(idx)]
 end
 
 

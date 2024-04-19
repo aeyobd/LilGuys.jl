@@ -17,6 +17,9 @@ function main()
             required=true
         "output"
             help="Output file"
+        "-m", "--method"
+            help="method to use: shrinking_spheres"
+            default="shrinking_spheres"
             required=true
         "-v", "--verbose"
             help="verbose"
@@ -42,12 +45,27 @@ function main()
     # Read input file
     input = lguys.Snapshot(args["input"])
 
-    cen = lguys.calc_centre(input, itermax=args["maxiter"], verbose=args["verbose"], percen=args["percentile"])
+    kwargs = Dict{Symbol, Any}()
+
+    if args["method"] == "shrinking_spheres"
+        statetype = lguys.SS_State
+        kwargs[:percen] = args["percentile"]
+        kwargs[:f_min] = args["f_min"]
+        kwargs[:verbose] = args["verbose"]
+    elseif args["method"] == "potential"
+        statetype = lguys.StaticState
+        kwargs[:method] = "potential"
+    elseif args["method"] == "com"
+        statetype = lguys.StaticState
+        kwargs[:method] = "com"
+    end
+
+    cen = lguys.calc_centre(statetype, input; kwargs...)
 
     new = lguys.copy(input)
-    println("shifting by ", cen.x_c, " and ", cen.v_c)
-    new.positions .-= cen.x_c
-    new.velocities .-= cen.v_c
+    println("shifting by ", cen.position, " and ", cen.velocity)
+    new.positions .-= cen.position
+    new.velocities .-= cen.velocity
 
     if args["cut_unbound"]
         ϵ = lguys.calc_ϵ(new)

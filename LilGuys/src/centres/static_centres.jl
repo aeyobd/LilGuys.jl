@@ -49,8 +49,13 @@ function weighted_centre(snap::Snapshot, weights::AbstractVector)
     position_err = centroid_err(snap.positions, weights)
     velocity = centroid(snap.velocities, weights)
     velocity_err = centroid_err(snap.velocities, weights)
-    acceleration = centroid(snap.accelerations, weights)
-    acceleration_err = centroid_err(snap.accelerations, weights)
+    if snap.accelerations !== nothing
+        acceleration = centroid(snap.accelerations, weights)
+        acceleration_err = centroid_err(snap.accelerations, weights)
+    else
+        acceleration = zeros(3)
+        acceleration_err = NaN
+    end
 
     return Centre(position, position_err, velocity, velocity_err, acceleration, acceleration_err)
 end
@@ -67,8 +72,13 @@ end
 
 
 function centre_potential_percen(snap::Snapshot, percen=5)
-    Φcut = percentile(snap.Φs, percen)
-    filt = snap.Φs .< Φcut
+    if snap.Φs === nothing
+        Φs = calc_radial_discrete_Φ(snap)
+    else
+        Φs = snap.Φs
+    end
+    Φcut = percentile(Φs, percen)
+    filt = Φs .< Φcut
     return centre_of_mass(snap[filt])
 end
     
