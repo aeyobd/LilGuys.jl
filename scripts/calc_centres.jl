@@ -15,7 +15,7 @@ function main()
     @add_arg_table s begin
         "input"
             help="Input file"
-            default="out"
+            default="out/combined.hdf5"
         "-o", "--output"
             help="Output file"
             default="data/centres.csv"
@@ -76,8 +76,6 @@ function main()
 
     positions = hcat(x_cen...)
     velocities = hcat(v_cen...)
-    println(size(positions))
-    println(length(out.times))
 
     println("saving centres to ", args["output"])
     df = DataFrame()

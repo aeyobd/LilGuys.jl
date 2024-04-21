@@ -13,7 +13,7 @@ end
 
 
 
-function centroid(x::Matrix{T}, weights::Vector{T}) where T<:Real
+function centroid(x::Matrix{T}, weights::AbstractVector{T}) where T<:Real
     N = size(x, 2)
     w = reshape(weights, :, 1) ./ sum(weights)
     cen = (x * w)
@@ -34,7 +34,7 @@ end
 
 
 
-function centroid_err(x::Matrix{T}, weights::Vector{T}) where T<:Real
+function centroid_err(x::Matrix{T}, weights::AbstractVector{T}) where T<:Real
     N = size(x, 2)
     if N <= 1
         return NaN

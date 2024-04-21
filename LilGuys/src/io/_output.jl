@@ -1,56 +1,86 @@
 using Glob
 
 
-
 Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
-    h5file::HDF5.File
+    snapshots::Vector{Snapshot}
     times::Vector{F}
     softening::F
-    index::Vector{String}
 end
 
 
-function Base.finalize(out::Output)
-    close(out.h5file)
+Base.@kwdef struct Output2 <: AbstractArray{Snapshot, 1}
+    h5file::HDF5File
+    times::Vector{F}
+    softening::F
 end
 
 
 
-function Output(filename::String)
-    file = h5open(filename, "r")
-    names = keys(file)
-    snap_names = filter(x -> startswith(x, "snap"), names)
 
-    Nt = length(snap_names)
-    index = Vector{String}(undef, Nt)
-    times = Vector{F}(undef, Nt)
+function Output(directory::String)
+
+    filenames = glob("snapshot*.hdf5", directory)
+
+    snap0 = Snapshot(filenames[1], mmap=true)
+    idx0 = sort(snap0.index)
+    Np = length(idx0)
+    Nt = length(filenames)
+
+    snapshots = Snapshot[]
+    time = F[]
+    softening = get_epsilon(directory)
 
     for i in 1:Nt
-        index[i] = "snap$(i-1)"
-        if index[i] ∉ names
-            error("$(index[i]) not found in file")
+        filename = filenames[i]
+        snap = Snapshot(filename, mmap=true)
+        push!(snapshots, snap)
+
+        t = snap.header["Time"]
+        push!(time, t)
+
+        idx = snap.index
+        if sort(idx) != idx0
+            error("Non-constant index")
         end
-        header = get_header(file[index[i]])
-        times[i] = header["Time"]
     end
+    time_index = sortperm(time)
 
     
-    out = Output(file, times, NaN, index)
+    out = Output(snapshots[time_index], time[time_index], softening)
+    return out
+end
+
+function out_from_file(filename::String)
+    snap = Snapshot(filename, mmap=true)
+    out = Output([snap], [snap.header["Time"]], get_epsilon(dirname(filename)))
     return out
 end
 
 
 function Base.size(out::Output)
-    N = length(out.index)
+    N = length(out.snapshots)
     return (N,)
 end
+
 
 Base.IndexStyle(::Type{<:Output}) = IndexCartesian()
 
 function Base.getindex(out::Output, i::Int)
-    return Snapshot(out.h5file[out.index[i]])
+    return out.snapshots[i]
 end
 
+
+
+function get_epsilon(dir::String)
+    filename = joinpath(dir, "parameters-usedvalues")
+    for line in eachline(filename)
+        if startswith(line, "SofteningComovingClass0")
+            m = collect(eachmatch(r"\d*\.?\d+", line))[end]
+            return parse(F, m.match)
+        end
+    end
+    return NaN
+end
 
 
 """
@@ -89,10 +119,8 @@ function extract(out::Output, symbol::Symbol, idx::Int)
     result = Array{F}(undef, Nt)
 
     for i in 1:Nt
-        h5f = out.h5file[out.index[i]]
-        snap_idx = get_vector(h5f, h5vectors[:index])
-        idx_sort = sortperm(snap_idx)
-        result[i] = h5f["PartType1/$(h5vectors[symbol])"][idx_sort[idx]]
+        snap = out[i]
+        result[i] = extract(snap, symbol, idx)
     end
     return result
 end
@@ -108,10 +136,8 @@ function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3)
     result = Array{F}(undef, dim, Nt)
 
     for i in 1:Nt
-        h5f = out.h5file[out.index[i]]
-        snap_idx = get_vector(h5f, h5vectors[:index])
-        idx_sort = sortperm(snap_idx)
-        result[:, i] = h5f["PartType1/$(h5vectors[symbol])"][:, idx_sort[idx]]
+        snap = out[i]
+        result[:, i] = extract_vector(snap, symbol, idx)
     end
     return result
 end
@@ -155,9 +181,6 @@ function extract_vector(out::Output, symbol::Symbol, idx=(:))
     return result
 end
 
-
-
-
 function peris_apos(out::Output; verbose::Bool=false)
     r0 = calc_r(out[1].positions)
     peris = apos = r0
@@ -181,6 +204,9 @@ function peris_apos(out::Output; verbose::Bool=false)
         apos = max.(apos, r)
         peris = min.(peris, r)
 
+        if any(snap.index[idx] .!= idx0)
+            error("Non-constant index")
+        end
     end
     
     if verbose

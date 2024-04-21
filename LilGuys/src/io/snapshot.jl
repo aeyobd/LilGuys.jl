@@ -36,7 +36,7 @@ masses : N vector
 @kwdef mutable struct Snapshot 
     positions::Matrix{F}
     velocities::Matrix{F}
-    masses::Vector{F}
+    masses::Union{Vector, ConstVector}
     index::Vector{Int}  
 
     accelerations::OptMatrix = nothing
@@ -49,18 +49,21 @@ masses : N vector
 end
 
 
-function Snapshot(positions, velocities; mass::Real)
+function Snapshot(positions, velocities, mass::Real)
     N = size(positions, 2)
     masses = ConstVector(mass, N)
     return Snapshot(positions, velocities, masses)
 end
 
 
+
 function Snapshot(positions, velocities, masses)
     N = size(positions, 2)
     if mass_is_fixed(masses)
+        println("assuming constant mass")
         m_header = masses[1]
     else
+        println("variable masses")
         m_header = 0.0
     end
 
@@ -76,30 +79,35 @@ end
 
 
 function mass_is_fixed(masses::Union{Vector, ConstVector})
-    return masses isa ConstVector && masses[1] != 0
+    return masses isa ConstVector && masses[1] != 0 || all(masses .== masses[1])
 end
 
 
-function Snapshot(filename::String; mmap=false)
+function Snapshot(filename::String)
+    h5open(filename, "r") do h5f
+        return Snapshot(h5f, filename=filename)
+    end
+end
+
+function Snapshot(h5f::HDF5.H5DataStore; mmap=false, filename="")
     kwargs = Dict{Symbol, Any}()
 
-    h5open(filename, "r") do h5f
-        for (var, col) in h5vectors
-            if col ∈ keys(h5f["PartType1"])
-                kwargs[var] = get_vector(h5f, col, mmap=mmap)
-            end
+    for (var, col) in h5vectors
+        if col ∈ keys(h5f["PartType1"])
+            kwargs[var] = get_vector(h5f, col, mmap=mmap)
         end
-
-        header = get_header(h5f)
-        kwargs[:header] = header
-        m = header["MassTable"][2]
-        N = header["NumPart_ThisFile"][2]
-        if m != 0  || (m == 0 && :masses ∉ keys(kwargs))
-            kwargs[:masses] = ConstVector(m, N)
-        end
-
-        kwargs[:filename] = filename
     end
+
+    header = get_header(h5f)
+    kwargs[:header] = header
+    m = header["MassTable"][2]
+    N = header["NumPart_ThisFile"][2]
+
+    if m != 0  || (m == 0 && :masses ∉ keys(kwargs))
+        kwargs[:masses] = ConstVector(m, N)
+    end
+
+    kwargs[:filename] = filename
 
     return Snapshot(; kwargs...)
 end
@@ -153,7 +161,11 @@ function save(filename::String, snap::Snapshot)
 end
 
 
-function save(h5f::HDF5.File, snap::Snapshot)
+function save(h5f::HDF5.H5DataStore, snap::Snapshot)
+    if mass_is_fixed(snap)
+        println("setting fixed mass table")
+        snap.header["MassTable"][2] = snap.masses[1]
+    end
     set_header!(h5f, snap.header)
 
     for (var, _) in h5vectors
@@ -162,12 +174,12 @@ function save(h5f::HDF5.File, snap::Snapshot)
 end
 
 
-function save_vector(h5f::HDF5.File, snap::Snapshot, var::Symbol)
+function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol)
     col = h5vectors[var]
     val = getproperty(snap, var) 
 
-    if var == :masses && !mass_is_fixed(snap)
-        set_vector!(h5f, col, val)
+    if var == :masses && mass_is_fixed(snap)
+        # pass
     elseif val !== nothing
         set_vector!(h5f, col, val)
     end
@@ -238,13 +250,13 @@ end
 
 
 # gets the gadget header of an HDF5 file
-function get_header(h5f::HDF5.File)
+function get_header(h5f::HDF5.H5DataStore)
     return Dict(attrs(h5f["Header"]))
 end
 
 
 # gets a vector from an HDF5 file
-function get_vector(h5f::HDF5.File, key::String; mmap=false, group="PartType1")
+function get_vector(h5f::HDF5.H5DataStore, key::String; mmap=false, group="PartType1")
     path = group * "/" * key
     if mmap
         return HDF5.readmmap(h5f[path])

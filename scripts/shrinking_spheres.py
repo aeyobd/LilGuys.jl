@@ -63,10 +63,10 @@ if __name__ == "__main__":
 
 
   # Track potential minimum
-  orbitfile = open("data/rapha_ss_centres.csv", "w")
+  orbitfile = open("rapha_ss_centres.csv", "w")
 
   print ("# time        x       y       z      ", file=orbitfile )
-  filenames = np.array(glob("out/snapshot_*.hdf5"))
+  filenames = np.array(glob("snapshot_*.hdf5"))
   print(filenames)
   index = [re.findall(r"\d+", f)[0] for f in filenames]
   filenames = filenames[np.argsort(index)]
