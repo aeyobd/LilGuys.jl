@@ -15,10 +15,10 @@ function main()
     @add_arg_table s begin
         "input"
             help="Input file"
-            default="out/combined.hdf5"
+            default="combined.hdf5"
         "-o", "--output"
             help="Output file"
-            default="data/centres.csv"
+            default="centres.csv"
         "-v", "--verbose"
             help="verbose"
             action="store_true"

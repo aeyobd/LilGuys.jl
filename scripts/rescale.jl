@@ -30,7 +30,7 @@ function get_args()
             help = "output snapshot"
             required = true
         "--mass" , "-m"
-            help = "scale mass in 1e10 Msun"
+            help = "mass inside scale radius in 10^10 Msun"
             arg_type = Float64
         "--radius", "-r"
             help = "scale radius in kpc"
