@@ -80,12 +80,12 @@ assumes that x are sorted.
 Returns a vector same length of x with endpoints using linear approximation.
 Uses the 2nd order central difference method alla numpy.gradient.
 """
-function gradient(y::AbstractVector{T}, x::AbstractVector{T}) where T<:Real
+function gradient(y::AbstractVector{T}, x::AbstractVector) where T<:Real
 	x = x
 	y = y
 	N = length(x)
 
-	grad = Vector{Float64}(undef, N)
+	grad = Vector{T}(undef, N)
 
 	grad[1] = (y[2] - y[1]) / (x[2] - x[1])
 	grad[end] = (y[end] - y[end-1]) / (x[end] - x[end-1])
