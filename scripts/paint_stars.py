@@ -33,15 +33,14 @@ print ("    * Reads model.hdf5. Model must be centred on 0,0,0. Units: G=1, Mtot
 filename = sys.argv[1]
 snapshot = ""
 f        = h5py.File(filename, 'r')
-partmass = f["Header"].attrs["mass"]
+partmass = f["Header"].attrs["MassTable"][1]
 PartIDs  = np.copy(   f[snapshot+'/PartType1/ParticleIDs'][:]   )
-x        = np.copy(   f[snapshot+'/PartType1/Positions'][0,:] )
-y        = np.copy(   f[snapshot+'/PartType1/Positions'][1,:] )
-z        = np.copy(   f[snapshot+'/PartType1/Positions'][2,:] )
-vx       = np.copy(   f[snapshot+'/PartType1/Velocities'][0,:]  )
-vy       = np.copy(   f[snapshot+'/PartType1/Velocities'][1,:]  )
-vz       = np.copy(   f[snapshot+'/PartType1/Velocities'][2,:]  )
-ms        = np.copy(   f[snapshot+'/PartType1/Positions'][0,:] )
+x        = np.copy(   f[snapshot+'/PartType1/Coordinates'][:,0] )
+y        = np.copy(   f[snapshot+'/PartType1/Coordinates'][:,1] )
+z        = np.copy(   f[snapshot+'/PartType1/Coordinates'][:,2] )
+vx       = np.copy(   f[snapshot+'/PartType1/Velocities'][:,0]  )
+vy       = np.copy(   f[snapshot+'/PartType1/Velocities'][:,1]  )
+vz       = np.copy(   f[snapshot+'/PartType1/Velocities'][:,2]  )
 N        = len(x)
 f.close()
 
@@ -87,7 +86,6 @@ DFrmax = np.max(r)
 DFrmin = np.min(r)
 EPSREL = 1e-7
 
-DFr    = np.logspace(np.log10(DFrmin),np.log10(DFrmax),num=DFNr)
 
 NoutS =   1. - 4. * pi * quad( lambda r: r*r * rhoS(r)/MS , 0., DFrmax)[0]
 NinS  =        4. * pi * quad( lambda r: r*r * rhoS(r)/MS , 0., DFrmin)[0]
@@ -98,11 +96,14 @@ print("     (!) and %.2f per cent > DFrmax "%NoutS )
 
 
 print("      *  Building Psi and Nu arrays" )
-psi  = - np.interp(DFr, sortedr, Phi)
-nuDM, edges = np.histogram(r, bins=np.logspace(np.log10(DFrmin),np.log10(DFrmax),num=DFNr+1) )
+edges    = np.logspace(np.log10(DFrmin),np.log10(DFrmax),num=DFNr)
+DFr      = 0.5 * (edges[1:] + edges[:-1])
+print("DFr" , DFr)
+nuDM, _edges = np.histogram(r, bins=edges)
 nuDM        = nuDM * partmass  / ( 4./3 * pi * ((edges[1:])**3 - (edges[:-1])**3 )  )
 nuS  =   rhoS(DFr) / MS
 
+psi  = - np.interp(DFr, sortedr, Phi)
 
 Mcum  = np.interp(DFr, sortedr, Mr)  # DM cumulative mass on array
 MScum = MSr(DFr)               # stellar cumulative mass on array
@@ -112,6 +113,7 @@ plt.plot(np.log10(DFr), np.log10(nuDM), color="red", label = "DM")
 plt.plot(np.log10(DFr), np.log10(nuS),  color="blue", label = "stars")
 plt.xlabel ("$\\log_{10} r$")
 plt.ylabel ("$\\log_{10} \\nu_\\star$")
+plt.ylim(-15)
 plt.legend()
 plt.savefig("nu.png")
 
@@ -180,20 +182,28 @@ probs = np.interp(-Etot, E, DFS)/ np.interp(-Etot, E, DFDM)
 probs = probs/np.sum(probs)
 
 print("      *  Writing probability file stars.npy -- to be used with specific model.dat" )
+print(len(PartIDs), len(probs))
 np.save("stars.npy", np.column_stack( (PartIDs, probs) ) )
 
 
 print("      *  Sanity check: density plot using new probabilities" )
 
-nuS_Nbody, edges = np.histogram(r, weights=probs, bins=np.logspace(np.log10(DFrmin),np.log10(DFrmax),num=DFNr+1) )
+nuS_Nbody, _edges = np.histogram(r, weights=probs, bins=edges)
 nuS_Nbody        = nuS_Nbody  / ( 4./3 * pi * ((edges[1:])**3 - (edges[:-1])**3 )  )
 
 plt.clf()
 plt.plot(np.log10(DFr), np.log10(nuS), color="blue", linewidth=2, linestyle="dashed", label = "stars (analyt.)")
 plt.plot(np.log10(DFr), np.log10(nuS_Nbody),  color="fuchsia", label = "stars (N-body)")
-plt.ylim(np.max(np.log10(nuS))-3,0)
+
+y_up  = np.max(np.log10(nuS)) + 0.1
+y_low = y_up - 5 
+plt.ylim(y_low, y_up)
 plt.xlabel ("$\\log_{10} r$")
 plt.ylabel ("$\\log_{10} \\nu_\\star$")
+
+r_up = DFr[np.where(np.log10(nuS) < y_low)[0][1]]
+print("      *  r_up = ", r_up)
+plt.xlim(np.log10(DFrmin) - 0.1, np.log10(r_up))
 plt.legend()
 plt.savefig("nu_probs.png")
 

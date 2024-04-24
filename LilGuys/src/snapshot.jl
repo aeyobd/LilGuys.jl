@@ -4,9 +4,7 @@ using Printf
 import Base: @kwdef
 
 
-
-
-# this maps the gadget vectors to the snapshot attributes
+"""A map of the HDF5 columns to the snapshot fields"""
 const h5vectors = Dict(
     :Φs=>"Potential",
     :Φs_ext=>"ExtPotential",
@@ -31,7 +29,28 @@ positions : 3xN matrix
 velocities : 3xN matrix
     The velocities of the particles
 masses : N vector
+    The masses of the particles
+index : N vector of Int
+    The particle IDs
 
+accelerations : 3xN matrix (optional)
+    The accelerations of the particles
+Φs : N vector (optional)
+    The potential of the particles
+Φs_ext : N vector (optional)
+    The external potential of the particles
+
+filename : str
+    The filename of the snapshot
+
+h : Real
+    softening length
+header : Dict{String, Any}
+    The Gadget HDF5 header
+x_cen : 3 vector
+    The (adopted) centre
+v_cen : 3 vector
+    The (adopted) velocity centre
 """
 @kwdef mutable struct Snapshot 
     positions::Matrix{F}
@@ -46,9 +65,18 @@ masses : N vector
     filename::String = ""
     h::Real = NaN
     header::Dict{String, Any}
+
+    x_cen::Vector{F} = zeros(F, 3)
+    v_cen::Vector{F} = zeros(F, 3)
+    weights::Vector{F} = ones(F, length(index))
 end
 
 
+"""
+    Snapshot(positions, velocities, mass::Real)
+
+Create a snapshot with constant mass.
+"""
 function Snapshot(positions, velocities, mass::Real)
     N = size(positions, 2)
     masses = ConstVector(mass, N)
@@ -56,7 +84,11 @@ function Snapshot(positions, velocities, mass::Real)
 end
 
 
+"""
+    Snapshot(positions, velocities, masses)
 
+Create a snapshot.
+"""
 function Snapshot(positions, velocities, masses)
     N = size(positions, 2)
     if mass_is_fixed(masses)
@@ -72,15 +104,6 @@ function Snapshot(positions, velocities, masses)
     return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index)
 end
 
-
-function mass_is_fixed(snap::Snapshot)
-    return mass_is_fixed(snap.masses)
-end
-
-
-function mass_is_fixed(masses::Union{Vector, ConstVector})
-    return masses isa ConstVector && masses[1] != 0 || all(masses .== masses[1])
-end
 
 
 function Snapshot(filename::String)
@@ -149,17 +172,32 @@ function Base.copy(snap::Snapshot)
 end
 
 
-function save(snap::Snapshot)
-    save(snap.filename, snap)
+
+"""is the particle mass constant in the snapshot?"""
+function mass_is_fixed(snap::Snapshot)
+    return mass_is_fixed(snap.masses)
 end
 
 
+function mass_is_fixed(masses::Union{Vector, ConstVector})
+    return masses isa ConstVector && masses[1] != 0 || all(masses .== masses[1])
+end
+
+
+"""
+    save(filename, snap)
+
+Save a snapshot to an HDF5 file.
+"""
 function save(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
         save(h5f, snap)
     end
 end
 
+function save(snap::Snapshot)
+    save(snap.filename, snap)
+end
 
 function save(h5f::HDF5.H5DataStore, snap::Snapshot)
     if mass_is_fixed(snap)
@@ -173,17 +211,6 @@ function save(h5f::HDF5.H5DataStore, snap::Snapshot)
     end
 end
 
-
-function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol)
-    col = h5vectors[var]
-    val = getproperty(snap, var) 
-
-    if var == :masses && mass_is_fixed(snap)
-        # pass
-    elseif val !== nothing
-        set_vector!(h5f, col, val)
-    end
-end
 
 
 
@@ -286,4 +313,15 @@ function set_header_attr(h5f::HDF5.File, key::String, val)
     header[key] = val
 end
 
+
+function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol)
+    col = h5vectors[var]
+    val = getproperty(snap, var) 
+
+    if var == :masses && mass_is_fixed(snap)
+        # pass
+    elseif val !== nothing
+        set_vector!(h5f, col, val)
+    end
+end
 

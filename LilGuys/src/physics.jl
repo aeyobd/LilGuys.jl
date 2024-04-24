@@ -1,6 +1,10 @@
 using LinearAlgebra: ×
 
+
+
 """
+    calc_r(x)
+
 The magnitude of a matrix of 3-vectors of shape 3×N
 """
 function calc_r(x::AbstractMatrix{T}) where T<:Real
@@ -14,6 +18,7 @@ end
 function calc_r(a::AbstractArray{T}, b::AbstractArray{T}) where T<:Real
     return calc_r(a .- b)
 end
+
 
 function calc_r(x::AbstractVector{T}) where T<:Real
     if length(x) != 3
@@ -39,26 +44,46 @@ end
 
 
 
-function calc_r(snap::Snapshot)
-    return calc_r(snap.positions)
+"""
+    calc_r(snap, x_cen=zeros(3))
+
+Calculates the radii of particles in a snapshot (from the center x_cen)
+"""
+function calc_r(snap::Snapshot, x_cen::AbstractVector{T}=snap.x_cen) where T<:Real
+    return calc_r(snap.positions, x_cen)
+end
+
+"""The velocity of each particle in a snapshot"""
+function calc_v(snap::Snapshot, v_cen::AbstractVector{T}=snap.v_cen) where T<:Real
+    return calc_r(snap.velocities, v_cen)
 end
 
 
-function calc_v(snap::Snapshot)
-    return calc_r(snap.velocities)
-end
 
-function calc_v(snap::Snapshot, v0::AbstractVector{T}) where T<:Real
-    return calc_r(snap.velocities .- v0)
-end
+get_x(snap::Snapshot) = get_x(snap.positions)
+get_y(snap::Snapshot) = get_y(snap.positions)
+get_z(snap::Snapshot) = get_z(snap.positions)
 
-function calc_E_spec_kin(snap::Snapshot, v0=zeros(3))
-    v = calc_v(snap, v0)
+get_x(A::AbstractMatrix{T}) where T<:Real = A[1, :]
+get_y(A::AbstractMatrix{T}) where T<:Real = A[2, :]
+get_z(A::AbstractMatrix{T}) where T<:Real = A[3, :]
+
+get_v_x(snap::Snapshot) = get_x(snap.velocities)
+get_v_y(snap::Snapshot) = get_y(snap.velocities)
+get_v_z(snap::Snapshot) = get_z(snap.velocities)
+
+
+
+
+function calc_E_spec_kin(snap::Snapshot, v_cen=snap.v_cen)
+    v = calc_v(snap, v_cen)
     return 0.5 .* v.^2
 end
 
 
 """
+    calc_E_spec(snap)
+
 Specific energy of each particle of a snapshot
 """
 function calc_E_spec(snap::Snapshot)
@@ -89,14 +114,14 @@ function calc_E_spec(Φ::Real, v::Real)
 end
 
 
-function calc_E_tot(snap::Snapshot, v_vec_0=zeros(3))
+function calc_E_tot(snap::Snapshot, v_cen=snap.v_cen)
     if snap.Φs_ext == nothing
         Φs_ext = 0
     else
         Φs_ext = snap.Φs_ext
     end
     return sum(snap.masses .* (
-               calc_E_spec_kin(snap, v_vec_0) 
+               calc_E_spec_kin(snap, v_cen) 
                .+ 1/2 * snap.Φs 
                .+ Φs_ext)
               )
@@ -128,10 +153,12 @@ function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     return L
 end
 
+
 function calc_L(snap::Snapshot)
     m = reshape(snap.masses, 1, :)
     return calc_L_spec(snap) .* m
 end
+
 
 function calc_L_tot(snap::Snapshot)
     return sum(calc_L(snap), dims=2)
@@ -151,52 +178,36 @@ function calc_V_circ(M::Real, r::Real)
 end
 
 
+"""
+    calc_V_circ(snap, x_cen=zeros(3))
+
+Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
+"""
+function calc_V_circ(snap::Snapshot, x_cen=snap.x_cen)
+    r = calc_r(snap.positions .- x_cen)
+    m = snap.masses[sortperm(r)]
+    r = sort(r)
+    M = cumsum(m)
+    return r, calc_V_circ.(M, r)
+end
+
+
+
+"""
+    get_bound(snap)
+
+Returns the bound particles of a snapshot
+"""
 function get_bound(snap::Snapshot)
     return snap[E_spec(snap) .< 0]
 end
 
 
 
-function get_x(snap::Snapshot)
-    return get_x(snap.positions)
-end
-
-function get_x(A::AbstractMatrix{T}) where T<:Real
-    return A[1, :]
-end
-
-function get_y(snap::Snapshot)
-    return get_y(snap.positions)
-end
-
-function get_y(A::AbstractMatrix{T}) where T<:Real
-    return A[2, :]
-end
-
-function get_z(snap::Snapshot)
-    return get_z(snap.positions)
-end
-
-function get_z(A::AbstractMatrix{T}) where T<:Real
-    return A[3, :]
-end
-
-function get_v_x(snap::Snapshot)
-    return get_x(snap.velocities)
-end
-
-function get_v_y(snap::Snapshot)
-    return get_y(snap.velocities)
-end
-
-function get_v_z(snap::Snapshot)
-    return get_z(snap.velocities)
-end
-
-
-
 
 """
+    to_sky(phase::PhasePoint)
+
 Returns a list of observations based on snapshot particles
 """
 function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
@@ -206,13 +217,14 @@ function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false
         if verbose
             print("converting $(i)/($(length(snap))\r")
         end
+
         pos = snap.positions[:, i]
         vel = snap.velocities[:, i]
         if invert_velocity
             vel *=-1
         end
-        phase = PhasePoint(pos, vel)
-        obs = to_sky(phase)
+        gc = Galactocentric(pos, vel)
+        obs = transform(Observation, gc)
         push!(observations, obs)
     end
     return observations

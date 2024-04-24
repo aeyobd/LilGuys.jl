@@ -1,5 +1,8 @@
 
-"""sorts a snapshot by radius from 0"""
+"""
+
+sorts a snapshot by radius from 0
+"""
 function sort_by_r(snap::Snapshot)
     return snap[sortperm(calc_r(snap.positions))]
 end
@@ -34,14 +37,18 @@ function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
 end
 
 
-"""Calculates the density profile given the masses and the radii for a spherical distribution"""
-function calc_ρ_hist(r, r_bins::Int; weights=nothing)
+"""
+    calc_̢ρ_hist(r, r_bins::Int; weights=nothing)
+
+Calculates the density profile given the masses and the radii for a spherical distribution"""
+function calc_ρ_hist(r, bins::Int; weights=nothing)
     x1 = log10(minimum(r))
     x2 = log10(maximum(r))
-    x = LinRange(x1, x2, r_bins)
+    x = LinRange(x1, x2, bins)
     bins = 10 .^ x
     return calc_ρ_hist(r, bins; weights=weights)
 end
+
 
 function calc_ρ_hist(r; weights=nothing)
     r_bins = round(Int64, 0.1 * sqrt(length(r)))
@@ -49,20 +56,7 @@ function calc_ρ_hist(r; weights=nothing)
 end
 
 
-
-"""Calculates the maximum circular velocity of a snapshot"""
-function get_V_circ_max(snap::Snapshot)
-    r = calc_r(snap.positions)
-    N = length(snap)
-
-    return max([get_V_circ(snap, rr) for rr in r])
+function calc_ρ_hist(snap::Snapshot, bins; weights=snap.masses, x_cen=snap.x_cen)
+    r = calc_r(snap, x_cen)
+    return calc_ρ_hist(r, bins; weights=weights)
 end
-
-
-"""calculates the circular velocity for each radius of a particle in snap"""
-function get_V_circ(snap::Snapshot, r)
-    rs = calc_r(snap)
-    M = sum((rs .< r) .* snap.masses)
-    return calc_V_circ(M, r)
-end
-
