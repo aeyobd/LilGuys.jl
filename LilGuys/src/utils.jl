@@ -1,4 +1,4 @@
-import StatsBase: mean, std
+import StatsBase: mean, std, percentile
 
 
 """
