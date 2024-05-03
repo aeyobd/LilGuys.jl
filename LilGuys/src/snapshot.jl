@@ -145,6 +145,8 @@ Base.length(snap::Snapshot) = length(snap.index)
 function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
+    kwargs[:x_cen] = snap.x_cen
+    kwargs[:v_cen] = snap.v_cen
     for sym in fieldnames(Snapshot)
         if getproperty(snap, sym) === nothing
             continue

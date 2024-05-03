@@ -5,47 +5,39 @@ using Makie
 """
 Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
 """
-function plot_xyz(args...; labels=nothing, units=" / kpc", aspect_ratio=1, kwargs...)
+function plot_xyz(args...; plot! =lines!, labels=nothing, units=" / kpc", kwargs...)
 
-    plots = []
-
-    axis_labels = ["x", "y", "z"]
+    fig = Figure()
     Nargs = length(args)
 
-    for (i, j) in [(1, 2), (2, 3), (1, 3)]
-        p = plt.plot()
-        for k in 1:Nargs
-            arg = args[k]
-            if labels !== nothing
-                label = labels[k]
-            else
-                label = ""
-            end
-            plt.plot!(p, arg[i, :], arg[j, :]; aspect_ratio=aspect_ratio, label=label, kwargs...)
+
+    ax_xy = Axis(fig[1, 1], xlabel="x$units", ylabel="y$units", aspect=1)
+    ax_yz = Axis(fig[2, 2], xlabel="y$units", ylabel="z$units", aspect=1)
+    ax_xz = Axis(fig[2, 1], xlabel="x$units", ylabel="z$units", aspect=1)
+
+    for i in 1:Nargs
+        if labels !== nothing
+            label = labels[i]
+        else 
+            label = nothing
         end
-        plt.xlabel!(p, "$(axis_labels[i])$units")
-        plt.ylabel!(p, "$(axis_labels[j])$units")
-        push!(plots, p)
+        plot!(ax_xy, args[i][1, :], args[i][2, :]; label=label, kwargs...)
+        plot!(ax_yz, args[i][2, :], args[i][3, :]; label=label, kwargs...)
+        plot!(ax_xz, args[i][1, :], args[i][3, :]; label=label, kwargs...)
     end
 
-    return plots
-end
+    linkxaxes!(ax_xy, ax_xz)
+    hidexdecorations!(ax_xy, grid=false)
+    linkyaxes!(ax_xz, ax_yz)
+    hideydecorations!(ax_yz, grid=false)
 
-
-function plot_xyz_layout(args...; size=(800, 800), labels=nothing, kwargs...)
-    p_xy, p_yz, p_xz = plot_xyz(args...; legend=false, labels=labels, kwargs...)
-
-    p_legend = plt.plot(axis=false)
     if labels !== nothing
-        for label in labels
-            plt.plot!(p_legend, [], [], label=label, legend_position=:topleft)
-        end
+        Legend(fig[1, 2], ax_xy, tellwidth=false)
     end
 
-    layout = plt.@layout([° °; ° ° ])
-
-    return plt.plot(p_xy, p_legend, p_xz, p_yz, layout=layout, size=size)
+    return fig
 end
+
 
 
 function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere, 
@@ -70,38 +62,9 @@ function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere,
         marker_z = marker_z[filt]
     end
 
-    plt.scatter!(x, y; marker_z=marker_z, label=label, kwargs...)
+    scatter!(x, y; color=marker_z, label=label, kwargs...)
 end
 
-
-function plot_centre(positions; width=5, kwargs...)
-    plt.plot(xlabel="x/kpc", ylabel="y/kpc", aspect_ratio=1,
-             xlims=(-width, width), ylims=(-width, width))
-
-    plot_centre!(positions; width, kwargs...)
-end
-
-"""
-Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
-"""
-function scatter_xyz(args...; kwargs...)
-
-    plots = []
-
-    labels = ["x", "y", "z"]
-
-    for (i, j) in [(1, 2), (1, 3), (2, 3)]
-        p = plt.plot()
-        for arg in args
-            plt.scatter!(p, arg[i, :], arg[j, :]; kwargs...)
-        end
-        plt.xlabel!(p, "$(labels[i]) / kpc")
-        plt.ylabel!(p, "$(labels[j]) / kpc")
-        push!(plots, p)
-    end
-
-    return plots
-end
 
 
 

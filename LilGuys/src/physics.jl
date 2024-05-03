@@ -161,7 +161,12 @@ end
 
 
 function calc_L_tot(snap::Snapshot)
-    return sum(calc_L(snap), dims=2)
+    L = zeros(3)
+    for i in 1:length(snap)
+        L += snap.masses[i] .* calc_L_spec(snap.positions[:, i], snap.velocities[:, i])
+    end
+
+    return L
 end
 
 
@@ -218,8 +223,8 @@ function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false
             print("converting $(i)/($(length(snap))\r")
         end
 
-        pos = snap.positions[:, i]
-        vel = snap.velocities[:, i]
+        pos = snap.positions[:, i] * R0
+        vel = snap.velocities[:, i] * V0
         if invert_velocity
             vel *=-1
         end

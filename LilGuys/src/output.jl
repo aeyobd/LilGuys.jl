@@ -5,8 +5,10 @@ using Glob
 Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
     h5file::HDF5.File
     times::Vector{F}
-    softening::F
+    softening::F = NaN
     index::Vector{String}
+    x_cen::Matrix{F} = zeros(F, 3, length(times))
+    v_cen::Matrix{F} = zeros(F, 3, length(times))
 end
 
 
@@ -34,8 +36,7 @@ function Output(filename::String)
         times[i] = header["Time"]
     end
 
-    
-    out = Output(file, times, NaN, index)
+    out = Output(h5file=file, times=times, index=index)
     return out
 end
 
@@ -47,8 +48,12 @@ end
 
 Base.IndexStyle(::Type{<:Output}) = IndexCartesian()
 
+
 function Base.getindex(out::Output, i::Int)
-    return Snapshot(out.h5file[out.index[i]])
+    snap =  Snapshot(out.h5file[out.index[i]])
+    snap.x_cen = out.x_cen[:, i]
+    snap.v_cen = out.v_cen[:, i]
+    return snap
 end
 
 
