@@ -142,7 +142,7 @@ Base.length(snap::Snapshot) = length(snap.index)
 
 
 
-function Base.getindex(snap::Snapshot, idx::Union{UnitRange, Vector, Colon, BitVector, Int})
+function Base.getindex(snap::Snapshot, idx)
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
     kwargs[:x_cen] = snap.x_cen
