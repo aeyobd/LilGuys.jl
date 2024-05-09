@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import subprocess
+import shutil
 
 import re
 
@@ -26,12 +27,8 @@ def main():
     else:
         script = create_sbatch_script(args, exe, "")
 
-    print(script)
-    tmpfile = _create_temp_script(script)
-
     # Submit the job
-    submit_job(tmpfile)
-    os.remove(tmpfile)
+    submit_job(script)
 
 
 
@@ -42,7 +39,7 @@ def clean_dir(directory):
     if os.path.exists(directory):
         ans = input(f"Overwrite {directory}? (y/n)")
         if ans.lower() == 'y':
-            os.removedirs(directory)
+            shutil.rmtree(directory)
         else:
             sys.exit(1)
     os.makedirs(directory)
@@ -74,12 +71,16 @@ def parse_args():
 
 
 
-def submit_job(script_path):
+def submit_job(script):
     print("submitting")
-    result = subprocess.run(['sbatch', script_path], capture_output=True, text=True)
+
+    result = subprocess.run(
+        ['sbatch'], input=script,
+        capture_output=True, text=True
+    )
+
     print(result.stderr)
     print(result.stdout)
-    print("submitted")
 
 
 

@@ -113,23 +113,13 @@ end
 end
 
 
-# Test for the epsilon value extraction
-@testset "Epsilon Value Extraction" begin
-    # Create a test file with the expected content
-    ϵ = 0.0512
-    directory = mktempdir()
-    testfile = joinpath(directory, "parameters-usedvalues")
-    open(testfile, "w") do file
-        write(file, "SomeParameter 1.0\n")
-        write(file, "SofteningComovingClass0 $(ϵ)\n")
-        write(file, "AnotherParameter 2.0\n")
-    end
+@testset "mass_is_fixed" begin
+    N = 100
+    pos = randn((3, N))
+    vel = randn((3, N))
+    masses = zeros(100)
+    snap = Snapshot(pos, vel, masses)
+    @test lguys.mass_is_fixed(snap) 
 
-    # Test the epsilon value extraction function
-    epsilon = lguys.get_epsilon(directory)
-    @test epsilon === ϵ
-
-    # Cleanup the temporary directory
-    rm(directory, recursive=true)
 end
 

@@ -187,7 +187,7 @@ end
 """
 Force of gravity from masses at given positions evaluated at x_vec
 """
-function calc_F_grav(masses::Vector{F}, positions::Matrix{F}, x_vec)
+function calc_F_grav(masses::AbstractVector, positions::AbstractMatrix, x_vec)
     dr = x_vec .- positions
     rs = calc_r(dr)
     r_hat = dr ./ rs

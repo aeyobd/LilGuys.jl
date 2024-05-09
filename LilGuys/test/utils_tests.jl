@@ -11,6 +11,59 @@ end
 end
 
 
+@testset "percentile" begin
+    x = lguys.randu(0, 1, 1000)
+
+    qs = 100 * [0.1, 0.25, 0.5, 0.75, 0.9]
+    p = lguys.percentile(x, qs)
+    @test p ≈ qs/100 atol=0.1
+end
+
+@testset "randu" begin
+    s = (1243, 2)
+    low = -0.5
+    high = 0.7
+    xs = lguys.randu(low, high, s...)
+
+    @test size(xs) == s
+    μ = lguys.mean(xs)
+    σ = lguys.std(xs)
+
+    @test μ ≈ (low + high) / 2 atol=0.03
+    @test σ ≈ (high - low) / √12 atol=0.03
+
+end
+
+
+@testset "rand unit vector" begin
+    N = 1000
+    xs = lguys.rand_unit(N)
+
+    @test size(xs) == (3, N)
+    rs = lguys.calc_r(xs)
+    @test rs ≈ fill(1, N)
+    μ = lguys.mean(xs)
+    σ = lguys.std(xs)
+
+    @test μ ≈ 0 atol=0.03
+    @test σ > 0.3
+
+end
+
+
+@testset "gradient" begin
+    x = LinRange(-1, 1, 100)
+    y = x .^ 2
+    g = lguys.gradient(y, x)
+    @test g ≈ 2x atol=0.05
+
+end
+
+
+@testset "lerp" begin 
+end
+    
+
 @testset "normal cdf" begin
     N = 1000
     μ = randn(N)
@@ -38,22 +91,66 @@ end
     @test actual ≈ expected
 end
 
-@testset "rand unit vector" begin
+
+@testset "gaussian" begin
     N = 1000
-    xs = lguys.rand_unit(N)
+    μ = randn(N)
+    σ = 0.5 .+ abs.(randn(N))
+    x = randn(N)
+    
+    actual = lguys.gaussian.(μ, μ, σ)
+    expected = 1 ./ (σ * √(2π))
+    @test actual ≈ expected
 
-    @test size(xs) == (3, N)
-    rs = lguys.calc_r(xs)
-    @test rs ≈ fill(1, N)
-    μ = lguys.mean(xs)
-    σ = lguys.std(xs)
+    actual = lguys.gaussian.(μ .- x, μ, σ) 
+    expected = lguys.gaussian.(μ .+ x, μ, σ)
+    @test actual ≈ expected
 
-    @test μ ≈ 0 atol=0.03
-    @test σ > 0.3
+    actual = lguys.gaussian.(μ .+ 100σ, μ, σ)
+    expected = zeros(N)
+    @test actual ≈ expected
+
+    actual = lguys.gaussian.(μ .- 100σ, μ, σ)
+    expected = zeros(N)
+    @test actual ≈ expected
+
+
+    actual = lguys.gaussian.(μ .+ σ, μ, σ)
+    expected = exp(-0.5) ./ (σ * √(2π))
+    @test actual ≈ expected
+end
+
+
+@testset "logistic" begin
+    @test lguys.logistic(0) ≈ 0.5
+    @test lguys.logistic(20) ≈ 1 rtol=1e-6
+    @test lguys.logistic(-20) ≈ 0 atol=1e-6
+
+    x = LinRange(-10, 10, 100)
+    y = lguys.logistic.(x)
+    @test all(y .≥ 0)
 
 end
 
 
+@testset "make_equal_number_bins" begin
+    x = randn(1000)
+    edges = lguys.make_equal_number_bins(x, 10)
+    @test length(edges) == 11
+    @test issorted(edges)
+    @test edges[1] == minimum(x)
+    @test edges[end] == maximum(x)
+end
+
+
+@testset "calc_histogram" begin
+    x = randn(1000)
+    edges, counts = lguys.calc_histogram(x, 10)
+    @test sum(counts) == length(x) - sum(x .>= maximum(x))
+    @test all(counts .≥ 0)
+end
+
+    
 # centroid tests
 #
 @testset "centroid" begin

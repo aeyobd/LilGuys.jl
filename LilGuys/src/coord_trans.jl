@@ -12,6 +12,46 @@ const kpc_mas_yr = 4.740470463533348 # km/s
     v_sun::Vector{F} =  [12.9, 245.6, 7.78]
 end
 
+
+
+"""
+    to_tangent(α, δ, α_0, δ_0)
+
+Computes the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
+"""
+function to_tangent(α, δ, α_0, δ_0)
+	denom = @. (sind(δ) * sind(δ_0) 
+		+ cosd(δ) * cosd(δ_0) * cosd(α - α_0)
+	)
+	
+	eta_num = @. (sind(δ_0) * cosd(δ) * cosd(α-α_0)
+		-cosd(δ_0) * sind(δ) 
+	)
+	
+	xi_num = @. cosd(δ) * sind(α - α_0)
+	
+	xi = @. rad2deg(xi_num/denom)
+	eta = @. -rad2deg(eta_num / denom)
+
+	return xi, eta
+end
+
+
+"""
+    calc_r_ell(x, y, a, b, PA)
+
+computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
+"""
+function calc_r_ell(x, y, a, b, PA)
+	θ = @. deg2rad(PA)
+	x_p = @. x * cos(θ) + -y * sin(θ)
+	y_p = @. x * sin(θ) + y * cos(θ)
+
+	r_sq = @. (x_p / a)^2 + (y_p / b)^2
+	return sqrt.(r_sq)
+end
+
+
 function _unit_vector(ra::F, dec::F)
     x = cosd(dec) * cosd(ra)
     y = cosd(dec) * sind(ra)
