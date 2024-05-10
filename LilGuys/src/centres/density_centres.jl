@@ -111,8 +111,3 @@ function calc_ρ_eff(x_vec, v_vec, positions, velocities, masses; h)
     ϕs = @. min(ϕ_g + ϕ_v, 0)
     return sum(ϕs)
 end
-
-
-
-
-

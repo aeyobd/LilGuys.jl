@@ -9,6 +9,9 @@
 
     x = [1.;0;0]
     @test f(x) ≈ [-1.;0;0]
+
+    x = [0.;3;4]
+    @test f(x) ≈ [0.;-3/5;-4/5] / 25
 end
 
 @testset "Φ grav" begin
@@ -50,12 +53,11 @@ end
 end
 
 function make_rad_Φ(rs)
-    println("here")
     N = length(rs)
     rs = reshape(rs, 1, N)
     positions = rs .* lguys.rand_unit(N) 
     masses = ones(N)
-    velocities = zeros(3, N)
+    velocities = randn(3, N)
     snap = lguys.Snapshot(positions, velocities, masses)
     return lguys.calc_radial_Φ(snap)
 end
@@ -80,28 +82,44 @@ end
     @test f(10) ≈ -3/10
 end
 
-
-@testset "radial Φ approx" begin
-    N = 10000
+function rand_snap(N=10_000)
     rs = rand(1, N) 
     positions = rs .* lguys.rand_unit(N) 
     masses = rand(N)
     velocities = zeros(3, N)
-    snap =  lguys.Snapshot(positions, velocities, masses)
+    return lguys.Snapshot(positions, velocities, masses)
+end
 
-    rs = [0.0, 0.5, 1, 5, 10, 100]
+@testset "radial Φ approx" begin
+    snap = rand_snap()
+
+    r_test = [0.0, 0.5, 1, 5, 10, 100]
+    pos_test = lguys.rand_unit(length(r_test)) .* r_test'
     Φr = lguys.calc_radial_Φ(snap)
     f1(x) = Φr(lguys.calc_r(x))
     f(x) = lguys.calc_Φ(snap, x)
 
-    rel_err(x) = abs(f(x) - f1(x)) / abs(f(x))
+    rel_err(x) = ifelse(f(x)==0, abs(f1(x)), abs(f(x) - f1(x)) / abs(f(x)))
+    rel_errs = [rel_err(pos) for pos in eachcol(pos_test)]
 
-    @testset "rel err" begin
-        for r in rs
-            x = r * lguys.rand_unit()[:, 1]
-            @test rel_err(x) < 3e-2
-        end
-    end
+    @test maximum(rel_errs) < 3e-3
  
 end
 
+@testset "radial discrete Φ" begin
+    snap = rand_snap()
+
+    phis = lguys.calc_radial_discrete_Φ(snap)
+    interp = lguys.calc_radial_Φ(snap)
+
+    radii = lguys.calc_r(snap)
+    actual = [interp(r) for r in radii]
+
+    @test phis ≈ actual
+end
+
+
+@testset "distribution functions" begin
+    # test with known cases...
+    # TODO
+end
