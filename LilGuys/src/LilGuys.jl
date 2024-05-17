@@ -6,6 +6,7 @@ export Observation, PhasePoint
 export to_galcen, to_sky
 export save
 
+export calc_r, calc_v
 
 include("units.jl")
 include("utils.jl")

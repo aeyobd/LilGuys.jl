@@ -27,9 +27,9 @@ function plot_xyz(args...; plot! =lines!, labels=nothing, units=" / kpc", kwargs
     end
 
     linkxaxes!(ax_xy, ax_xz)
-    hidexdecorations!(ax_xy, grid=false)
+    hidexdecorations!(ax_xy, grid=false, ticks=false, minorticks=false)
     linkyaxes!(ax_xz, ax_yz)
-    hideydecorations!(ax_yz, grid=false)
+    hideydecorations!(ax_yz, grid=false, ticks=false, minorticks=false)
 
     if labels !== nothing
         Legend(fig[1, 2], ax_xy, tellwidth=false)

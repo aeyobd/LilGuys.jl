@@ -1,6 +1,6 @@
 module Centres
     
-    export SS_State, calc_centre, calc_centres
+    export SS_State, calc_centre, calc_centres, StaticState
 
     import ..centroid, ..centroid_err, ..calc_r, ..F, ..Snapshot, ..Output
     import ..calc_radial_discrete_Φ
