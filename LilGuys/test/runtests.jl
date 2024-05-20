@@ -1,7 +1,7 @@
 include("setup.jl")
 
 
-tests = ["utils", "snapshot", "profile", "coordinates", "physics", "gravity", "centre_static"]
+tests = ["utils", "snapshot", "profile", "coordinates", "physics", "gravity", "centre_static", "profiles"]
 
 for test in tests
     @testset "$test" begin
