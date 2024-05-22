@@ -1,4 +1,4 @@
-using Makie
+import Makie: Figure, Axis, lines!, scatter!, linkxaxes!, linkyaxes!, hidexdecorations!, hideydecorations!, Legend
 
 
 

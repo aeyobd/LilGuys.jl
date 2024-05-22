@@ -92,10 +92,8 @@ Create a snapshot.
 function Snapshot(positions, velocities, masses)
     N = size(positions, 2)
     if mass_is_fixed(masses)
-        println("assuming constant mass")
         m_header = masses[1]
     else
-        println("variable masses")
         m_header = 0.0
     end
 
@@ -203,7 +201,6 @@ end
 
 function save(h5f::HDF5.H5DataStore, snap::Snapshot)
     if mass_is_fixed(snap)
-        println("setting fixed mass table")
         snap.header["MassTable"][2] = snap.masses[1]
     end
     set_header!(h5f, snap.header)
