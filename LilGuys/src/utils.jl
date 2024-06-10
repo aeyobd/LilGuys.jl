@@ -163,41 +163,6 @@ end
 
 
 
-"""
-calculates equal number bins over the array x with n values per bin.
-"""
-function make_equal_number_bins(x, n)
-    return [percentile(x, i) for i in LinRange(0, 100, n+1)]
-end
-
-
-"""
-    calc_histogram(x, bins; weights=Nothing)
-
-Computes the histogram of a vector x with respect to the bins with optional weights. Returns the bin edges and the histogram.
-"""
-function calc_histogram(x::AbstractVector, bins::AbstractVector; weights=Nothing)
-    if weights == Nothing
-        weights = ones(Int64, length(x))
-    end
-    Nbins = length(bins) - 1
-    hist = zeros(Nbins)
-    for i in 1:Nbins
-        idx = (x .>= bins[i]) .& (x .< bins[i+1])
-        hist[i] = sum(weights[idx])
-    end
-    return bins, hist
-end
-
-
-function calc_histogram(x::AbstractVector, bins::Int=20; weights=Nothing, xlim=Nothing)
-    if xlim == Nothing
-        xlim = (minimum(x[isfinite.(x)]), maximum(x[isfinite.(x)]))
-    end
-
-    return calc_histogram(x, LinRange(xlim[1], xlim[2], bins); weights=weights)
-end
-
 
 
 
