@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.10.2"
+julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "51fdf9271de78a9e4de659a3fbdfd3b7d7676ca1"
+project_hash = "2c98ee0fe8f46d1342230386a7691f3f477ab655"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -221,7 +221,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.1.0+0"
+version = "1.1.1+0"
 
 [[deps.Conda]]
 deps = ["Downloads", "JSON", "VersionParsing"]

@@ -4,12 +4,49 @@
 import QuadGK: quadgk 
 import Base: @kwdef
 import SpecialFunctions: besselk
+import ForwardDiff: derivative
 
 abstract type AbstractProfile end
 
 Base.Broadcast.broadcastable(p::AbstractProfile) = Ref(p)
 
+"""
+    calc_ρ(profile, r)
 
+Calculates the 3D density of the profile at radius r
+"""
+function calc_ρ end
+
+
+"""
+    calc_Σ(profile, R)
+
+Calculates the projected 2D surface density of the profile at radius R
+"""
+function calc_Σ end
+
+
+"""
+    calc_M(profile, r)
+
+Calculates the mass enclosed within 3D radius r
+"""
+function calc_M end
+
+
+"""
+    calc_V_circ(profile, r)
+
+Calculates the circular velocity at radius r
+"""
+function calc_V_circ end
+
+
+"""
+    ABC_Profile(α, β, γ, M, r_s)
+
+The general ABC density profile (not implemented yet)
+"""
 @kwdef struct ABC_Profile <: AbstractProfile
     α::Float64
     β::Float64
@@ -64,32 +101,51 @@ where M is the total mass and r_s is the scale radius, and ρ_0 = M / (8π * r_s
 end
 
 
+@doc raw"""
+    LogCusp2D(M, R_s)
+
+A logarithmic cusp profile in 2D. The density profile is given by
+"""
 @kwdef struct LogCusp2D <: AbstractProfile
     M::Float64 = 1
-    r_s::Float64 = 1
+    R_s::Float64 = 1
 end
 
 
+@doc raw"""
+    NFW(M_s, r_s)
+
+A Navarro-Frenk-White profile. The density profile is given by
+
+```math
+ρ(r) = \frac{M_s}{4π r_s^3} \frac{1}{x (1 + x)^2}
+```
+
+where M_s is the total mass, and r_s is the scale radius.
+"""
 @kwdef struct NFW <: AbstractProfile
     M_s::Float64 = 1
     r_s::Float64 = 1
 end
 
 
-"""
-    KingProfile(M, r_s, r_t)
+@doc raw"""
+    KingProfile(M, R_s, R_t)
 
 A King profile. The density profile is given by
 
-ρ(r) = ρ_0 * [ (1+(r/r_s)^2)^(-1/2) - (1+(r_t/r_s)^2)^(-1/2) ]^2
+```math
+ρ(R) = ρ_0 * [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
+```
 
-where M is the (approximate) total mass, r_s is the core radius, and r_t is the tidal radius. 
+where M is the (approximate) total mass, `R_s` is the core radius, and `R_t` is
+the tidal radius. 
 
 """
 @kwdef struct KingProfile <: AbstractProfile
     M::Float64 
-    r_s::Float64 
-    r_t::Float64 
+    R_s::Float64 
+    R_t::Float64 
 end
 
 
@@ -206,10 +262,10 @@ end
 
 
 function calc_Σ(profile::KingProfile, r::Real)
-    if r > profile.r_t
+    if r > profile.R_t
         return 0
     end
-    M, r_s, r_t = profile.M, profile.r_s, profile.r_t
+    M, r_s, r_t = profile.M, profile.R_s, profile.R_t
     Σ_s = M / (2π * r_s^2)
     x = r / r_s
     x_t = r_t / r_s
@@ -220,15 +276,53 @@ function calc_Σ(profile::KingProfile, r::Real)
 end
 
 
+function calc_ρ(profile::KingProfile, r::Real)
+    if r > profile.R_t
+        return 0
+    end
+    M, Rs, Rt = profile.M, profile.R_s, profile.R_t
+    Σ_s = M / (2π * Rs^2)
+
+    ρ = -1/2 * (
+            π*sqrt(Rs^2 + r^2)*Rs^4*sqrt((Rs^2 + Rt^2)/Rs^2) 
+            - 4*Rs^5
+            - 4*Rs^3*r^2
+       )/(Rs^2 * (
+            Rs^4*sqrt((Rs^2 + Rt^2)/Rs^2) 
+            + 2*Rs^2*r^2*sqrt((Rs^2 + Rt^2)/Rs^2)
+            + r^4*sqrt((Rs^2 + Rt^2)/Rs^2)
+           ))
+
+    return (-1/π * Σ_s)* ρ
+end
+
 
 function calc_M(profile::AbstractProfile, r::Real)
     return quadgk(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)[1]
 end
 
-function calc_Σ(profile::AbstractProfile, r::Real)
-    return quadgk(r -> 2π * r * calc_ρ(profile, r), 0, r)[1]
+
+function calc_M_2D(profile::AbstractProfile, R::Real)
+    return quadgk(R -> 2π * R * calc_Σ(profile, R), 0, R)[1]
 end
+
+
+function calc_Σ_from_ρ(profile::AbstractProfile, R::Real)
+    integrand(r) = calc_ρ(profile, r) * r / sqrt(r^2 - R^2)
+    return 2*quadgk(integrand, R, Inf)[1]
+end
+
 
 function calc_V_circ(profile::AbstractProfile, r)
     return sqrt(G * calc_M(profile, r) / r)
 end
+
+
+"""
+calculate the 3D density profile of a profile at radius r
+"""
+function calc_ρ_from_Σ(profile::AbstractProfile, r::Real)
+    integrand(R) = derivative(R->calc_Σ(profile, R), R) / sqrt(R^2 - r^2)
+    return -1/π * quadgk(integrand, r, Inf)[1]
+end
+
