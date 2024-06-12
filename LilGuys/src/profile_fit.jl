@@ -1,3 +1,7 @@
+import Arya
+import StatsBase: percentile
+
+
 """
 
 sorts a snapshot by radius from 0
@@ -18,7 +22,7 @@ function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
         weights = ones(length(r))
     end
 
-    _, counts = calc_histogram(r, bins, weights=weights)
+    counts = Arya.histogram(r, bins, weights=weights, normalization=:count).values
 
     Vs = 4/3 * π * diff(bins .^ 3)
     return bins, counts ./ Vs
@@ -30,6 +34,7 @@ function calc_ρ_hist(r, bins::Int; weights=nothing)
     x2 = log10(maximum(r))
     x = LinRange(x1, x2, bins)
     bins = 10 .^ x
+    bins = percentile(radii, LinRange(0, 100, Nr+1))
     return calc_ρ_hist(r, bins; weights=weights)
 end
 

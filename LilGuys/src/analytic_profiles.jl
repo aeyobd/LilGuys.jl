@@ -153,6 +153,15 @@ function get_Σ_s(profile::Exp2D)
     return profile.M / (2π * profile.R_s^2)
 end
 
+function get_R_h(profile::Exp2D)
+    return 1.67835 * profile.R_s
+end
+
+function get_r_h(profile::Exp2D)
+    r_h_over_r_s = 2.2235172865036716
+    return r_h_over_r_s * profile.R_s
+end
+
 
 function calc_ρ(profile::Exp2D, r::Real)
     Σ_s = get_Σ_s(profile)
