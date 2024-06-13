@@ -211,3 +211,24 @@ function centroid_err(x::Matrix{T}, weights::AbstractVector{T}) where T<:Real
     return err
 end
 
+
+
+const arcmin_to_rad = π / (60 * 180)
+
+
+"""
+Calculates the physical diameter given the angular diameter and distance.
+
+TODO: could also use Unitful to be more general
+"""
+function arcmin_to_kpc(arcmin::Real, distance::Real)
+    return arcmin * arcmin_to_rad * distance 
+end
+
+
+"""
+Converts a physical length to a sky angular diameter in arcminutes
+"""
+function kpc_to_arcmin(length::Real, distance::Real)
+    return length / distance / arcmin_to_rad
+end

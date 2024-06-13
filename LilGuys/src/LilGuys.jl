@@ -20,8 +20,8 @@ include("coord_trans.jl")
 
 include("physics.jl")
 include("gravity.jl")
-include("profile_fit.jl")
 include("analytic_profiles.jl")
+include("density_3d.jl")
 include("density_utils.jl")
 
 include("centres/Centres.jl")

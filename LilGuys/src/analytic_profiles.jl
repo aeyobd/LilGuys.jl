@@ -215,7 +215,7 @@ end
 
 
 function calc_ρ(profile::LogCusp2D, r::Real)
-    M, r_s = profile.M, profile.r_s
+    M, r_s = profile.M, profile.R_s
     x = r / r_s
     ρ_s = get_ρ_s(profile)
     return ρ_s * exp(-x) / x
@@ -223,12 +223,12 @@ end
 
 
 function get_ρ_s(profile::LogCusp2D)
-    M, r_s = profile.M, profile.r_s
+    M, r_s = profile.M, profile.R_s
     return M / (4π * r_s^2)
 end
 
 function calc_Σ(profile::LogCusp2D, r::Real)
-    M, r_s = profile.M, profile.r_s
+    M, r_s = profile.M, profile.R_s
     ρ_s = get_ρ_s(profile)
     Σ_s = ρ_s * 2 * r_s
     x = r / r_s

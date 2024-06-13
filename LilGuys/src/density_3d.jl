@@ -29,12 +29,15 @@ function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
 end
 
 
-function calc_ρ_hist(r, bins::Int; weights=nothing)
-    x1 = log10(minimum(r))
-    x2 = log10(maximum(r))
-    x = LinRange(x1, x2, bins)
-    bins = 10 .^ x
-    bins = percentile(radii, LinRange(0, 100, Nr+1))
+function calc_ρ_hist(r, bins::Int; weights=nothing, equal_width=false)
+    if equal_width
+        x1 = minimum(r)
+        x2 = maximum(r)
+        x = LinRange(x1, x2, bins)
+        bins = 10 .^ x
+    else
+        bins = percentile(r, LinRange(0, 100, bins+1))
+    end
     return calc_ρ_hist(r, bins; weights=weights)
 end
 
