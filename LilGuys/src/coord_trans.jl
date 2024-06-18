@@ -37,19 +37,6 @@ function to_tangent(α, δ, α_0, δ_0)
 end
 
 
-"""
-    calc_r_ell(x, y, a, b, PA)
-
-computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
-"""
-function calc_r_ell(x, y, a, b, PA)
-	θ = @. deg2rad(PA)
-	x_p = @. x * cos(θ) + -y * sin(θ)
-	y_p = @. x * sin(θ) + y * cos(θ)
-
-	r_sq = @. (x_p / a)^2 + (y_p / b)^2
-	return sqrt.(r_sq)
-end
 
 
 function _unit_vector(ra::F, dec::F)
