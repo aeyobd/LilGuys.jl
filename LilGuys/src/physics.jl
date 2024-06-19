@@ -215,8 +215,10 @@ end
 
 Returns a list of observations based on snapshot particles
 """
-function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false)
-    observations = Observation[]
+function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false,
+        SkyFrame = ICRS
+    )
+    observations = SkyFrame[]
 
     for i in 1:length(snap)
         if verbose
@@ -229,7 +231,7 @@ function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false
             vel *=-1
         end
         gc = Galactocentric(pos, vel)
-        obs = transform(Observation, gc)
+        obs = transform(SkyFrame, gc)
         push!(observations, obs)
     end
     return observations

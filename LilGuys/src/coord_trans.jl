@@ -12,6 +12,9 @@ const kpc_mas_yr = 4.740470463533348 # km/s
     v_sun::Vector{F} =  [12.9, 245.6, 7.78]
 end
 
+function gc_rest_frame()
+    return GalactocentricFrame(; v_sun=[0., 0., 0.])
+end
 
 
 """
@@ -46,7 +49,12 @@ function _unit_vector(ra::F, dec::F)
     return [x, y, z]
 end
 
-function transform(::Type{ICRS_Cartesian}, obs::Observation)
+
+function transform(::Type{T}, obs::T) where T
+    return obs
+end
+
+function transform(::Type{PhasePoint{T}}, obs::SkyCoord{T}) where T
     x, y, z = _observation_to_cartesian_position(obs)
     if any(isnan, [obs.pm_ra, obs.pm_dec, obs.radial_velocity])
         v_x, v_y, v_z = NaN, NaN, NaN
@@ -54,10 +62,11 @@ function transform(::Type{ICRS_Cartesian}, obs::Observation)
         v_x, v_y, v_z = _observation_to_cartesian_velocity(obs)
     end
 
-    return ICRS_Cartesian(x, y, z, v_x, v_y, v_z)
+    return PhasePoint{T}(x, y, z, v_x, v_y, v_z)
 end
 
-function transform(::Type{Observation}, cart::ICRS_Cartesian)
+
+function transform(::Type{SkyCoord{T}}, cart::PhasePoint{T}) where T
     ra, dec, r = _cartesian_to_observation_position(cart)
     if any(isnan, [cart.v_x, cart.v_y, cart.v_z])
         pm_ra, pm_dec, radial_velocity = NaN, NaN, NaN
@@ -65,8 +74,9 @@ function transform(::Type{Observation}, cart::ICRS_Cartesian)
         pm_ra, pm_dec, radial_velocity = _cartesian_to_observation_velocity(cart)
     end
 
-    return Observation(ra, dec, r, pm_ra, pm_dec, radial_velocity)
+    return SkyCoord{T}(ra, dec, r, pm_ra, pm_dec, radial_velocity)
 end
+
 
 function transform(::Type{Galactocentric}, cart::ICRS_Cartesian, frame=GalactocentricFrame())
     x_gc = _cartesian_to_galcen_position(cart, frame)
@@ -75,6 +85,7 @@ function transform(::Type{Galactocentric}, cart::ICRS_Cartesian, frame=Galactoce
     return Galactocentric(x_gc, v_gc)
 end
 
+
 function transform(::Type{ICRS_Cartesian}, galcen::Galactocentric, frame=GalactocentricFrame())
     x_icrs = _galcen_to_cartesian_position(galcen, frame)
     v_icrs = _galcen_to_cartesian_velocity(galcen, frame)
@@ -82,22 +93,81 @@ function transform(::Type{ICRS_Cartesian}, galcen::Galactocentric, frame=Galacto
     return ICRS_Cartesian(x_icrs, v_icrs)
 end
 
-function transform(::Type{Galactocentric}, obs::Observation, frame=GalactocentricFrame())
+
+
+function transform(::Type{Galactocentric}, cart::HelioRest_Cartesian, frame=gc_rest_frame())
+    x_gc = _cartesian_to_galcen_position(cart, frame)
+    v_gc = _cartesian_to_galcen_velocity(cart, frame)
+
+    return Galactocentric(x_gc, v_gc)
+end
+
+
+function transform(::Type{HelioRest_Cartesian}, galcen::Galactocentric, frame=gc_rest_frame())
+    x_icrs = _galcen_to_cartesian_position(galcen, frame)
+    v_icrs = _galcen_to_cartesian_velocity(galcen, frame)
+
+    return HelioRest_Cartesian(x_icrs, v_icrs)
+end
+
+
+function transform(::Type{Galactocentric}, obs::ICRS, frame=GalactocentricFrame())
     cart = transform(ICRS_Cartesian, obs)
     return transform(Galactocentric, cart, frame)
 end
 
-function transform(::Type{Observation}, galcen::Galactocentric, frame=GalactocentricFrame())
+
+
+function transform(::Type{ICRS}, galcen::Galactocentric, frame=GalactocentricFrame())
     cart = transform(ICRS_Cartesian, galcen, frame)
-    return transform(Observation, cart)
+    return transform(ICRS, cart)
 end
 
 
-function _observation_to_cartesian_position(obs::Observation)
+function transform(::Type{Galactocentric}, obs::HelioRest, frame=gc_rest_frame())
+    cart = transform(HelioRest_Cartesian, obs)
+    return transform(Galactocentric, cart, frame)
+end
+
+
+
+function transform(::Type{HelioRest}, galcen::Galactocentric, frame=gc_rest_frame())
+    cart = transform(HelioRest_Cartesian, galcen, frame)
+    return transform(HelioRest, cart)
+end
+
+
+function transform(::Type{HelioRest_Cartesian}, obs::ICRS_Cartesian)
+    gc = transform(Galactocentric, obs)
+    return transform(HelioRest_Cartesian, gc)
+end
+
+
+function transform(::Type{ICRS_Cartesian}, obs::HelioRest_Cartesian)
+    gc = transform(Galactocentric, obs)
+    return transform(ICRS_Cartesian, gc)
+end
+
+
+function transform(::Type{ICRS}, obs::HelioRest)
+    gc = transform(Galactocentric, obs)
+    return transform(ICRS, gc)
+end
+
+
+function transform(::Type{HelioRest}, obs::ICRS)
+    gc = transform(Galactocentric, obs)
+    return transform(HelioRest, gc)
+end
+
+
+
+
+function _observation_to_cartesian_position(obs::SkyCoord)
     return obs.distance * _unit_vector(obs.ra, obs.dec)
 end
 
-function _observation_to_cartesian_velocity(obs::Observation)
+function _observation_to_cartesian_velocity(obs::SkyCoord)
     rv = obs.radial_velocity
     α = obs.ra
     δ = obs.dec
@@ -123,7 +193,7 @@ end
 
 
 
-function _cartesian_to_observation_position(cart::ICRS_Cartesian)
+function _cartesian_to_observation_position(cart::PhasePoint)
     x, y, z = cart.x, cart.y, cart.z
 
     R = sqrt(x^2 + y^2)
@@ -136,7 +206,7 @@ function _cartesian_to_observation_position(cart::ICRS_Cartesian)
 end
 
 
-function _cartesian_to_observation_velocity(cart::ICRS_Cartesian)
+function _cartesian_to_observation_velocity(cart::PhasePoint)
     x, y, z = cart.x, cart.y, cart.z
     v_x, v_y, v_z = cart.v_x, cart.v_y, cart.v_z
 
@@ -162,7 +232,7 @@ function _cartesian_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFra
     return x_gc
 end
 
-function _cartesian_to_galcen_position(cart::ICRS_Cartesian, frame=GalactocentricFrame())
+function _cartesian_to_galcen_position(cart::PhasePoint, frame=GalactocentricFrame())
     return _cartesian_to_galcen_position(cart.position, frame)
 end
 
@@ -175,7 +245,7 @@ function _cartesian_to_galcen_velocity(v_vec::Vector{F}, frame=GalactocentricFra
     return v_gc 
 end
 
-function _cartesian_to_galcen_velocity(cart::ICRS_Cartesian, frame=GalactocentricFrame())
+function _cartesian_to_galcen_velocity(cart::PhasePoint, frame=GalactocentricFrame())
     return _cartesian_to_galcen_velocity(cart.velocity, frame)
 end
 
@@ -297,8 +367,8 @@ end
 
 
 
-function rand_coord(obs::Observation, err::Observation)
-    return Observation(
+function rand_coord(obs::ICRS, err::ICRS)
+    return ICRS(
         ra = obs.ra,
         dec = obs.dec,
         pm_ra = obs.pm_ra + randn() * err.pm_ra,
@@ -308,6 +378,6 @@ function rand_coord(obs::Observation, err::Observation)
        )
 end
 
-function rand_coords(obs::Observation, err::Observation, N::Int)
+function rand_coords(obs::ICRS, err::ICRS, N::Int)
     return [rand_coord(obs, err) for _ in 1:N]
 end

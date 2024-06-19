@@ -30,19 +30,24 @@ Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
     v_z::F = NaN
 end
 
-const Galactocentric = PhasePoint{:Galactocentric}
-const SimPoint = PhasePoint{:SimPoint}
-const ICRS_Cartesian = PhasePoint{:ICRS_Cartesian}
 
-@kwdef struct Observation
+@kwdef struct SkyCoord{T}
     ra::F
     dec::F
-    distance::F
-    pm_ra::F
-    pm_dec::F
-    radial_velocity::F
+    distance::F = NaN
+    pm_ra::F = NaN
+    pm_dec::F = NaN
+    radial_velocity::F = NaN
 end
 
+const Galactocentric = PhasePoint{:Galactocentric}
+const SimPoint = PhasePoint{:SimPoint}
+const ICRS_Cartesian = PhasePoint{:ICRS}
+const HelioRest_Cartesian = PhasePoint{:HelioRest}
+
+const HelioRest = SkyCoord{:HelioRest}
+const ICRS = SkyCoord{:ICRS}
+    
 
 function PhasePoint{T}(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]) where T
     if length(pos) != 3
@@ -80,7 +85,3 @@ function Base.show(io::IO, pp::PhasePoint{T}) where T
 end
 
 
-function Base.show(io::IO, obs::Observation)
-    @printf io "observation at (%4.2f, %4.2f)"  obs.ra obs.dec
-    return io
-end

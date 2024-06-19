@@ -2,7 +2,7 @@ module LilGuys
 
 export Snapshot
 export Output
-export Observation, PhasePoint
+export ICRS, PhasePoint
 export to_galcen, to_sky
 export save
 
