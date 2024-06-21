@@ -232,3 +232,17 @@ Converts a physical length to a sky angular diameter in arcminutes
 function kpc_to_arcmin(length::Real, distance::Real)
     return length / distance / arcmin_to_rad
 end
+
+
+
+"""
+general method to convert a struct to a dictionary
+"""
+function struct_to_dict(S)
+    return Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
+end
+
+
+function dict_to_tuple(D)
+    return NamedTuple((Symbol(key), value) for (key, value) in D)
+end
