@@ -97,7 +97,8 @@ function calc_properties(rs;
     h.err[isnan.(h.err)] .= 0
 
     mass_per_annulus = h.values .± h.err
-    counts = h.values
+    h_c = histogram(log10.(rs), bins, normalization=:count)
+    counts = h_c.values
 
     if normalization == :mass
         mass_per_annulus = mass_per_annulus ./ sum(mass_per_annulus)
