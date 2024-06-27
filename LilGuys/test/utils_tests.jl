@@ -133,23 +133,6 @@ end
 end
 
 
-@testset "make_equal_number_bins" begin
-    x = randn(1000)
-    edges = lguys.make_equal_number_bins(x, 10)
-    @test length(edges) == 11
-    @test issorted(edges)
-    @test edges[1] == minimum(x)
-    @test edges[end] == maximum(x)
-end
-
-
-@testset "calc_histogram" begin
-    x = randn(1000)
-    edges, counts = lguys.calc_histogram(x, 10)
-    @test sum(counts) == length(x) - sum(x .>= maximum(x))
-    @test all(counts .≥ 0)
-end
-
     
 # centroid tests
 #

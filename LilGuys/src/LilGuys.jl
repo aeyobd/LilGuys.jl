@@ -16,6 +16,7 @@ include("coordinates.jl")
 include("snapshot.jl")
 include("output.jl")
 
+include("spherical.jl")
 include("coord_trans.jl")   
 
 include("physics.jl")

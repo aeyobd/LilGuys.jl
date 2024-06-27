@@ -1,6 +1,6 @@
 
-@testset "test to galcen" begin
-    gc = lguys.Observation(ra = 266.4051, dec=-28.936175, distance=8.122,
+@testset "helio to galcen: Sag A*" begin
+    gc = lguys.ICRS(ra = 266.4051, dec=-28.936175, distance=8.122,
                              pm_ra=-3.151, pm_dec=-5.547, radial_velocity=-12.9)
 
     phase = lguys.transform(lguys.Galactocentric, gc)
@@ -10,7 +10,7 @@
 
 
 
-    sun = lguys.Observation(ra = 0, dec=-0, distance=0,
+    sun = lguys.ICRS(ra = 0, dec=-0, distance=0,
                              pm_ra=0, pm_dec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, sun)
     @test phase.position ≈ [-8.122, 0, 0] rtol=3e-3
@@ -18,9 +18,9 @@
 end
 
 
-@testset "test to geocen" begin 
+@testset "galcen to helio: Sag A*" begin 
     g = lguys.Galactocentric(zeros(3), zeros(3))
-    obs = lguys.transform(lguys.Observation, g)
+    obs = lguys.transform(lguys.ICRS, g)
 
     @test obs.ra ≈ 266.4168166 rtol=1e-2
     @test obs.dec ≈ -29.00782 rtol=1e-2
@@ -31,11 +31,11 @@ end
 end
 
 
-@testset "test inverse" begin
+@testset "galcen to helio: inverse" begin
     N = 100
     phase = [lguys.Galactocentric( 20*randn(3), 100*randn(3))
              for _ in 1:N]
-    phase2 = lguys.transform.(lguys.Galactocentric, lguys.transform.(lguys.Observation, phase))
+    phase2 = lguys.transform.(lguys.Galactocentric, lguys.transform.(lguys.ICRS, phase))
 
     for i in 1:N
         p = phase[i]
@@ -47,13 +47,13 @@ end
 end
 
 
-@testset "test inverse 2" begin
+@testset "helio to galcen: inverse" begin
     N = 100
-    obs = [lguys.Observation(360rand(), -90 + 180rand(), 2*rand(),
+    obs = [lguys.ICRS(360rand(), -90 + 180rand(), 2*rand(),
                                 10*randn(), 10*randn(), 10*randn())
              for _ in 1:N]
 
-    obs2 = lguys.transform.(lguys.Observation, lguys.transform.(lguys.Galactocentric, obs))
+    obs2 = lguys.transform.(lguys.ICRS, lguys.transform.(lguys.Galactocentric, obs))
 
     for i in 1:N
         p = obs[i]
