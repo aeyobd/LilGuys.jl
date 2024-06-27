@@ -89,7 +89,7 @@ function calc_properties(rs;
     end
 
 
-    h = histogram(log10.(rs), bins, weights=weights, normalization=:count)
+    h = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
     log_r_bin = h.bins
     log_r = lguys.midpoint(log_r_bin)
     δ_log_r = diff(log_r_bin) ./ 2
@@ -97,7 +97,7 @@ function calc_properties(rs;
     h.err[isnan.(h.err)] .= 0
 
     mass_per_annulus = h.values .± h.err
-    h_c = histogram(log10.(rs), bins, normalization=:count)
+    h_c = histogram(log10.(rs), bins, normalization=:none)
     counts = h_c.values
 
     if normalization == :mass
@@ -230,7 +230,7 @@ end
 Transforms x and y into the sheared rotated frame of the ellipse.
 """
 function shear_points_to_ellipse(x, y, a, b, PA)
-    θ = @. deg2rad(PA - 90)
+    θ = @. deg2rad(90 - PA)
 	x_p = @. x * cos(θ) + -y * sin(θ)
 	y_p = @. x * sin(θ) + y * cos(θ)
     # scale
