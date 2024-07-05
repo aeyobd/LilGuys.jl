@@ -42,20 +42,6 @@ Calculates the circular velocity at radius r
 function calc_V_circ end
 
 
-"""
-    ABC_Profile(α, β, γ, M, r_s)
-
-The general ABC density profile (not implemented yet)
-"""
-@kwdef struct ABC_Profile <: AbstractProfile
-    α::Float64
-    β::Float64
-    γ::Float64
-    M::Float64 = 1
-    r_s::Float64 = 1
-end
-
-
 @kwdef struct Plummer <: AbstractProfile
     a::Float64
     M::Float64 = 1
@@ -111,22 +97,6 @@ A logarithmic cusp profile in 2D. The density profile is given by
     R_s::Float64 = 1
 end
 
-
-@doc raw"""
-    NFW(M_s, r_s)
-
-A Navarro-Frenk-White profile. The density profile is given by
-
-```math
-ρ(r) = \frac{M_s}{4π r_s^3} \frac{1}{x (1 + x)^2}
-```
-
-where M_s is the total mass, and r_s is the scale radius.
-"""
-@kwdef struct NFW <: AbstractProfile
-    M_s::Float64 = 1
-    r_s::Float64 = 1
-end
 
 
 @doc raw"""
@@ -235,39 +205,6 @@ function calc_Σ(profile::LogCusp2D, r::Real)
     return Σ_s * besselk(0, x)
 end
 
-
-function get_ρ_s(profile::NFW)
-    M_s, r_s = profile.M_s, profile.r_s
-    return M_s / (4π * r_s^3)
-end
-
-function calc_ρ(profile::NFW, r::Real)
-    x = r / profile.r_s
-    ρ_s = get_ρ_s(profile)
-    return (ρ_s / 3) / (x * (1 + x)^2)
-end
-
-
-function calc_M(profile::NFW, r::Real)
-    x = r / profile.r_s
-    return profile.M_s * A_NFW(x)
-end
-
-
-function A_NFW(c::Real)
-    return log(1 + c) - c / (1 + c)
-end
-
-function calc_Φ(profile::NFW, r::Real)
-    x = r / profile.r_s
-    return -G * profile.M_s / profile.r_s * log(1 + x) / x
-end
-
-
-function calc_ρ(profile::ABC_Profile, r::Real)
-    α, β, γ = profile.α, profile.β, profile.γ
-    return r^(-γ) * (1 + r^a) ^ ((γ - β)/α)
-end
 
 
 function calc_Σ(profile::KingProfile, r::Real)

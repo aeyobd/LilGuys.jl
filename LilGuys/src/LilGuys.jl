@@ -21,7 +21,10 @@ include("coord_trans.jl")
 
 include("physics.jl")
 include("gravity.jl")
+
 include("analytic_profiles.jl")
+
+include("nfw.jl")
 include("density_3d.jl")
 include("density_utils.jl")
 
