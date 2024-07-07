@@ -54,7 +54,7 @@ function Base.print(io::IO, prof::ObsProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
-function ObsProfile(filename)
+function ObsProfile(filename::String)
     t = dict_to_tuple(TOML.parsefile(filename))
     return ObsProfile(;t...)
 end
@@ -228,9 +228,10 @@ end
 
 """
 Transforms x and y into the sheared rotated frame of the ellipse.
+Position angle is measured from y axis in the direction of positive x.
 """
 function shear_points_to_ellipse(x, y, a, b, PA)
-    θ = @. deg2rad(90 - PA)
+    θ = @. deg2rad(PA - 90)
 	x_p = @. x * cos(θ) + -y * sin(θ)
 	y_p = @. x * sin(θ) + y * cos(θ)
     # scale
@@ -256,7 +257,6 @@ function calc_r_ell(x, y, ell, PA)
     aspect = ellipticity_to_aspect(ell)
     b = sqrt(aspect)
     a = 1/b
-    println(ell, " ", sqrt(1 - b^2 / a^2))
     return calc_r_ell(x, y, a, b, PA)
 end
 
@@ -422,6 +422,9 @@ end
 
 
 
+"""
+Calculates the 2d centre givin data.
+"""
 function calc_centre2D(ra, dec, centre_method, weights=nothing)
     if weights === nothing
         weights = ones(length(ra))
