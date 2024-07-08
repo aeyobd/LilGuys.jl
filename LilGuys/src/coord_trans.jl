@@ -25,7 +25,7 @@ end
 
 function transform(::Type{PhasePoint{T}}, obs::SkyCoord{T}) where T
     x, y, z = _observation_to_cartesian_position(obs)
-    if any(isnan, [obs.pm_ra, obs.pm_dec, obs.radial_velocity])
+    if any(isnan, [obs.pmra, obs.pmdec, obs.radial_velocity])
         v_x, v_y, v_z = NaN, NaN, NaN
     else
         v_x, v_y, v_z = _observation_to_cartesian_velocity(obs)
@@ -38,12 +38,12 @@ end
 function transform(::Type{SkyCoord{T}}, cart::PhasePoint{T}) where T
     ra, dec, r = _cartesian_to_observation_position(cart)
     if any(isnan, [cart.v_x, cart.v_y, cart.v_z])
-        pm_ra, pm_dec, radial_velocity = NaN, NaN, NaN
+        pmra, pmdec, radial_velocity = NaN, NaN, NaN
     else
-        pm_ra, pm_dec, radial_velocity = _cartesian_to_observation_velocity(cart)
+        pmra, pmdec, radial_velocity = _cartesian_to_observation_velocity(cart)
     end
 
-    return SkyCoord{T}(ra, dec, r, pm_ra, pm_dec, radial_velocity)
+    return SkyCoord{T}(ra, dec, r, pmra, pmdec, radial_velocity)
 end
 
 
@@ -140,8 +140,8 @@ function _observation_to_cartesian_velocity(obs::SkyCoord)
     rv = obs.radial_velocity
     α = obs.ra
     δ = obs.dec
-    v_α_cosδ = obs.pm_ra * kpc_mas_yr * obs.distance
-    v_δ = obs.pm_dec  * kpc_mas_yr * obs.distance
+    v_α_cosδ = obs.pmra * kpc_mas_yr * obs.distance
+    v_δ = obs.pmdec  * kpc_mas_yr * obs.distance
     d = obs.distance
 
     vx = (rv * cosd(α) * cosd(δ) 
@@ -294,8 +294,8 @@ function rand_coord(obs::ICRS, err::ICRS)
     return ICRS(
         ra = obs.ra,
         dec = obs.dec,
-        pm_ra = obs.pm_ra + randn() * err.pm_ra,
-        pm_dec = obs.pm_dec + randn() * err.pm_dec,
+        pmra = obs.pmra + randn() * err.pmra,
+        pmdec = obs.pmdec + randn() * err.pmdec,
         radial_velocity = obs.radial_velocity + randn() * err.radial_velocity,
         distance = obs.distance + randn() * err.distance,
        )

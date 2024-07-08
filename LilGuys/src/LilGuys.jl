@@ -30,6 +30,7 @@ include("density_utils.jl")
 
 include("centres/Centres.jl")
 
+include("fits.jl")
 
 using Requires
 function __init__()

@@ -51,6 +51,10 @@ x_cen : 3 vector
     The (adopted) centre
 v_cen : 3 vector
     The (adopted) velocity centre
+
+
+radii : 3 vector (optional)
+    The radii of the particles, stored on first calculation
 """
 @kwdef mutable struct Snapshot 
     positions::Matrix{F}
@@ -68,8 +72,14 @@ v_cen : 3 vector
 
     x_cen::Vector{F} = zeros(F, 3)
     v_cen::Vector{F} = zeros(F, 3)
-    weights::Vector{F} = ones(F, length(index))
+    weights::Union{Vector, ConstVector} = ConstVector(1.0, 0)
+
+    # cahced
+    #
+    _radii::OptVector = nothing
 end
+
+
 
 
 """
@@ -109,6 +119,7 @@ function Snapshot(filename::String)
         return Snapshot(h5f, filename=filename)
     end
 end
+
 
 function Snapshot(h5f::HDF5.H5DataStore; mmap=false, filename="")
     kwargs = Dict{Symbol, Any}()
@@ -154,6 +165,12 @@ function Base.getindex(snap::Snapshot, idx)
             kwargs[sym] = getproperty(snap, sym)[:, idx]
         elseif sym ∈ snap_vectors
             kwargs[sym] = getproperty(snap, sym)[idx]
+        elseif sym ∈ [:weights]
+            if isa(getproperty(snap, sym), ConstVector)
+                kwargs[sym] = getproperty(snap, sym)
+            else
+                kwargs[sym] = getproperty(snap, sym)[idx]
+            end
         else
             continue
         end

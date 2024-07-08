@@ -17,9 +17,18 @@ function to_tangent(α, δ, α_0, δ_0)
 	xi = @. rad2deg(xi_num/denom)
 	eta = @. -rad2deg(eta_num / denom)
 
+    dist_filt = angular_distance(α, δ, α_0, δ_0) .> 90
+
+    xi[dist_filt] .= NaN
+    eta[dist_filt] .= NaN
+
 	return xi, eta
 end
 
+
+function angular_distance(α1, δ1, α2, δ2)
+    return @. acosd(sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2))
+end
 
 
 """
@@ -49,7 +58,7 @@ function cartesian_to_sky(x, y, z)
     r = sqrt(x^2 + y^2 + z^2)
 
     ra = mod(atand(y, x), 360) # atan2 -> 0 to 360
-    dec = atand(z / R) # atan -> -90 to 90
+    dec = atand(z, R) # atan -> -90 to 90
 
     return [ra, dec, r]
 end

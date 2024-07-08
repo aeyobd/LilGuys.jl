@@ -1,4 +1,5 @@
-using LinearAlgebra: ×
+import LinearAlgebra: ×
+import DataFrames: DataFrame
 
 
 
@@ -49,8 +50,11 @@ end
 
 Calculates the radii of particles in a snapshot (from the center x_cen)
 """
-function calc_r(snap::Snapshot, x_cen::AbstractVector{T}=snap.x_cen) where T<:Real
-    return calc_r(snap.positions, x_cen)
+function calc_r(snap::Snapshot, x_cen::AbstractVector{T}=snap.x_cen; recalculate=false) where T<:Real
+    if snap._radii == nothing || recalculate
+        snap._radii = calc_r(snap.positions .- x_cen)
+    end
+    return snap._radii
 end
 
 """The velocity of each particle in a snapshot"""
@@ -211,12 +215,24 @@ end
 
 
 """
-    to_sky(phase::PhasePoint)
+    to_sky(snap::Snapshot, invert_velocity=false, verbose=false, SkyFrame=ICRS)
 
-Returns a list of observations based on snapshot particles
+Returns a list of observations based on snapshot particles. 
+
+Parameters
+----------
+invert_velocity : Bool
+    If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
+verbose : Bool
+    If true, prints the progress of the conversion
+SkyFrame : CoordinateFrame
+    The frame to convert the observations to
+add_centre : Bool
+    If true, adds the centre of the snapshot as an observation
 """
-function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false,
-        SkyFrame = ICRS
+function to_sky(snap::Snapshot; 
+        invert_velocity::Bool=false, verbose::Bool=false,
+        SkyFrame = ICRS, add_centre=false
     )
     observations = SkyFrame[]
 
@@ -234,6 +250,45 @@ function to_sky(snap::Snapshot; invert_velocity::Bool=false, verbose::Bool=false
         obs = transform(SkyFrame, gc)
         push!(observations, obs)
     end
-    return observations
+
+
+    df = to_frame(observations)
+
+    df[!, :index] = snap.index
+
+    add_weights = !(snap.weights isa lguys.ConstVector)
+    if add_weights
+        df[!, :weights] = snap.weights
+    end
+
+    if add_centre
+        pos = snap.x_cen * R0
+        vel = snap.v_cen * V0
+        if invert_velocity
+            vel *=-1
+        end
+        gc = Galactocentric(pos, vel)
+        obs = transform(SkyFrame, gc)
+        df1 = to_frame([obs])
+        df1[!, :index] = [0]
+        if add_weights
+            df1[!, :weights] = [0]
+        end
+
+        df = vcat(df1, df)
+    end
+
+    return df
+end
+
+
+function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
+    cols = propertynames(obs[1])
+    df = DataFrame()
+    for col in cols
+        df[!, Symbol(col)] = getproperty.(obs, col)
+    end
+
+    return df
 end
 

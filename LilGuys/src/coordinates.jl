@@ -2,6 +2,8 @@ using Printf
 import Base: +, *
 
 
+abstract type CoordinateFrame end
+
 struct ConstVector <: AbstractArray{F, 1}
     value::F
     size::Int
@@ -21,7 +23,7 @@ Base.size(v::ConstVector) = (v.size,)
 Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 
 
-@kwdef struct PhasePoint{T}
+@kwdef struct PhasePoint{T} <: CoordinateFrame
     x::F
     y::F
     z::F
@@ -31,12 +33,12 @@ Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 end
 
 
-@kwdef struct SkyCoord{T}
+@kwdef struct SkyCoord{T} <: CoordinateFrame
     ra::F
     dec::F
     distance::F = NaN
-    pm_ra::F = NaN
-    pm_dec::F = NaN
+    pmra::F = NaN
+    pmdec::F = NaN
     radial_velocity::F = NaN
 end
 
@@ -85,3 +87,11 @@ function Base.show(io::IO, pp::PhasePoint{T}) where T
 end
 
 
+function Base.show(io::IO, coord::SkyCoord{T}) where T
+    print(io, "$T at ")
+    @printf io "(%4.2f, %4.2f) deg, " coord.ra coord.dec
+    @printf io "d = %4.2f kpc, " coord.distance
+    @printf io "μ = (%4.2f, %4.2f) mas/yr, " coord.pmra coord.pmdec
+
+    return io
+end

@@ -6,6 +6,8 @@ version = "0.1.0"
 [deps]
 Arya = "415bc928-4679-4905-9aff-233f9524af88"
 Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
