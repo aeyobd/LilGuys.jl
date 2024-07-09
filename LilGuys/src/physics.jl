@@ -4,9 +4,9 @@ import DataFrames: DataFrame
 
 
 """
-    calc_r(x)
+    calc_r(x[, y])
 
-The magnitude of a matrix of 3-vectors of shape 3×N
+The magnitude of a 3-vector or each vector in a matrix. Or, the distance between vecotrs x and y.
 """
 function calc_r(x::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3
@@ -46,9 +46,10 @@ end
 
 
 """
-    calc_r(snap, x_cen=zeros(3))
+    calc_r(snap[, x_cen])
 
-Calculates the radii of particles in a snapshot (from the center x_cen)
+Calculates the radii of particles in a snapshot (from the center x_cen).
+Is stored in snapshot because very common calculation.
 """
 function calc_r(snap::Snapshot, x_cen::AbstractVector{T}=snap.x_cen; recalculate=false) where T<:Real
     if snap._radii == nothing || recalculate
@@ -56,6 +57,8 @@ function calc_r(snap::Snapshot, x_cen::AbstractVector{T}=snap.x_cen; recalculate
     end
     return snap._radii
 end
+
+
 
 """The velocity of each particle in a snapshot"""
 function calc_v(snap::Snapshot, v_cen::AbstractVector{T}=snap.v_cen) where T<:Real
@@ -79,6 +82,11 @@ get_v_z(snap::Snapshot) = get_z(snap.velocities)
 
 
 
+"""
+    calc_E_spec_kin(snap)
+
+Kinetic energy of each particle of a snapshot
+"""
 function calc_E_spec_kin(snap::Snapshot, v_cen=snap.v_cen)
     v = calc_v(snap, v_cen)
     return 0.5 .* v.^2
@@ -100,10 +108,13 @@ function calc_E_spec(snap::Snapshot)
 end
 
 
-"""
+@doc raw"""
     calc_ϵ(snap)
 
-calculates binding energy of each particle in snapshot
+calculates binding energy of each particle in snapshot.
+```math
+    ϵ = -E_{\text{spec}} = -\frac{1}{2}v^2 - Φ
+```
 """
 function calc_ϵ(snap::Snapshot)
     return -calc_E_spec(snap)
@@ -111,13 +122,19 @@ end
 
 
 """
-Given potential and velocity, calculate specific energy
+    calc_E_spec(Φ, v)
+Given potential and velocity, calculate specific energy.
 """
 function calc_E_spec(Φ::Real, v::Real)
     return 0.5v^2 .+ Φ
 end
 
 
+"""
+    calc_E_tot(snap)
+
+Total energy of a snapshot
+"""
 function calc_E_tot(snap::Snapshot, v_cen=snap.v_cen)
     if snap.Φs_ext == nothing
         Φs_ext = 0
@@ -136,9 +153,17 @@ function calc_L_spec(snap::Snapshot)
     return calc_L_spec(snap.positions, snap.velocities)
 end
 
+
+"""
+    calc_L_spec(x, v)
+
+Calculates the angular momentum of a particle with position x and velocity v
+May pass a snapshot, or two 3-vecotrs, or two 3xN matrices for x and v.
+"""
 function calc_L_spec(x::AbstractVector{T}, v::AbstractVector{T}) where T<:Real
     return x × v
 end
+
 
 function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3 || size(v, 1) != 3
@@ -158,12 +183,19 @@ function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
 end
 
 
+
 function calc_L(snap::Snapshot)
     m = reshape(snap.masses, 1, :)
     return calc_L_spec(snap) .* m
 end
 
 
+
+"""
+    calc_L_tot(snap)
+
+Calculates the total angular momentum of a snapshot
+"""
 function calc_L_tot(snap::Snapshot)
     L = zeros(3)
     for i in 1:length(snap)
@@ -282,6 +314,11 @@ function to_sky(snap::Snapshot;
 end
 
 
+"""
+    to_frame(obs::AbstractVector{CoordinateFrame})
+
+Converts a list of observations to a DataFrame with the same column names
+"""
 function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
     cols = propertynames(obs[1])
     df = DataFrame()
@@ -292,3 +329,25 @@ function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
     return df
 end
 
+
+
+""" 
+	calc_v_rad(snap)
+
+returns the radial velocities relative to the snapshot centre in code units
+"""
+function calc_v_rad(snap)
+	x_vec = snap.positions .- snap.x_cen
+	v_vec = snap.velocities .- snap.v_cen
+
+	# normalize
+	x_hat = x_vec ./ lguys.calc_r(x_vec)'
+
+	# dot product
+	v_rad = sum(x_hat .* v_vec, dims=1)
+
+	# matrix -> vector
+	v_rad = dropdims(v_rad, dims=1)
+	
+	return v_rad 
+end

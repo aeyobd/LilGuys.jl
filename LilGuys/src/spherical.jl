@@ -27,7 +27,20 @@ end
 
 
 function angular_distance(α1, δ1, α2, δ2)
-    return @. acosd(sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2))
+    a = @. sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2)
+    if any(a .> nextfloat(1.0, 5))
+        raise(DomainError("acosd: domain error"))
+    end
+
+    if a isa Number
+        if a > 1
+            a = 1
+        end
+    else
+        a[a .> 1] .= 1
+    end
+
+    return acosd.(a)
 end
 
 

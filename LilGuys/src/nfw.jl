@@ -11,6 +11,11 @@ A Navarro-Frenk-White profile. The density profile is given by
 ```
 
 where M_s is the total mass, and r_s is the scale radius.
+The profile may be specified in terms of 
+- M_s, r_s. The scale mass and scale radius
+- M200, c. The 
+- M200, r_s
+- V_circ_max, r_circ_max
 """
 struct NFW <: AbstractProfile
     M_s::Float64
@@ -18,11 +23,33 @@ struct NFW <: AbstractProfile
     c::Union{Nothing, Float64}
 end
 
-function NFW(; M_s=1, r_s=1, c=nothing)
+function NFW(; M_s=nothing, r_s=nothing, c=nothing, M200=nothing, R200=nothing,
+    V_circ_max=nothing, r_circ_max=nothing)
+
+    if (M200 !== nothing) 
+        R200 = calc_R200(M200)
+        if r_s !== nothing
+            c = r_s / R200
+        elseif c !== nothing
+            r_s = R200 / c
+        end
+        M_s = M200 / A_NFW(c)
+    end
+
+
+    if (V_circ_max !== nothing) && (r_circ_max !== nothing)
+        M_s = V_circ_max^2 * r_circ_max / G / A_NFW(α_nfw)
+        r_s = r_circ_max / α_nfw
+    end
+
+    if (M_s === nothing) || (r_s === nothing)
+        error("Either M_s and r_s must be given, or M200 and R200, or V_circ_max and r_circ_max")
+    end
+
+
     if c == nothing
         c = calc_c(NFW(M_s, r_s, nothing))
     end
-
     return NFW(M_s, r_s, c)
 end
 
@@ -85,14 +112,14 @@ end
 
 
 function calc_V_circ_max(profile::NFW)
-    r_max = calc_r_max(profile)
+    r_max = calc_r_circ_max(profile)
     M = calc_M(profile, r_max)
 
     return sqrt(G * M / r_max)
 end
 
 
-function calc_r_max(profile::NFW)
+function calc_r_circ_max(profile::NFW)
     return α_nfw * profile.r_s
 end
 
@@ -110,6 +137,11 @@ function calc_c(profile::NFW; tol=1e-3)
     end
     
     return c
+end
+
+
+function calc_c(M200::Real, R200::Real)
+    return R200 / calc_R200(M200)
 end
 
 

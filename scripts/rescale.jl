@@ -14,9 +14,7 @@ function rescale(snap::lguys.Snapshot, m_scale, r_scale)
 
     positions = snap.positions * r_scale
     velocities = snap.velocities * v_scale
-    println(typeof(snap.masses))
     masses = snap.masses * m_scale
-    println(typeof(masses))
     return lguys.Snapshot(positions, velocities, masses)
 end
 
