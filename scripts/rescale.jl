@@ -3,6 +3,7 @@
 
 import LilGuys as lguys
 using ArgParse
+import TOML
 
 
 """
@@ -29,8 +30,10 @@ function get_args()
         "output"
             help = "output snapshot"
             required = true
+        "--params", "-p"
+            help = "parameter file to read in Ms & Rs"
         "--mass" , "-m"
-            help = "mass inside scale radius in 10^10 Msun"
+            help = "scale mass (not mass inside scale radius) in 10^10 Msun"
             arg_type = Float64
         "--radius", "-r"
             help = "scale radius in kpc"
@@ -50,8 +53,14 @@ function main()
 
     snap = lguys.Snapshot(args["input"])
 
+    if args["params"] !== nothing
+        params = TOML.parsefile(args["params"])
+        args["mass"] = params["M_s"]
+        args["radius"] = params["r_s"]
+    end
+
     r_scale = args["radius"] 
-    m_scale = args["mass"]
+    m_scale = args["mass"] * lguys.A_NFW(1) # zeno scales to M inside r
     scaled = rescale(snap, m_scale, r_scale)
 
     if args["max-radius"] !== nothing

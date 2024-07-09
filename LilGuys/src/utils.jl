@@ -171,14 +171,14 @@ end
 
 Computes the centroid of a 3xN matrix of points, returning the mean and standard deviation.
 """
-function centroid(x_vec::Matrix{T}) where T<:Real
+function centroid(x_vec::AbstractMatrix{T}) where T<:Real
     cen = mean(x_vec, dims=2)
     return cen[:, 1]
 end
 
 
 
-function centroid(x::Matrix{T}, weights::AbstractVector{T}) where T<:Real
+function centroid(x::AbstractMatrix{T1}, weights::AbstractVector{T2}) where T1 <: Real where T2<:Real
     N = size(x, 2)
     w = reshape(weights, :, 1) ./ sum(weights)
     cen = (x * w)
@@ -199,7 +199,7 @@ end
 
 
 
-function centroid_err(x::Matrix{T}, weights::AbstractVector{T}) where T<:Real
+function centroid_err(x::AbstractMatrix{T}, weights::AbstractVector) where T<:Real
     N = size(x, 2)
     if N <= 1
         return NaN

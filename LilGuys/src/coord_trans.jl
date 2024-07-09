@@ -292,8 +292,8 @@ assumed to be normally distributed.
 """
 function rand_coord(obs::ICRS, err::ICRS)
     return ICRS(
-        ra = obs.ra,
-        dec = obs.dec,
+        ra = obs.ra + randn() * err.ra,
+        dec = obs.dec + randn() * err.dec,
         pmra = obs.pmra + randn() * err.pmra,
         pmdec = obs.pmdec + randn() * err.pmdec,
         radial_velocity = obs.radial_velocity + randn() * err.radial_velocity,

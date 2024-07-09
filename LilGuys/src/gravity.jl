@@ -114,7 +114,7 @@ The potential is calculated as
 Φ(r) = -G M(r) / r - \\int_r^\\infty G dm/dr(r') / r' dr'
 ```
 """
-function calc_radial_discrete_Φ(radii::AbstractVector{T}, masses::AbstractVector{T}) where T <: Real
+function calc_radial_discrete_Φ(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -136,7 +136,7 @@ function calc_radial_discrete_Φ(radii::AbstractVector{T}, masses::AbstractVecto
 end
 
 
-function calc_radial_discrete_Φ(positions::Matrix{T}, masses::AbstractVector{T}) where T <: Real
+function calc_radial_discrete_Φ(positions::Matrix{T}, masses::AbstractVector) where T <: Real
     radii = calc_r(positions)
     return calc_radial_discrete_Φ(radii, masses)
 end
