@@ -89,19 +89,19 @@ end
 
 
 function vx_hist_fit!(snap; stars=true, 
-        bins=Arya.bandwidth_freedman_diaconis, 
+        bins=30,
         direction=1,
         limits=nothing,
         kwargs...
     )
 
-    direction = direction / norm(direction)
 
-    v = snap.velocities[1, :] * V0
+    v = snap.velocities[direction, :] * V2KMS
 	w = snap.weights
 
 	σ = std(v, weights(w))
     μ = mean(v, weights(w))
+    println("μ = $μ, σ = $σ")
 
     h = Arya.histogram(v, bins, weights=w, normalization=:pdf, limits=limits)
     p = barplot!(h; kwargs...)
@@ -111,7 +111,6 @@ function vx_hist_fit!(snap; stars=true,
 
     lines!(v_model, hist_model; color=:red)
 
-    println("μ = $μ, σ = $σ")
 
     return p
 end
@@ -144,10 +143,18 @@ Plot the dark matter density profile of a snapshot.
 """
 function plot_ρ_dm!(snap; bins=200, kwargs...)
 	rs = LilGuys.calc_r(snap)
-	ps = snap.weights
-	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
+    r, ρ = LilGuys.calc_ρ_hist(rs, bins)
 	x = log10.(midpoints(r))
 	lines!(x, log10.(ρ); kwargs...)
+end
+
+
+function plot_ρ!(prof::LilGuys.AbstractProfile, rrange=(-2, 2); N=1000, kwargs...)
+    log_r = LinRange(rrange[1], rrange[2], N)
+    r = 10 .^ log_r
+    ρ = LilGuys.calc_ρ.(prof, r)
+
+    lines!(log_r, log10.(ρ); kwargs...)
 end
 
 

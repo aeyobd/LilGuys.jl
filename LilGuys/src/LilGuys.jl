@@ -8,7 +8,14 @@ export save
 
 export calc_r, calc_v
 
+
+# profile tools
+export AbstractProfile, NFW
+export calc_ρ, calc_M, calc_r_circ_max, calc_V_circ_max, calc_V_circ
+
 include("units.jl")
+export M2MSUN, R2KPC, V2KMS
+
 include("utils.jl")
 
 include("coordinates.jl")

@@ -172,3 +172,66 @@ function calc_R200(M200::Real)
 end
 
 
+
+module Ludlow 
+    export solve_rmax, c_ludlow
+
+    using ..LilGuys
+    import Roots: find_zero
+
+	h = 0.674 #pm 0.05
+	Ω_m0 = 0.315
+	Ω_Λ0 = 1 - Ω_m0
+	σ8 = 0.811
+
+	n_s = 0.965
+	
+	ρ_crit = 277.5366*h^2 # M⊙/kpc = (3H^2 / 8πG)
+
+	const G = 4.30091e-6 # km^2/s^2 kpc / M⊙
+
+	Ω_Λ(z) = Ω_Λ0 / (Ω_Λ0 + Ω_m0 * (1+z)^3)
+	Ω_m(z) = 1 - Ω_Λ(z)
+
+	Ψ(z) = Ω_m(z)^(4/7) - Ω_Λ(z) + (1 + Ω_m(z)/2) * (1 + Ω_Λ(z)/70)
+	D(z) = Ω_m(z) / Ω_m0 * Ψ(0) / Ψ(z) * (1+z)^-1
+
+	ξ(M) = 1/(h * M/1e10) # with M in M⊙
+	σ(M, z) = D(z) * 22.26*ξ(M)^0.292 / (1 + 1.53*ξ(M)^0.275 + 3.36*ξ(M)^0.198)
+
+	c_0(z) = 3.395 * (1+z)^-0.215
+	β(z) = 0.307 * (1+z)^0.540
+	γ_1(z) = 0.628  * (1+z)^-0.047
+	γ_2(z) = 0.317 * (1+z)^-0.893
+	a(z) = 1/(1+z)
+	ν_0(z) = 1/D(z) * (4.135 - 0.564/a(z) - 0.210/a(z)^2 + 0.0557/a(z)^3 - 0.00348/a(z)^4)
+	δ_sc = 1.686
+	ν(M, z) = δ_sc / σ(M, z)
+
+
+    """
+    Calculates the approximate concentration of a halo given the initial mass and redshift using the n-body fit from @ludlow2016
+    """
+    function c_ludlow(M, z)
+        x = ν(M * M2MSUN, z)/ν_0(z)
+        result = c_0(z)
+        result *= x^(-γ_1(z))
+        result *= (1 + x^(1/β(z)))^(-β(z) * (γ_2(z) - γ_1(z)))
+        return result
+    end
+
+    function solve_M200_c(Vcmax, σ_c=0)
+        dc = 10 ^ (0 + σ_c * randn())
+
+        f(M200) = calc_V_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
+
+        M200 = find_zero(f, [0.001, 100])
+        return M200, c_ludlow(M200, 0.) * dc
+    end
+
+    function solve_rmax(Vcmax, σ_c=0)
+        M200, c = solve_M200_c(Vcmax, σ_c)
+        return calc_r_circ_max(NFW(M200=M200, c=c))
+    end
+
+end
