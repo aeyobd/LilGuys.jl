@@ -24,7 +24,7 @@ function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
 
     counts = Arya.histogram(r, bins, weights=weights, normalization=:none).values
 
-    Vs = 4/3 * π * diff(bins .^ 3)
+    Vs = 4π/3 * diff(bins .^ 3)
     return bins, counts ./ Vs
 end
 

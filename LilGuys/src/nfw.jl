@@ -77,7 +77,8 @@ const ρ_crit = 277.5366*h_hubble^2 / 1e10 # code units, 10^10 M_sun / kpc^3
 
 function get_ρ_s(profile::NFW)
     M_s, r_s = profile.M_s, profile.r_s
-    return M_s / (4π * r_s^3)
+    V_s = 4π/3 * r_s^3 
+    return M_s / V_s
 end
 
 function calc_ρ(profile::NFW, r::Real)
