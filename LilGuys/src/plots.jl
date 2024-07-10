@@ -1,5 +1,12 @@
-import Makie: Figure, Axis, lines!, scatter!, linkxaxes!, linkyaxes!, hidexdecorations!, hideydecorations!, Legend
+module Plots
 
+using Makie
+using StatsBase
+
+using ..LilGuys
+using Arya
+
+import LinearAlgebra: norm, dot
 
 
 """
@@ -40,6 +47,11 @@ end
 
 
 
+"""
+    plot_centre!(positions; rotation, width, z_filter, marker_z, label, kwargs...)
+
+Given a 3xN matrix of xyz positions, plots only points beloging to the very centre.
+"""
 function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere, 
         marker_z=nothing, label="", kwargs...)
     if z_filter === :sphere
@@ -66,6 +78,77 @@ function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere,
 end
 
 
+const log_r_label = L"\log\ (r\, /\, \mathrm{kpc})"
+const log_rho_label = L"\log\ (\rho\, /\, \mathrm{M}_\odot\, \mathrm{pc}^{-3})"
+
+function Axis_rho(gs; kwargs...)
+    ax = Axis(gs; 
+        xlabel=log_r_label, ylabel=log_rho_label, kwargs...)
+    return ax
+end
+
+
+function vx_hist_fit!(snap; stars=true, 
+        bins=Arya.bandwidth_freedman_diaconis, 
+        direction=1,
+        limits=nothing,
+        kwargs...
+    )
+
+    direction = direction / norm(direction)
+
+    v = snap.velocities[1, :] * V0
+	w = snap.weights
+
+	σ = std(v, weights(w))
+    μ = mean(v, weights(w))
+
+    h = Arya.histogram(v, bins, weights=w, normalization=:pdf, limits=limits)
+    p = barplot!(h; kwargs...)
+
+    v_model = range(minimum(v), maximum(v), length=100)
+    hist_model = LilGuys.gaussian.(v_model, μ, σ)
+
+    lines!(v_model, hist_model; color=:red)
+
+    println("μ = $μ, σ = $σ")
+
+    return p
+end
+
+
+function ProjectedDensity(snap; bins=200, limits=nothing, kwargs...)
+    fig = Figure()
+	ax = Axis(fig[1,1], aspect=1,
+	xlabel = "x / kpc", ylabel="y / kpc", title="initial")
+
+	p = Arya.hist2d!(ax, snap.positions[1, :], snap.positions[2, :], bins = bins, limits=limits, weights=snap.weights)
+
+    return Makie.FigureAxisPlot(fig, ax, p)
+end
 
 
 
+
+function plot_ρ_s!(snap; bins=200, kwargs...)
+	rs = LilGuys.calc_r(snap)
+	ps = snap.weights
+	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
+	x = log10.(midpoints(r))
+	lines!(x, log10.(ρ); kwargs...)
+end
+
+
+"""
+Plot the dark matter density profile of a snapshot.
+"""
+function plot_ρ_dm!(snap; bins=200, kwargs...)
+	rs = LilGuys.calc_r(snap)
+	ps = snap.weights
+	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
+	x = log10.(midpoints(r))
+	lines!(x, log10.(ρ); kwargs...)
+end
+
+
+end # module plots
