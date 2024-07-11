@@ -273,8 +273,8 @@ function to_sky(snap::Snapshot;
             print("converting $(i)/($(length(snap))\r")
         end
 
-        pos = snap.positions[:, i] * R0
-        vel = snap.velocities[:, i] * V0
+        pos = snap.positions[:, i] * R2KPC
+        vel = snap.velocities[:, i] * V2KMS
         if invert_velocity
             vel *=-1
         end
@@ -294,8 +294,8 @@ function to_sky(snap::Snapshot;
     end
 
     if add_centre
-        pos = snap.x_cen * R0
-        vel = snap.v_cen * V0
+        pos = snap.x_cen * R2KPC
+        vel = snap.v_cen * V2KMS
         if invert_velocity
             vel *=-1
         end

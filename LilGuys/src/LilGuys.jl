@@ -14,11 +14,12 @@ export AbstractProfile, NFW
 export calc_ρ, calc_M, calc_r_circ_max, calc_V_circ_max, calc_V_circ
 
 include("units.jl")
-export M2MSUN, R2KPC, V2KMS
+export M2MSUN, R2KPC, V2KMS, T2GYR
 
 include("utils.jl")
 
 include("coordinates.jl")
+export ICRS, HelioRest, Galactocentric, transform
 
 include("snapshot.jl")
 include("output.jl")
@@ -38,6 +39,8 @@ include("density_utils.jl")
 include("centres/Centres.jl")
 
 include("fits.jl")
+
+include("agama_interface.jl")
 
 using Requires
 function __init__()
