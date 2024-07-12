@@ -4,7 +4,7 @@
 Calculates the centres for each snapshot in the output.
 The details of the implementation are based on the given StateType.
 """
-function calc_centres(StateType, out::Output; reinit_state=false, kwargs...)
+function calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs...)
     state = StateType(out[1]; kwargs...)
 
     calc_centre!(state, out[1])
@@ -12,7 +12,7 @@ function calc_centres(StateType, out::Output; reinit_state=false, kwargs...)
 
     time = out.times[1]
 
-    for i in 2:length(out)
+    for i in 2:skip:length(out)
         dt = out.times[i] - time
 
         update_prior!(state, dt)

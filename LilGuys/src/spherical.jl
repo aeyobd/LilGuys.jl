@@ -3,26 +3,37 @@
 
 Computes the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
 """
-function to_tangent(α, δ, α_0, δ_0)
-	denom = @. (sind(δ) * sind(δ_0) 
-		+ cosd(δ) * cosd(δ_0) * cosd(α - α_0)
-	)
-	
-	eta_num = @. (sind(δ_0) * cosd(δ) * cosd(α-α_0)
-		-cosd(δ_0) * sind(δ) 
-	)
-	
-	xi_num = @. cosd(δ) * sind(α - α_0)
-	
-	xi = @. rad2deg(xi_num/denom)
-	eta = @. -rad2deg(eta_num / denom)
+function to_tangent(α::Real, δ::Real, α_0::Real, δ_0::Real)
+    xi, eta = _to_tangent(α, δ, α_0, δ_0)
+    if angular_distance(α, δ, α_0, δ_0) > 90
+        xi = NaN
+        eta = NaN
+    end
+    return xi, eta
+end
 
-    dist_filt = angular_distance(α, δ, α_0, δ_0) .> 90
 
-    xi[dist_filt] .= NaN
-    eta[dist_filt] .= NaN
 
-	return xi, eta
+function to_tangent(α::AbstractVector, δ::AbstractVector, α_0::Real, δ_0::Real)
+    xi = similar(α)
+    eta = similar(δ)
+
+    for i in eachindex(α)
+        xi[i], eta[i] = to_tangent(α[i], δ[i], α_0, δ_0)
+    end
+
+    return xi, eta
+end
+
+
+
+function _to_tangent(α, δ, α_0, δ_0)
+    denom = sind(δ) * sind(δ_0) + cosd(δ) * cosd(δ_0) * cosd(α - α_0)
+    eta_num = sind(δ_0) * cosd(δ) * cosd(α-α_0) - cosd(δ_0) * sind(δ)
+    xi_num = cosd(δ) * sind(α - α_0)
+    xi = rad2deg(xi_num/denom)
+    eta = -rad2deg(eta_num / denom)
+    return xi, eta
 end
 
 

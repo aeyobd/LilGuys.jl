@@ -25,24 +25,28 @@ function main()
         "-i", "--maxiter"
             help="Number of iterations"
             arg_type=Int
-            default=100
+            default=10
         "-m", "--method"
             help="method to use: shrinking_spheres"
-            default="shrinking_spheres"
+            default="MostBound"
         "-p", "--percentile"
             help="percentile to keep per round"
             arg_type=Float64
-            default=95.
+            default=90.
         "-c", "--cut_unbound"
             help="cut unbound particles"
             action="store_true"
         "-f", "--f_min"
             help="minimum fraction of particles"
-            default=0.1
+            default=0.001
             arg_type=Float64
         "-R", "--reinit_state"
             help="do not save previos state"
             action="store_true"
+        "-k", "--skip"
+            help="skip to each nth snapshots"
+            arg_type=Int
+            default=1
     end
 
 
@@ -59,6 +63,11 @@ function main()
         kwargs[:percen] = args["percentile"]
         kwargs[:f_min] = args["f_min"]
         kwargs[:verbose] = args["verbose"]
+    elseif args["method"] == "MostBound"
+        statetype = lguys.MostBoundState
+        kwargs[:percen] = args["percentile"]
+        kwargs[:f_min] = args["f_min"]
+        kwargs[:verbose] = args["verbose"]
     elseif args["method"] == "potential"
         statetype = lguys.StaticState
         kwargs[:method] = "potential"
@@ -68,7 +77,7 @@ function main()
     end
 
     kwargs[:reinit_state] = args["reinit_state"]
-    cens = lguys.calc_centres(statetype, out; kwargs...)
+    cens = lguys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
 
 
     x_cen = [cen.position for cen in cens]
@@ -79,7 +88,10 @@ function main()
 
     println("saving centres to ", args["output"])
     df = DataFrame()
-    df[!, "t"] = out.times
+    idx = 1:args["skip"]:length(out)
+
+    println(length(idx), " ", length(cens))
+    df[!, "t"] = out.times[idx]
     df[!, "x"] = positions[1, :]
     df[!, "y"] = positions[2, :]
     df[!, "z"] = positions[3, :]

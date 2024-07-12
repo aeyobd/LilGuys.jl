@@ -75,6 +75,22 @@ end
 
 Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
 
+Parameters
+----------
+rs : Vector{F}
+    The radii of the profile.
+r_units : String
+    The units of the radii.
+weights : Vector{F}, optional
+    The weights of the radii.
+bins : optional
+    Bins passed to Arya.histogram.
+normalization : String, optional
+    The normalization of the profile.
+    - :mass: normalizes the profile by the total mass.
+    - :central: normalizes the profile by the mass within a central radius, r_centre
+    - :none: no normalization.
+
 """
 function calc_properties(rs; 
         r_units="", 
