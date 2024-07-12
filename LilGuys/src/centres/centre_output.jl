@@ -12,7 +12,7 @@ function calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs
 
     time = out.times[1]
 
-    for i in 2:skip:length(out)
+    for i in 1+skip:skip:length(out)
         dt = out.times[i] - time
 
         update_prior!(state, dt)

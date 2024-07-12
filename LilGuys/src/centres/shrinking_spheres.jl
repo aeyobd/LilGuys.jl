@@ -1,21 +1,65 @@
 import Base: @kwdef
-import StatsBase: percentile
+import StatsBase: quantile
+
+
+@kwdef struct _ShrinkingSpheresParams
+    itermax::Int = 100
+    r_cut_0::Float64 # see constructor
+    r_factor::Float64 = 0.975
+    N_min::Int # see constructor
+    dx_atol::Float64 = 1e-2
+    dx_rtol::Float64 = NaN
+    dN_min::Int = 0
+    x0::Vector{Float64} # see constructor
+    verbose::Bool = false
+    mode::Symbol = :quantile
+    r_min::Float64 = 0
+
+    N::Int
+end
+
+
+
+"""
+defines and initializes default parameters for the shrinking spheres algorithm
+"""
+function _ShrinkingSpheresParams(positions; f_min::Real=0.001, N_min::Real=100, 
+        r_cut_0=nothing, x0=nothing, kwargs...)
+
+    kwargs = Dict{Symbol,Any}(kwargs)
+
+    N = size(positions, 2)
+    kwargs[:N] = N
+
+
+    if !isnothing(f_min)
+        if !isnothing(N_min)
+            kwargs[:N_min] = max(f_min * N, N_min)
+        else
+            kwargs[:N_min] = f_min * N
+        end
+    end
+
+
+    if isnothing(x0)
+        x0 = centroid(positions)
+        kwargs[:x0] = x0
+    end
+
+    if isnothing(r_cut_0)
+        kwargs[:r_cut_0] = maximum(calc_r(positions, x0))
+    end
+
+    return _ShrinkingSpheresParams(;kwargs...)
+end
+
 
 
 @kwdef mutable struct SS_State <: AbstractState
     centre::Centre
-    f_min::Float64 = 0.1
-    percen_i::Float64 = 95
-    percen::Float64 = 99
-    itermax::Int = 100
-
     filt::BitVector
-
-    iter::Int = 0
-    verbose::Bool = false
-    Np::Int = 0
+    params::_ShrinkingSpheresParams
 end
-
 
 
 
@@ -24,46 +68,16 @@ end
 
 Given a snapshot, initialize a shrinking spheres state. 
 
-Parameres
----------
-
+See also [`shrinking_spheres`](@ref)
 """
 function SS_State(snap::Snapshot; kwargs...)
-    kwargs = Dict{Symbol,Any}(kwargs)
+    cen = potential_percen_centre(snap)
 
-    kwargs[:filt] = trues(length(snap))
+    params = _ShrinkingSpheresParams(snap.positions; centre=cen.position, kwargs...)
 
-    cen = centre_potential_percen(snap)
-    kwargs[:centre] = cen
-    kwargs[:Np] = length(snap)
-
-    return SS_State(;kwargs...)
+    return SS_State(; centre=cen, filt=trues(size(snap.positions, 2)), params=params)
 end
 
-
-
-function Base.copy(state::SS_State)
-    kwargs = Dict{Symbol,Any}()
-    for k in fieldnames(SS_State)
-        v = getfield(state, k)
-        if v !== nothing
-            kwargs[k] = copy(v)
-        end
-    end
-    return SS_State(;kwargs...)
-end
-
-
-
-function calc_next_centre!(state::SS_State, snap::Snapshot)
-    filt = sortperm(snap.index)
-    snap = snap[filt]
-    _shrink_sphere!(state, snap)
-    if state.verbose
-        println("done")
-    end
-    return state
-end
 
 
 
@@ -71,85 +85,170 @@ end
 Finds the centre using the shrinking sphere method
 """
 function calc_centre!(state::SS_State, snap)
-    _print_header(state)
-    filt = sortperm(snap.index)
-    snap = snap[filt]
-    state.iter = 0
+    idx = sortperm(snap.index)
+    idx_r = invperm(idx)
 
-    for i in 1:state.itermax
-        dN = _shrink_sphere!(state, snap)
-        state.iter += 1
-        if dN == 0
-            break
-        end
+    state.filt = state.filt[idx_r]
+
+    x_cen, filt = _shrinking_spheres(snap.positions[:, state.filt],
+        state.params)
+
+    state.filt[state.filt] .= filt
+
+    v_cen = centroid(snap.velocities[:, state.filt])
+    state.centre = Centre(position=x_cen, velocity=v_cen)
+
+    filt = _bound_particles(state, snap)
+    state.filt[state.filt] .= filt
+    if state.params.verbose
+        println("Cut unbound particles: ", sum(state.filt))
     end
 
-    if state.verbose
-        println("completed")
-    end
+    state.centre = centroid(snap.positions[:, state.filt], snap.velocities[:, state.filt])
+
+    state.filt = filt[idx]
     return state
 end
 
 
 
-
-function is_done(state::SS_State)
-    if state.iter > state.itermax
-        println("Warning: max iterations reached")
-        return true
-    end
-    N_min = length(state.filt) * state.f_min
-    return sum(state.filt) <= N_min
+function calc_next_centre!(state::SS_State, snap::Snapshot)
+    return calc_centre!(state, snap)
 end
 
 
 
+function _bound_particles(state::SS_State, snap::Snapshot)
+    v = calc_r(snap.velocities[:, state.filt] .- state.centre.velocity)
 
-function _shrink_sphere!(state::SS_State, snap::Snapshot)
-    filt_i = state.filt
-    rs = calc_r(snap.positions[:, filt_i] .- state.centre.position)
-    v = calc_r(snap.velocities[:, filt_i] .- state.centre.velocity)
-
-    Φs = calc_radial_discrete_Φ(snap.masses[filt_i], rs)
+    Φs = snap.Φs[filt]
     ϵ = calc_E_spec.(Φs, v)
     filt_bound = ϵ .< 0
-
-    r_cut = percentile(rs, state.percen)
-    filt_r = rs .<= r_cut
-
-    dN_bound = _add_filter!(state, filt_bound)
-    if dN_bound == 0
-        filt_bound = trues(length(filt_bound))
-    end
-    filt_r = filt_r[filt_bound]
-
-    dN_r = _add_filter!(state, filt_r)
-
-    if state.verbose
-        println("$dN_bound,$dN_r,$r_cut")
-    end
-    masses = snap.masses[state.filt]
-    state.centre = weighted_centre(snap[state.filt], masses)
-
-    return dN_r + dN_bound
-end
-
-function _print_header(state)
-    if state.verbose
-        println("dN_bound,dN_r,r_cut")
-    end
+    
+    return filt_bound
 end
 
 
 
-function _add_filter!(state, filt)
-    N  = sum(state.filt)
-    N_after = sum(filt)
-    if N_after <= state.f_min * state.Np
-        return 0
-    end
-    state.filt[state.filt] .= filt
 
-    return N - N_after
+"""
+    shrinking_spheres(positions; <keyword arguments>)
+
+Compute the centre using the iterative shrinking spheres method. Return the centre and a filter of the positions used to calculate the centre.
+
+Implementation of the classic shrinking spheres method, described in Powers et
+al. (2003, §2.5). The algorithm calculates the centroid and then removes
+particles that are beyond a cutoff radius. The cutoff radius is decreased by a
+fixed factor each step until the stopping criterion is met (reaching below a 
+minimum number of particles or approximate convergence).
+
+# Arguments
+- `positions::AbstractMatrix{<:Real}`: The positions of the particles, with shape (3, N).
+- `x0::AbstractVector{<:Real}`: The initial guess for the centroid.
+- `r_cut_0::Real`: The initial cutoff radius. Defaults to maximum radius.
+- `r_factor::Real=0.975`: The factor by which the cutoff radius is decreased each iteration.
+- `f_min::Real=0.001`: Stop if the number of particles is below f_min * N.
+- `N_min::Int=100`: Stop if the number of particles is below N_min.
+- `itermax::Int=100`: Maximum number of iterations.
+- `dx_atol::Real=1e-6`: Stop if the absolute change in the centroid is below this value.
+- `dx_rtol::Real=NaN`: Stop if the relative change in the centroid is below this value.
+- `dN_min::Int=1`: Stop if the number of particles removed in a step is below this value.
+- `mode::Symbol=:quantile`: The mode for determining the cutoff radius. Either :quantile or :ratio.
+- `verbose::Bool=false`: Print status information each iteration.
+
+"""
+function shrinking_spheres(positions::AbstractMatrix{T}; kwargs...) where T<:Real
+    params = _ShrinkingSpheresParams(positions; kwargs...)
+    _check_params(positions, params)
+    return _shrinking_spheres(positions, params)
+end
+
+
+
+
+function _shrinking_spheres(positions, params::_ShrinkingSpheresParams)
+    r_cut = params.r_cut_0
+    x0 = copy(params.x0)
+    filt = trues(params.N)
+
+    status = nothing
+
+    for i in 1:params.itermax
+        radii = calc_r(positions[:, filt], x0)
+
+        if params.mode == :quantile
+            r_cut = quantile(radii, params.r_factor)
+        else
+            r_cut *= params.r_factor
+        end
+
+        filt_r = radii .< r_cut
+
+        xnew = centroid(positions[:, filt][:, filt_r])
+
+        dx = calc_r(xnew, x0)
+        x0 = xnew
+        N = sum(filt)
+        dN = sum( @. !filt_r)
+        
+
+        if params.verbose
+            _print_status(i, x0, N, dx, dN, r_cut)
+        end
+
+        status = _is_complete(params, x0, N, dx, dN, r_cut)
+
+        if !isnothing(status)
+            break
+        end
+
+        filt[filt] .= filt_r
+    end
+
+    if status == nothing
+        status = "itermax"
+    end
+
+    @info "Shrinking spheres completed with status $status"
+
+    return x0, filt
+end
+
+
+function _check_params(positions, params::_ShrinkingSpheresParams)
+    if size(positions, 2) != params.N
+        throw(ArgumentError("Number of particles in positions does not match N"))
+    elseif params.r_cut_0 <= 0
+        throw(ArgumentError("r_cut_0 must be positive"))
+    elseif params.r_factor <= 0 || params.r_factor >= 1
+        throw(ArgumentError("r_factor must be in (0, 1)"))
+    elseif params.itermax <= 0
+        throw(ArgumentError("itermax must be positive"))
+    elseif params.mode ∉ [:quantile, :ratio]
+        throw(ArgumentError("mode must be :quantile or :ratio"))
+    end
+end
+
+
+function _is_complete(params::_ShrinkingSpheresParams, x0, N, dx, dN, r_cut)
+    if dN < params.dN_min
+        return "dN"
+    elseif dx < params.dx_atol && (dN > 0)
+        return "dx"
+    elseif (!isnan(params.dx_rtol)
+            && dx / norm(x0) < params.dx_rtol)
+        return "dx_rel"
+    elseif N < params.N_min
+        return "N"
+    elseif r_cut < params.r_min
+        return "r_min"
+    else
+        return nothing
+    end
+end
+
+
+function _print_status(i, x0, N, dx, dN, r_cut)
+    println("i=$i, $x0, N=$N, dx=$dx, dN=$dN, r_cut=$r_cut")
 end
 
