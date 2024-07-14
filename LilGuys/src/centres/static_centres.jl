@@ -42,6 +42,24 @@ function Centre()
 end
 
 
+function mean_centre(snap::Snapshot, filter)
+    position = centroid(snap.positions[:, filter])
+    position_err = centroid_err(snap.positions[:, filter])
+    velocity = centroid(snap.velocities[:, filter])
+    velocity_err = centroid_err(snap.velocities[:, filter])
+    if snap.accelerations !== nothing
+        acceleration = centroid(snap.accelerations[:, filter])
+        acceleration_err = centroid_err(snap.accelerations[:, filter])
+    else
+        acceleration = zeros(3)
+        acceleration_err = NaN
+    end
+
+    return Centre(position, position_err, velocity, velocity_err, acceleration, acceleration_err)
+end
+
+
+
 
 
 function weighted_centre(snap::Snapshot, weights::AbstractVector)

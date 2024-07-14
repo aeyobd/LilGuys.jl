@@ -1,4 +1,3 @@
-using HDF5
 using LinearAlgebra: norm
 using Printf
 import Base: @kwdef
@@ -19,63 +18,51 @@ const snap_matricies = [:positions, :velocities, :accelerations]
 const snap_vectors = [:masses, :Φs, :Φs_ext, :index]
 
 
+
 """
 A snapshot of a gadget simulation. Units are all code units.
-
-Attributes
-----------
-positions : 3xN matrix
-    The positions of the particles
-velocities : 3xN matrix
-    The velocities of the particles
-masses : N vector
-    The masses of the particles
-index : N vector of Int
-    The particle IDs
-
-accelerations : 3xN matrix (optional)
-    The accelerations of the particles
-Φs : N vector (optional)
-    The potential of the particles
-Φs_ext : N vector (optional)
-    The external potential of the particles
-
-filename : str
-    The filename of the snapshot
-
-h : Real
-    softening length
-header : Dict{String, Any}
-    The Gadget HDF5 header
-x_cen : 3 vector
-    The (adopted) centre
-v_cen : 3 vector
-    The (adopted) velocity centre
-
-
-radii : 3 vector (optional)
-    The radii of the particles, stored on first calculation
 """
 @kwdef mutable struct Snapshot 
+    """The positions of the particles"""
     positions::Matrix{F}
+
+    """The velocities of the particles"""
     velocities::Matrix{F}
+
+    """The masses of the particles"""
     masses::Union{Vector, ConstVector}
+
+    """The particle IDs"""
     index::Vector{Int}  
 
+    """The accelerations of the particles"""
     accelerations::OptMatrix = nothing
+
+    """The potential of the particles"""
     Φs::OptVector = nothing  
+
+    """The external (milky way) potential of the particles"""
     Φs_ext::OptVector = nothing
 
+    """The filename of the snapshot"""
     filename::String = ""
+
+    """softening length"""
     h::Real = NaN
+
+    """The Gadget HDF5 header"""
     header::Dict{String, Any}
 
+    """The (adopted) centre"""
     x_cen::Vector{F} = zeros(F, 3)
+
+    """The (adopted) velocity centre"""
     v_cen::Vector{F} = zeros(F, 3)
+
+    """The (stellar) weights of the particles"""
     weights::Union{Vector, ConstVector} = ConstVector(1.0, 0)
 
-    # cahced
-    #
+    """The radii of the particles, stored on first calculation"""
     _radii::OptVector = nothing
 end
 
@@ -114,6 +101,11 @@ end
 
 
 
+"""
+    Snapshot(filename)
+
+Load a snapshot from an HDF5 file.
+"""
 function Snapshot(filename::String)
     h5open(filename, "r") do h5f
         return Snapshot(h5f, filename=filename)
@@ -121,12 +113,17 @@ function Snapshot(filename::String)
 end
 
 
-function Snapshot(h5f::HDF5.H5DataStore; mmap=false, filename="")
+"""
+    Snapshot(h5f; mmap=false, filename)
+
+Load a snapshot from an HDF5 file.
+"""
+function Snapshot(h5f::HDF5.H5DataStore; mmap=false, filename="", group="PartType1")
     kwargs = Dict{Symbol, Any}()
 
     for (var, col) in h5vectors
-        if col ∈ keys(h5f["PartType1"])
-            kwargs[var] = get_vector(h5f, col, mmap=mmap)
+        if col ∈ keys(h5f[group])
+            kwargs[var] = get_vector(h5f, "$group/$col", mmap=mmap)
         end
     end
 
@@ -145,10 +142,16 @@ function Snapshot(h5f::HDF5.H5DataStore; mmap=false, filename="")
 end
 
 
-Base.size(snap::Snapshot) = (length(snap.index),)
-Base.length(snap::Snapshot) = length(snap.index)
-# Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
+function Base.size(snap::Snapshot) 
+    return (length(snap.index),)
+end
 
+
+function Base.length(snap::Snapshot) 
+    return length(snap.index)
+end
+
+# Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
 
 function Base.getindex(snap::Snapshot, idx)
@@ -180,15 +183,6 @@ function Base.getindex(snap::Snapshot, idx)
 end
 
 
-function Base.copy(snap::Snapshot)
-    kwargs = Dict{Symbol, Any}()
-    for sym in fieldnames(Snapshot)
-        kwargs[sym] = deepcopy(getproperty(snap, sym))
-    end
-    return Snapshot(; kwargs...)
-end
-
-
 
 """is the particle mass constant in the snapshot?"""
 function mass_is_fixed(snap::Snapshot)
@@ -212,9 +206,12 @@ function save(filename::String, snap::Snapshot)
     end
 end
 
+
 function save(snap::Snapshot)
     save(snap.filename, snap)
 end
+
+
 
 function save(h5f::HDF5.H5DataStore, snap::Snapshot)
     if mass_is_fixed(snap)
@@ -228,6 +225,24 @@ function save(h5f::HDF5.H5DataStore, snap::Snapshot)
 end
 
 
+"""
+saves a vector from a snapshot into an HDF5 file
+"""
+function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol; group="PartType1")
+    col = h5vectors[var]
+    val = getproperty(snap, var) 
+
+    if group ∉ keys(h5f)
+        HDF5.create_group(h5f, group)
+    end
+
+    if var == :masses && mass_is_fixed(snap)
+        # pass
+    elseif val !== nothing
+        set_vector!(h5f, "$group/$col", val)
+    end
+end
+
 
 
 function Base.show(io::IO, snap::Snapshot)
@@ -236,10 +251,12 @@ function Base.show(io::IO, snap::Snapshot)
 end
 
 
-##### HDF5 functions #####
 
+"""
+    make_default_header(N, mass)
 
-# Make a default header for an HDF5 file
+Create a default Gadget header for a snapshot with N particles and DM mass `mass`.
+"""
 function make_default_header(N, mass)
 
     return Dict(
@@ -254,6 +271,10 @@ function make_default_header(N, mass)
 
 end
 
+
+"""
+Regenerates the header of the snapshot.
+"""
 function regenerate_header!(snap::Snapshot)
     if mass_is_fixed(snap)
         m = snap.masses[1]
@@ -266,6 +287,11 @@ function regenerate_header!(snap::Snapshot)
 end
 
 
+"""
+    make_gadget2_header(N, mass)
+
+Create a Gadget-2 header for a snapshot with N particles and DM mass `mass`.
+"""
 function make_gadget2_header(N, mass)
     return Dict(
         "NumPart_ThisFile"=>F[0, N, 0, 0, 0, 0],
@@ -279,65 +305,4 @@ function make_gadget2_header(N, mass)
     )
 end
 
-
-# Set the header in an HDF5 file
-function set_header!(h5f::HDF5.File, header::Dict{String,Any})
-    if "Header" ∉ keys(h5f)
-        create_group(h5f, "Header")
-    end
-    h5_header = h5f["Header"]
-    for (key, val) in header
-        set_header_attr(h5f, key, val)
-    end
-end
-
-
-# gets the gadget header of an HDF5 file
-function get_header(h5f::HDF5.H5DataStore)
-    return Dict(attrs(h5f["Header"]))
-end
-
-
-# gets a vector from an HDF5 file
-function get_vector(h5f::HDF5.H5DataStore, key::String; mmap=false, group="PartType1")
-    path = group * "/" * key
-    if mmap
-        return HDF5.readmmap(h5f[path])
-    else
-        return read(h5f[path])
-    end
-end
-
-
-function set_vector!(h5f::HDF5.File, key::String, val, group="PartType1")
-    if group ∉ keys(h5f)
-        create_group(h5f, group)
-    end
-    path = group * "/" * key
-    h5f[path] = val
-end
-
-
-function set_vector_ele!(h5f::HDF5.File, key::String, el::Int, val, group="PartType1")
-    path = group * "/" * key
-    h5f[path][el] = val
-end
-
-
-function set_header_attr(h5f::HDF5.File, key::String, val)
-    header = attrs(h5f["Header"])
-    header[key] = val
-end
-
-
-function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol)
-    col = h5vectors[var]
-    val = getproperty(snap, var) 
-
-    if var == :masses && mass_is_fixed(snap)
-        # pass
-    elseif val !== nothing
-        set_vector!(h5f, col, val)
-    end
-end
 

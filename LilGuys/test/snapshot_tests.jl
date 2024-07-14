@@ -39,13 +39,15 @@ end
     assert_equal(snap, snap_saved)
 end
 
+
 function load_snap()
     return Snapshot("test.hdf5")
 end
 
+
 @testset "copy snapshot" begin
     snap = load_snap()
-    snap2 = copy(snap)
+    snap2 = deepcopy(snap)
     assert_equal(snap, snap2)
 
     N = 1000
@@ -59,6 +61,7 @@ end
     @test snap2.accelerations != snap.accelerations
     @test snap2.Φs != snap.Φs
 end
+
 
 # Test for creating a default header
 @testset "Default Header Creation" begin

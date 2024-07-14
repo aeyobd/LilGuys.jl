@@ -14,6 +14,7 @@ import StatsBase: quantile
     verbose::Bool = false
     mode::Symbol = :quantile
     r_min::Float64 = 0
+    r_max::Float64 = Inf
 
     N::Int
 end
@@ -33,22 +34,25 @@ function _ShrinkingSpheresParams(positions; f_min::Real=0.001, N_min::Real=100,
 
 
     if !isnothing(f_min)
+        N_f_min = round(Int, f_min * N)
         if !isnothing(N_min)
-            kwargs[:N_min] = max(f_min * N, N_min)
+            N_min = max(N_f_min, N_min)
         else
-            kwargs[:N_min] = f_min * N
+            N_min = N_f_min
         end
     end
+    kwargs[:N_min] = N_min
 
 
     if isnothing(x0)
         x0 = centroid(positions)
-        kwargs[:x0] = x0
     end
+    kwargs[:x0] = x0
 
     if isnothing(r_cut_0)
-        kwargs[:r_cut_0] = maximum(calc_r(positions, x0))
+        r_cut_0 = maximum(calc_r(positions, x0))
     end
+    kwargs[:r_cut_0] = r_cut_0
 
     return _ShrinkingSpheresParams(;kwargs...)
 end
@@ -58,7 +62,7 @@ end
 @kwdef mutable struct SS_State <: AbstractState
     centre::Centre
     filt::BitVector
-    params::_ShrinkingSpheresParams
+    kwargs::Dict{Symbol,Any}
 end
 
 
@@ -71,11 +75,10 @@ Given a snapshot, initialize a shrinking spheres state.
 See also [`shrinking_spheres`](@ref)
 """
 function SS_State(snap::Snapshot; kwargs...)
-    cen = potential_percen_centre(snap)
+    cen = centre_potential_percen(snap, 5.0)
 
-    params = _ShrinkingSpheresParams(snap.positions; centre=cen.position, kwargs...)
 
-    return SS_State(; centre=cen, filt=trues(size(snap.positions, 2)), params=params)
+    return SS_State(; centre=cen, filt=trues(size(snap.positions, 2)), kwargs=Dict{Symbol,Any}(kwargs))
 end
 
 
@@ -87,26 +90,33 @@ Finds the centre using the shrinking sphere method
 function calc_centre!(state::SS_State, snap)
     idx = sortperm(snap.index)
     idx_r = invperm(idx)
-
     state.filt = state.filt[idx_r]
 
+    params = _ShrinkingSpheresParams(snap.positions[:, state.filt]; state.kwargs...)
+
+
     x_cen, filt = _shrinking_spheres(snap.positions[:, state.filt],
-        state.params)
+        params)
 
     state.filt[state.filt] .= filt
 
-    v_cen = centroid(snap.velocities[:, state.filt])
-    state.centre = Centre(position=x_cen, velocity=v_cen)
+    state.centre = mean_centre(snap, state.filt)
 
-    filt = _bound_particles(state, snap)
-    state.filt[state.filt] .= filt
-    if state.params.verbose
-        println("Cut unbound particles: ", sum(state.filt))
+    filt_bound = _bound_particles(state, snap)
+    if sum(filt_bound) < params.N_min
+        println("Too few particles are bound. ")
+        filt_bound .= true
     end
 
-    state.centre = centroid(snap.positions[:, state.filt], snap.velocities[:, state.filt])
+    state.filt[state.filt] .= filt_bound
 
-    state.filt = filt[idx]
+    if params.verbose
+        println("Cut unbound particles: ", sum( @. !filt_bound))
+    end
+
+    state.centre = mean_centre(snap, state.filt)
+
+    state.filt = state.filt[idx]
     return state
 end
 
@@ -121,7 +131,7 @@ end
 function _bound_particles(state::SS_State, snap::Snapshot)
     v = calc_r(snap.velocities[:, state.filt] .- state.centre.velocity)
 
-    Φs = snap.Φs[filt]
+    Φs = snap.Φs[state.filt]
     ϵ = calc_E_spec.(Φs, v)
     filt_bound = ϵ .< 0
     
@@ -187,7 +197,6 @@ function _shrinking_spheres(positions, params::_ShrinkingSpheresParams)
         xnew = centroid(positions[:, filt][:, filt_r])
 
         dx = calc_r(xnew, x0)
-        x0 = xnew
         N = sum(filt)
         dN = sum( @. !filt_r)
         
@@ -202,6 +211,8 @@ function _shrinking_spheres(positions, params::_ShrinkingSpheresParams)
             break
         end
 
+        # only update if we continue
+        x0 = xnew
         filt[filt] .= filt_r
     end
 
@@ -218,7 +229,7 @@ end
 function _check_params(positions, params::_ShrinkingSpheresParams)
     if size(positions, 2) != params.N
         throw(ArgumentError("Number of particles in positions does not match N"))
-    elseif params.r_cut_0 <= 0
+    elseif params.r_cut_0 < 0
         throw(ArgumentError("r_cut_0 must be positive"))
     elseif params.r_factor <= 0 || params.r_factor >= 1
         throw(ArgumentError("r_factor must be in (0, 1)"))
@@ -231,6 +242,16 @@ end
 
 
 function _is_complete(params::_ShrinkingSpheresParams, x0, N, dx, dN, r_cut)
+    if N < params.N_min
+        return "N"
+    end
+
+    if r_cut > params.r_max
+        return nothing
+    elseif params.r_max < Inf 
+        return "r_max"
+    end
+
     if dN < params.dN_min
         return "dN"
     elseif dx < params.dx_atol && (dN > 0)
@@ -238,8 +259,6 @@ function _is_complete(params::_ShrinkingSpheresParams, x0, N, dx, dN, r_cut)
     elseif (!isnan(params.dx_rtol)
             && dx / norm(x0) < params.dx_rtol)
         return "dx_rel"
-    elseif N < params.N_min
-        return "N"
     elseif r_cut < params.r_min
         return "r_min"
     else

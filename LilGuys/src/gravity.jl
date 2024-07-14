@@ -68,9 +68,10 @@ function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where 
     N = length(ms_sorted)
     Ms_in = cumsum(ms_sorted)
 
-    Φs_out = zeros(F, N)
-    for i in 2:N
-        Φs_out[i-1] = calc_Φ(rs_sorted[i:end], ms_sorted[i:end])
+    Φs_out = zeros(T, N)
+
+    for i in 1:N-1
+        Φs_out[i] = calc_Φ(rs_sorted[i+1:end], ms_sorted[i+1:end])
     end
     Φ_cen = calc_Φ(rs_sorted, ms_sorted)
 

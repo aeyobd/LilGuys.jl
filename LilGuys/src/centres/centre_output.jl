@@ -4,8 +4,8 @@
 Calculates the centres for each snapshot in the output.
 The details of the implementation are based on the given StateType.
 """
-function calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs...)
-    state = StateType(out[1]; kwargs...)
+function calc_centres(StateType, out::Output; reinit_state=false, verbose=false, skip=1, kwargs...)
+    state = StateType(out[1]; verbose=verbose, kwargs...)
 
     calc_centre!(state, out[1])
     centres = [state.centre]
@@ -18,7 +18,7 @@ function calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs
         update_prior!(state, dt)
         cen = state.centre
         if reinit_state
-            state = StateType(out[i]; kwargs...)
+            state = StateType(out[i]; verbose=verbose, kwargs...)
             state.centre = cen
             calc_centre!(state, out[i])
         else
@@ -28,6 +28,10 @@ function calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs
        
         push!(centres, state.centre)
         time = out.times[1]
+
+        if verbose
+            println("completed snapshot $i")
+        end
     end
 
     return centres

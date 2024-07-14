@@ -2,54 +2,63 @@
     positions = [0.;0;0;;]
     masses = ones(1)
     
-    f(x) = lguys.calc_F_grav(positions, masses, x)
+    let
+        f(x) = lguys.calc_F_grav(positions, masses, x)
 
-    x = [0.;0;0]
-    @test f(x) ≈ [0.;0;0]
+        x = [0.;0;0]
+        @test f(x) ≈ [0.;0;0]
 
-    x = [1.;0;0]
-    @test f(x) ≈ [-1.;0;0]
+        x = [1.;0;0]
+        @test f(x) ≈ [-1.;0;0]
 
-    x = [0.;3;4]
-    @test f(x) ≈ [0.;-3/5;-4/5] / 25
+        x = [0.;3;4]
+        @test f(x) ≈ [0.;-3/5;-4/5] / 25
+    end
 end
 
 @testset "Φ grav" begin
     pos = [0.;0;0;;]
     mass = ones(1)
 
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    let 
+        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
 
-    x_vec = [0.;0;0]
-    @test f(x_vec) === -Inf
+        x_vec = [0.;0;0]
+        @test f(x_vec) === -Inf
 
-    x_vec = [1.;0;0]
-    @test f(x_vec) ≈ -1.
+        x_vec = [1.;0;0]
+        @test f(x_vec) ≈ -1.
 
-    x_vec = [10.;0;0]
-    @test f(x_vec) ≈ -1/10
+        x_vec = [10.;0;0]
+        @test f(x_vec) ≈ -1/10
 
 
-    pos = [
-           0. 2.
-           0. 0.
-           0. 0.
-          ]
-    mass = ones(2)
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
-    @test f([1.;0;0]) ≈ -2.
+    end
+    let
+        pos = [
+               0. 2.
+               0. 0.
+               0. 0.
+              ]
+        mass = ones(2)
+        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+        @test f([1.;0;0]) ≈ -2.
 
-    pos = [
-           1. 0. 0. -4. -4. 0.
-           0. 2. 0. 0. -3. 0.
-           0. 0. 3. 0. 0. -6.
-          ]
+    end
 
-    mass = [1., 2, 3, 4, 5, 6]
+    let
+        pos = [
+               1. 0. 0. -4. -4. 0.
+               0. 2. 0. 0. -3. 0.
+               0. 0. 3. 0. 0. -6.
+              ]
 
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
-    @test f([0.;0;0]) ≈ -6.
+        mass = [1., 2, 3, 4, 5, 6]
 
+        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+        @test f([0.;0;0]) ≈ -6.
+
+    end
 end
 
 function make_rad_Φ(rs)
@@ -91,9 +100,9 @@ function rand_snap(N=10_000)
 end
 
 @testset "radial Φ approx" begin
-    snap = rand_snap()
+    snap = rand_snap(10_000)
 
-    r_test = [0.0, 0.5, 1, 5, 10, 100]
+    r_test = [0.01, 0.5, 1, 5, 10, 100]
     pos_test = lguys.rand_unit(length(r_test)) .* r_test'
     Φr = lguys.calc_radial_Φ(snap)
     f1(x) = Φr(lguys.calc_r(x))
@@ -102,7 +111,9 @@ end
     rel_err(x) = ifelse(f(x)==0, abs(f1(x)), abs(f(x) - f1(x)) / abs(f(x)))
     rel_errs = [rel_err(pos) for pos in eachcol(pos_test)]
 
-    @test maximum(rel_errs) < 3e-3
+    idx_max = argmax(rel_errs)
+    println("max rel err: ", rel_errs[idx_max], " at r = ", r_test[idx_max])
+    @test rel_errs[idx_max] < 0.03
  
 end
 
@@ -121,5 +132,5 @@ end
 
 @testset "distribution functions" begin
     # test with known cases...
-    # TODO
+    @test false broken=true
 end

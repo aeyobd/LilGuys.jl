@@ -21,6 +21,7 @@ include("utils.jl")
 include("coordinates.jl")
 export ICRS, HelioRest, Galactocentric, transform
 
+include("io.jl")
 include("snapshot.jl")
 include("output.jl")
 
@@ -38,7 +39,6 @@ include("density_utils.jl")
 
 include("centres/Centres.jl")
 
-include("fits.jl")
 
 include("agama_interface.jl")
 

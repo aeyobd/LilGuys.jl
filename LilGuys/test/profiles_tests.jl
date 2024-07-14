@@ -39,7 +39,7 @@ end
 
 
 @testset "NFW" begin
-    prof = lguys.NFW(1, 1)
+    prof = lguys.NFW(M_s=1, r_s=1)
 
     @test lguys.calc_M(prof, 1) ≈ prof.M_s * lguys.A_NFW(1)
 end

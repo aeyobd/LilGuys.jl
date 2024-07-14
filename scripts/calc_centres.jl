@@ -1,11 +1,8 @@
 #!/usr/bin/env julia
 
 using ArgParse
-using JSON
 
-using DataFrames
-using CSV
-import LilGuys as lguys
+using LilGuys
 
 
 function main()
@@ -18,7 +15,7 @@ function main()
             default="combined.hdf5"
         "-o", "--output"
             help="Output file"
-            default="centres.csv"
+            default="centres.hdf5"
         "-v", "--verbose"
             help="verbose"
             action="store_true"
@@ -27,12 +24,12 @@ function main()
             arg_type=Int
             default=10
         "-m", "--method"
-            help="method to use: shrinking_spheres"
-            default="MostBound"
-        "-p", "--percentile"
-            help="percentile to keep per round"
+            help="method to use: ShrinkingSpheres, MostBound, Potential, COM"
+            default="ShrinkingSpheres"
+        "-q", "--quantile"
+            help="fractional percentile to keep per round"
             arg_type=Float64
-            default=90.
+            default=0.95
         "-c", "--cut_unbound"
             help="cut unbound particles"
             action="store_true"
@@ -47,37 +44,48 @@ function main()
             help="skip to each nth snapshots"
             arg_type=Int
             default=1
+
+        "--r_max"
+            help="maximum radius"
+            arg_type=Float64
+            default=Inf
+        "-a", "--atol"
+            help="absolute tolerance"
+            arg_type=Float64
+            default=1e-3
     end
 
 
     args = parse_args(s)
     # Read input file
     println("reading snapshots")
-    out = lguys.Output(args["input"])
+    out = Output(args["input"])
 
     println("calculating centres")
 
     kwargs = Dict{Symbol, Any}()
-    if args["method"] == "shrinking_spheres"
-        statetype = lguys.SS_State
-        kwargs[:percen] = args["percentile"]
+    if args["method"] == "ShrinkingSpheres"
+        statetype = LilGuys.SS_State
+        kwargs[:r_factor] = args["quantile"] 
         kwargs[:f_min] = args["f_min"]
         kwargs[:verbose] = args["verbose"]
+        kwargs[:dx_atol] = args["atol"]
+        kwargs[:r_max] = args["r_max"]
     elseif args["method"] == "MostBound"
-        statetype = lguys.MostBoundState
+        statetype = LilGuys.MostBoundState
         kwargs[:percen] = args["percentile"]
         kwargs[:f_min] = args["f_min"]
         kwargs[:verbose] = args["verbose"]
-    elseif args["method"] == "potential"
-        statetype = lguys.StaticState
+    elseif args["method"] == "Potential"
+        statetype = LilGuys.StaticState
         kwargs[:method] = "potential"
-    elseif args["method"] == "com"
-        statetype = lguys.StaticState
+    elseif args["method"] == "COM"
+        statetype = LilGuys.StaticState
         kwargs[:method] = "com"
     end
 
     kwargs[:reinit_state] = args["reinit_state"]
-    cens = lguys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
+    cens = LilGuys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
 
 
     x_cen = [cen.position for cen in cens]
@@ -86,21 +94,21 @@ function main()
     positions = hcat(x_cen...)
     velocities = hcat(v_cen...)
 
-    println("saving centres to ", args["output"])
-    df = DataFrame()
     idx = 1:args["skip"]:length(out)
 
-    println(length(idx), " ", length(cens))
-    df[!, "t"] = out.times[idx]
-    df[!, "x"] = positions[1, :]
-    df[!, "y"] = positions[2, :]
-    df[!, "z"] = positions[3, :]
 
-    df[!, "vx"] = velocities[1, :]
-    df[!, "vy"] = velocities[2, :]
-    df[!, "vz"] = velocities[3, :]
+    df = Dict(
+        "snapshots" => idx,
+        "times" => out.times,
+        "positions" => positions,
+        "velocities" => velocities
+    )
+    write_centres(args["output"], df)
+end
 
-    CSV.write(args["output"], df)
+
+function write_centres(filename, df)
+
 end
 
 
