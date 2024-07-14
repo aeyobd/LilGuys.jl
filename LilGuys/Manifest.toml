@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "80beb329fc086e2701d5d81083eb07c5cf570d27"
+project_hash = "41d33f7b40b4014568a7a0466e6fcd0f4cc464d9"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1062,6 +1062,12 @@ deps = ["JuliaInterpreter"]
 git-tree-sha1 = "c6a36b22d2cca0e1a903f00f600991f97bf5f426"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
 version = "2.4.6"
+
+[[deps.LsqFit]]
+deps = ["Distributions", "ForwardDiff", "LinearAlgebra", "NLSolversBase", "Printf", "StatsAPI"]
+git-tree-sha1 = "40acc20cfb253cf061c1a2a2ea28de85235eeee1"
+uuid = "2fda8390-95c7-5789-9bda-21331edee243"
+version = "0.15.0"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]

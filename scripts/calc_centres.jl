@@ -6,7 +6,79 @@ using LilGuys
 
 
 function main()
-    # Parse command line arguments
+    args = get_args()
+    check_overwrite(args)
+
+    println("reading output")
+    out = Output(args["input"])
+
+    println("calculating centres")
+    statetype, kwargs = get_kwargs(args)
+    cens = LilGuys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
+
+    println("collecting centres")
+    x_cen = [cen.position for cen in cens]
+    v_cen = [cen.velocity for cen in cens]
+
+    positions = hcat(x_cen...)
+    velocities = hcat(v_cen...)
+
+    idx = collect(1:args["skip"]:length(out))
+
+    df = Dict(
+        "snapshots" => idx,
+        "times" => out.times[idx],
+        "positions" => positions,
+        "velocities" => velocities
+    )
+
+    println("writing centres")
+    write_centres(args["output"], df)
+end
+
+
+function check_overwrite(args)
+    if isfile(args["output"]) && args["interactive"]
+        print("File already exists. Overwrite? [y/n] ")
+        response = readline()
+        if response != "y"
+            println("Exiting")
+            
+            exit()
+        end
+    end
+end
+
+
+function get_kwargs(args)
+    kwargs = Dict{Symbol, Any}()
+    if args["method"] == "ShrinkingSpheres"
+        statetype = LilGuys.SS_State
+        kwargs[:r_factor] = args["quantile"] 
+        kwargs[:f_min] = args["f_min"]
+        kwargs[:verbose] = args["verbose"]
+        kwargs[:dx_atol] = args["atol"]
+        kwargs[:r_max] = args["r_max"]
+    elseif args["method"] == "MostBound"
+        statetype = LilGuys.MostBoundState
+        kwargs[:percen] = args["percentile"]
+        kwargs[:f_min] = args["f_min"]
+        kwargs[:verbose] = args["verbose"]
+    elseif args["method"] == "Potential"
+        statetype = LilGuys.StaticState
+        kwargs[:method] = "potential"
+    elseif args["method"] == "COM"
+        statetype = LilGuys.StaticState
+        kwargs[:method] = "com"
+    end
+    kwargs[:reinit_state] = args["reinit_state"]
+
+
+    return statetype, kwargs
+end
+
+
+function get_args()
     s = ArgParseSettings()
 
     @add_arg_table s begin
@@ -19,7 +91,7 @@ function main()
         "-v", "--verbose"
             help="verbose"
             action="store_true"
-        "-i", "--maxiter"
+        "-I", "--maxiter"
             help="Number of iterations"
             arg_type=Int
             default=10
@@ -45,10 +117,14 @@ function main()
             arg_type=Int
             default=1
 
+        "-i", "--interactive"
+            help="prompt before overwriting"
+            action="store_true"
+
         "--r_max"
             help="maximum radius"
             arg_type=Float64
-            default=Inf
+            default=1
         "-a", "--atol"
             help="absolute tolerance"
             arg_type=Float64
@@ -57,58 +133,18 @@ function main()
 
 
     args = parse_args(s)
-    # Read input file
-    println("reading snapshots")
-    out = Output(args["input"])
-
-    println("calculating centres")
-
-    kwargs = Dict{Symbol, Any}()
-    if args["method"] == "ShrinkingSpheres"
-        statetype = LilGuys.SS_State
-        kwargs[:r_factor] = args["quantile"] 
-        kwargs[:f_min] = args["f_min"]
-        kwargs[:verbose] = args["verbose"]
-        kwargs[:dx_atol] = args["atol"]
-        kwargs[:r_max] = args["r_max"]
-    elseif args["method"] == "MostBound"
-        statetype = LilGuys.MostBoundState
-        kwargs[:percen] = args["percentile"]
-        kwargs[:f_min] = args["f_min"]
-        kwargs[:verbose] = args["verbose"]
-    elseif args["method"] == "Potential"
-        statetype = LilGuys.StaticState
-        kwargs[:method] = "potential"
-    elseif args["method"] == "COM"
-        statetype = LilGuys.StaticState
-        kwargs[:method] = "com"
-    end
-
-    kwargs[:reinit_state] = args["reinit_state"]
-    cens = LilGuys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
-
-
-    x_cen = [cen.position for cen in cens]
-    v_cen = [cen.velocity for cen in cens]
-
-    positions = hcat(x_cen...)
-    velocities = hcat(v_cen...)
-
-    idx = 1:args["skip"]:length(out)
-
-
-    df = Dict(
-        "snapshots" => idx,
-        "times" => out.times,
-        "positions" => positions,
-        "velocities" => velocities
-    )
-    write_centres(args["output"], df)
+    return args
 end
-
 
 function write_centres(filename, df)
 
+    rm(filename; force=true)
+
+    LilGuys.h5open(filename, "w") do f
+        for (key, value) in df
+            LilGuys.set_vector!(f, key, value)
+        end
+    end
 end
 
 

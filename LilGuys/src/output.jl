@@ -3,12 +3,26 @@ using Glob
 
 
 Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
+    """ The hdf5 file containing the snapshots """
     h5file::HDF5.File
+
+    """ The times of the snapshots (code units) """
     times::Vector{F}
-    softening::F = NaN
+
+    """The index of the snapshots"""
     index::Vector{String}
+
+    """ The (calculated) position centres of the snapshots """
     x_cen::Matrix{F} = zeros(F, 3, length(times))
+
+    """ The (calculated) velocity centres of the snapshots """
     v_cen::Matrix{F} = zeros(F, 3, length(times))
+
+    """ The stellar weights of the system """
+    weights::OptVector = nothing
+
+    """ The gravitational softening length """
+    softening::F = NaN
 end
 
 
@@ -17,8 +31,30 @@ function Base.finalize(out::Output)
 end
 
 
+""" Find the output file in the given path."""
+function _find_output_filename(path::String)
+    if splitext(basename(path))[2] == ".hdf5"
+        return path
+    elseif isdir(path)
+        if "combined.hdf5" ∈ readdir(path)
+            return joinpath(path, "combined.hdf5")
+        elseif ("out" ∈ readdir(path)) && ("combined.hdf5" ∈ readdir(joinpath(path, "out")))
+            return joinpath(path, "out", "combined.hdf5")
+        else
+            error("combined.hdf5 not found in $(path)")
+        end
+    end
+end
 
-function Output(filename::String)
+
+"""
+Create an output object from the given filename.
+The stellar weights can be provided as an optional argument.
+"""
+function Output(filename::String; weights=nothing)
+
+    filename = _find_output_filename(filename)
+
     file = h5open(filename, "r")
     names = keys(file)
     snap_names = filter(x -> startswith(x, "snap"), names)
@@ -36,7 +72,19 @@ function Output(filename::String)
         times[i] = header["Time"]
     end
 
-    out = Output(h5file=file, times=times, index=index)
+    if "x_cen" in names
+        x_cen = file["x_cen"][:, :]
+    else
+        x_cen = zeros(F, 3, Nt)
+    end
+
+    if "v_cen" in names
+        v_cen = file["v_cen"][:, :]
+    else
+        v_cen = zeros(F, 3, Nt)
+    end
+
+    out = Output(;h5file=file, times=times, index=index, x_cen=x_cen, v_cen=v_cen, weights=weights)
     return out
 end
 
@@ -53,6 +101,22 @@ function Base.getindex(out::Output, i::Int)
     snap =  Snapshot(out.h5file[out.index[i]])
     snap.x_cen = out.x_cen[:, i]
     snap.v_cen = out.v_cen[:, i]
+
+    if !isnothing(out.weights)
+        if length(snap.index) !== length(out.weights)
+            println("warning: Weights and snapshot index have different lengths: $(length(snap.index)) vs $(length(out.weights))")
+
+        else
+            if isperm(snap.index)
+                idx = snap.index
+            else
+                idx = invperm(sortperm(snap.index))
+            end
+
+            snap.weights = out.weights[idx]
+        end
+    end
+
     return snap
 end
 
@@ -200,6 +264,7 @@ function Base.show(io::IO, out::Output)
     print(io, "<output with $(length(out)) snapshots of $(length(out[1])) particles>")
     return io
 end
+
 
 function Base.show(io::IO, mime::MIME"text/plain", out::Output)
     print(io, out)

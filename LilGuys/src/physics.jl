@@ -1,5 +1,6 @@
 import LinearAlgebra: ×
 import DataFrames: DataFrame
+import LsqFit: curve_fit
 
 
 
@@ -83,14 +84,24 @@ get_v_z(snap::Snapshot) = get_z(snap.velocities)
 
 
 """
-    calc_E_spec_kin(snap)
+    calc_K_spec(snap)
 
 Kinetic energy of each particle of a snapshot
 """
-function calc_E_spec_kin(snap::Snapshot, v_cen=snap.v_cen)
-    v = calc_v(snap, v_cen)
-    return 0.5 .* v.^2
+function calc_K_spec(snap::Snapshot, v_cen=snap.v_cen)
+    v2 = sum((snap.velocities .- v_cen) .^ 2, dims=1)
+    return 1/2 * dropdims(v2, dims=1)
 end
+
+
+function calc_K_tot(snap::Snapshot)
+    return sum(snap.masses .* calc_K_spec(snap))
+end
+
+function calc_W_tot(snapshot::Snapshot)
+    return -1/2 * sum(snapshot.masses .* snapshot.Φs)
+end
+
 
 
 """
@@ -104,7 +115,7 @@ function calc_E_spec(snap::Snapshot)
     else
         Φ = snap.Φs
     end
-    return calc_E_spec_kin(snap) .+ Φ
+    return calc_K_spec(snap) .+ Φ
 end
 
 
@@ -142,7 +153,7 @@ function calc_E_tot(snap::Snapshot, v_cen=snap.v_cen)
         Φs_ext = snap.Φs_ext
     end
     return sum(snap.masses .* (
-               calc_E_spec_kin(snap, v_cen) 
+               calc_K_spec(snap, v_cen) 
                .+ 1/2 * snap.Φs 
                .+ Φs_ext)
               )
@@ -209,7 +220,7 @@ end
 """
 The circular velocity at radius r from the center of a mass M.
 """
-function calc_V_circ(M::Real, r::Real)
+function calc_v_circ(M::Real, r::Real)
     if r == 0
         return 0
     elseif r < 0
@@ -220,16 +231,16 @@ end
 
 
 """
-    calc_V_circ(snap, x_cen=zeros(3))
+    calc_v_circ(snap, x_cen=zeros(3))
 
 Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
 """
-function calc_V_circ(snap::Snapshot, x_cen=snap.x_cen)
+function calc_v_circ(snap::Snapshot, x_cen=snap.x_cen)
     r = calc_r(snap.positions .- x_cen)
     m = snap.masses[sortperm(r)]
     r = sort(r)
     M = cumsum(m)
-    return r, calc_V_circ.(M, r)
+    return r, calc_v_circ.(M, r)
 end
 
 
@@ -350,4 +361,45 @@ function calc_v_rad(snap)
 	v_rad = dropdims(v_rad, dims=1)
 	
 	return v_rad 
+end
+
+
+"""
+    calc_v_circ_max(r, v_circ; percen=80, p0=[6., 30.])
+
+Fits the maximum circular velocity of a rotation curve assuming a NFW
+profile. Returns the parameters of the fit and the range of radii used.
+"""
+function fit_v_r_max(r, v_circ; percen=80, p0=[6., 30.])
+    filt = v_circ .> percen
+    fit = curve_fit(v_circ_max_model, r[filt], v_circ[filt], p0)
+
+    return (; 
+        r_circ_max=fit.param[1], 
+        v_circ_max=fit.param[2],
+        r_min = minimum(r[filt]), 
+        r_max = maximum(r[filt]),
+        fit=fit,
+       )
+end
+
+"""
+    fit_v_r_max(snap; kwargs...)
+
+Fits circular velocity of snapshot
+"""
+function fit_v_r_max(snap; kwargs...)
+    r, v_circ = calc_v_circ(snap)
+    return fit_v_r_max(r, v_circ; kwargs...)
+end
+
+
+"""
+NFW circular velocity model
+"""
+function v_circ_max_model(r::Real, param)
+	Rmx,Vmx = param
+	x = r ./ Rmx .* lguys.α_nfw
+	inner = @. (nm.log(1+x) - x/(1+x)) / x
+	return @. Vmx / 0.46499096281742197 * nm.sqrt(inner)
 end

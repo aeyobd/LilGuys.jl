@@ -53,8 +53,8 @@ function main()
 
     if args["params"] !== nothing
         params = TOML.parsefile(args["params"])
-        args["mass"] = params["M_s"]
-        args["radius"] = params["r_s"]
+        args["mass"] = params["profile"]["M_s"]
+        args["radius"] = params["profile"]["r_s"]
     end
 
     r_scale = args["radius"] 
