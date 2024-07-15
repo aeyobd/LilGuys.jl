@@ -153,15 +153,15 @@ end
 """
 Extracts the given symbol from the output at the given index
 """
-function extract(out::Output, symbol::Symbol, idx::Int)
+function extract(out::Output, symbol::Symbol, idx::Int; group="PartType1")
     Nt = length(out)
     result = Array{F}(undef, Nt)
 
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
-        snap_idx = get_vector(h5f, h5vectors[:index])
+        snap_idx = h5f["$group/$(h5vectors[:index])"][:]
         idx_sort = sortperm(snap_idx)
-        result[i] = h5f["PartType1/$(h5vectors[symbol])"][idx_sort[idx]]
+        result[i] = h5f["$group/$(h5vectors[symbol])"][idx_sort[idx]]
     end
     return result
 end
@@ -172,15 +172,15 @@ end
 """
 Extracts the given symbol from the output at the given index
 """
-function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3)
+function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group="PartType1")
     Nt = length(out)
     result = Array{F}(undef, dim, Nt)
 
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
-        snap_idx = get_vector(h5f, h5vectors[:index])
+        snap_idx = h5f["$group/$(h5vectors[:index])"][:]
         idx_sort = sortperm(snap_idx)
-        result[:, i] = h5f["PartType1/$(h5vectors[symbol])"][:, idx_sort[idx]]
+        result[:, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort[idx]]
     end
     return result
 end

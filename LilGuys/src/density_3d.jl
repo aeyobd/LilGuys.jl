@@ -1,5 +1,131 @@
 import Arya
 import StatsBase: percentile
+import TOML
+
+
+"""
+An simulated 3D density profile. 
+All properties are in code units.
+"""
+@kwdef mutable struct ObsProfile3D
+    """ Total Energy """
+    E::F
+
+    """ Total Kinetic energy """
+    K::F
+
+    """ Total Potential energy """
+    W::F
+
+    """ Total Angular momentum vector wrt centre"""
+    L::Vector{F}
+
+    """ Maximum circular velocity """
+    v_circ_max::F
+    r_circ_max::F
+    N_bound::Int
+
+    log_r::Vector{F}
+    log_r_bins::Vector{F}
+    counts::Vector{F}
+
+    mass_in_shell::Vector{F}
+    mass_in_shell_err::Vector{F}
+
+    M_in::Vector{F}
+    M_in_err::Vector{F}
+
+    ρ::Vector{F}
+    ρ_err::Vector{F}
+
+    v_circ::Vector{F}
+    v_circ_err::Vector{F}
+
+    t_circ::Vector{F}
+
+
+end
+
+function Base.print(io::IO, prof::ObsProfile3D)
+    TOML.print(io, struct_to_dict(prof))
+end
+
+
+function ObsProfile3D(filename::String)
+    t = dict_to_tuple(TOML.parsefile(filename))
+    return ObsProfile3D(;t...)
+end
+
+
+function calc_profile(snap::Snapshot;
+        bins=100,
+        filt_bound=true,
+    )
+
+    if filt_bound
+        filt = get_bound(snap)
+        snap = snap[filt]
+    end
+    N_bound = length(snap)
+
+    W = calc_W_tot(snap)
+    K = calc_K_tot(snap)
+    E = W + K
+
+    L = calc_L_tot(snap)
+
+    h = Arya.histogram(log10.(calc_r(snap)), bins, weights=snap.masses, normalization=:none)
+    log_r_bins = h.bins
+    log_r = midpoints(log_r_bins)
+    r = 10 .^ log_r
+
+
+    counts = Arya.histogram(log10.(calc_r(snap)), bins, normalization=:none).values
+
+    mass_in_shell = h.values
+    mass_in_shell_err = h.err
+
+    V = 4π/3 * diff((10 .^ log_r_bins) .^ 3)
+    ρ = mass_in_shell ./ V
+    ρ_err = mass_in_shell_err ./ V
+
+
+    M_in = cumsum(mass_in_shell)
+    M_in_err = cumsum(counts) .^ -0.5 .* M_in
+
+
+    v_circ = calc_v_circ.(r, M_in)
+    v_circ_err = zeros(length(v_circ))
+    t_circ = r ./ v_circ
+    t_circ_err = zeros(length(t_circ))
+
+    fit = fit_v_r_circ_max(r, v_circ)
+    v_circ_max = fit.v_circ_max
+    r_circ_max = fit.r_circ_max
+
+    return ObsProfile3D(
+        E=E,
+        K=K,
+        W=W,
+        L=L,
+        log_r=log_r,
+        log_r_bins=log_r_bins,
+        counts=counts,
+        mass_in_shell=mass_in_shell,
+        mass_in_shell_err=mass_in_shell_err,
+        M_in=M_in,
+        M_in_err=M_in_err,
+        ρ=ρ,
+        ρ_err=ρ_err,
+        v_circ=v_circ,
+        v_circ_err=v_circ_err,
+        t_circ=t_circ,
+        v_circ_max=v_circ_max,
+        r_circ_max=r_circ_max,
+        N_bound=N_bound
+    )
+end
+
 
 
 """
@@ -29,6 +155,7 @@ function calc_ρ_hist(r::AbstractVector{T}, bins::AbstractVector; weights=nothin
 end
 
 
+
 function calc_ρ_hist(r::AbstractVector{T}, bins::Int; weights=nothing, equal_width=false) where T <: Real
     if equal_width
         x1 = minimum(r)
@@ -52,3 +179,229 @@ function calc_ρ_hist(snap::Snapshot, bins; weights=snap.masses, x_cen=snap.x_ce
     r = calc_r(snap, x_cen)
     return calc_ρ_hist(r, bins; weights=weights)
 end
+
+
+
+
+""" 
+	calc_v_rad(snap)
+
+returns the radial velocities relative to the snapshot centre in code units
+"""
+function calc_v_rad(snap)
+	x_vec = snap.positions .- snap.x_cen
+	v_vec = snap.velocities .- snap.v_cen
+
+	# normalize
+	x_hat = x_vec ./ calc_r(x_vec)'
+
+	# dot product
+	v_rad = sum(x_hat .* v_vec, dims=1)
+
+	# matrix -> vector
+	v_rad = dropdims(v_rad, dims=1)
+	
+	return v_rad 
+end
+
+
+
+"""
+    calc_v_circ(snap; x_cen, filter_bound)
+
+Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
+"""
+function calc_v_circ(snap::Snapshot; x_cen=snap.x_cen, filter_bound=true)
+    r = calc_r(snap.positions .- x_cen)
+    m = snap.masses[sortperm(r)]
+    r = sort(r)
+    M = cumsum(m)
+
+    if filter_bound
+        filt = get_bound(snap)
+
+        r = r[filt]
+        M = M[filt]
+    end
+    return r, calc_v_circ.(r, M)
+end
+
+
+
+"""
+    calc_v_circ_max(r, v_circ; percen=80, p0=[6., 30.])
+
+Fits the maximum circular velocity of a rotation curve assuming a NFW
+profile. Returns the parameters of the fit and the range of radii used.
+"""
+function fit_v_r_circ_max(r, v_circ; percen=80, p0=[6., 30.])
+    filt = v_circ .> percentile(v_circ, percen)
+
+    local fit, converged
+    try
+        fit = curve_fit(v_circ_max_model, r[filt], v_circ[filt], p0)
+        converged = fit.converged
+    catch ArgumentError
+        converged = false
+        fit = nothing
+    end
+
+
+    if converged == false
+        @warn "Fit did not converge, using simple maximum."
+        idx = argmax(v_circ)
+        v_circ_max = v_circ[idx]
+        r_circ_max = r[idx]
+    else
+        r_circ_max = fit.param[1]
+        v_circ_max = fit.param[2]
+    end
+
+    return (; 
+        r_circ_max=r_circ_max,
+        v_circ_max=v_circ_max,
+        r_min = minimum(r[filt]), 
+        r_max = maximum(r[filt]),
+        fit=fit,
+       )
+end
+
+
+"""
+    fit_v_r_max(snap; kwargs...)
+
+Fits circular velocity of snapshot
+"""
+function fit_v_r_circ_max(snap; kwargs...)
+    r, v_circ = calc_v_circ(snap)
+    return fit_v_r_circ_max(r, v_circ; kwargs...)
+end
+
+
+
+@doc raw"""
+NFW circular velocity model.
+
+```math
+v_circ(r) = v_circ_max/β * sqrt( (log(1 + x) - x/(1+x)) / x )
+```
+
+where x = r / r_circ_max * α_nfw
+and α_nfw, β are the solution so v_circ_max_model(1) = 1.
+"""
+function v_circ_max_model(r, param)
+	Rmx,Vmx = param
+	x = r ./ Rmx .* α_nfw
+	inner = @. (nm.log(1+x) - x/(1+x)) / x
+	return @. Vmx / 0.46499096281742197 * nm.sqrt(inner)
+end
+
+
+
+function get_M_h(output::Output, radius; idxs=(1:10:length(output)))
+	N = length(idxs)
+	M = Vector{Float64}(undef, N)
+	
+	for i in eachindex(idxs)
+		snap = output[idxs[i]]
+		ϵ = calc_ϵ(snap)
+		filt = ϵ .> 0
+		
+		rs = calc_r(snap[filt])
+		filt2 = rs .< radius
+
+		M[i] = sum(filt2)
+	end
+
+	return M
+end
+
+
+
+
+
+"""
+    to_sky(snap::Snapshot, invert_velocity=false, verbose=false, SkyFrame=ICRS)
+
+Returns a list of observations based on snapshot particles. 
+
+Parameters
+----------
+invert_velocity : Bool
+    If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
+verbose : Bool
+    If true, prints the progress of the conversion
+SkyFrame : CoordinateFrame
+    The frame to convert the observations to
+add_centre : Bool
+    If true, adds the centre of the snapshot as an observation
+"""
+function to_sky(snap::Snapshot; 
+        invert_velocity::Bool=false, verbose::Bool=false,
+        SkyFrame = ICRS, add_centre=false
+    )
+    observations = SkyFrame[]
+
+    for i in 1:length(snap)
+        if verbose
+            print("converting $(i)/($(length(snap))\r")
+        end
+
+        pos = snap.positions[:, i] * R2KPC
+        vel = snap.velocities[:, i] * V2KMS
+        if invert_velocity
+            vel *=-1
+        end
+        gc = Galactocentric(pos, vel)
+        obs = transform(SkyFrame, gc)
+        push!(observations, obs)
+    end
+
+
+    df = to_frame(observations)
+
+    df[!, :index] = snap.index
+
+    add_weights = !(snap.weights isa ConstVector)
+    if add_weights
+        df[!, :weights] = snap.weights
+    end
+
+    if add_centre
+        pos = snap.x_cen * R2KPC
+        vel = snap.v_cen * V2KMS
+        if invert_velocity
+            vel *=-1
+        end
+        gc = Galactocentric(pos, vel)
+        obs = transform(SkyFrame, gc)
+        df1 = to_frame([obs])
+        df1[!, :index] = [0]
+        if add_weights
+            df1[!, :weights] = [0]
+        end
+
+        df = vcat(df1, df)
+    end
+
+    return df
+end
+
+
+"""
+    to_frame(obs::AbstractVector{CoordinateFrame})
+
+Converts a list of observations to a DataFrame with the same column names
+"""
+function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
+    cols = propertynames(obs[1])
+    df = DataFrame()
+    for col in cols
+        df[!, Symbol(col)] = getproperty.(obs, col)
+    end
+
+    return df
+end
+
+
+

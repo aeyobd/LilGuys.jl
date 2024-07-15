@@ -1,4 +1,4 @@
-import StatsBase: mean, std, percentile
+import StatsBase: mean, std, percentile, midpoints
 import SpecialFunctions: erf
 
 

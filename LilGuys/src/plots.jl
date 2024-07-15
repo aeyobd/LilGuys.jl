@@ -9,6 +9,11 @@ using Arya
 import LinearAlgebra: norm, dot
 
 
+const log_r_label = L"\log\ (r\, /\, \mathrm{kpc})"
+const log_rho_label = L"\log\ (\rho\, /\, \mathrm{M}_\odot\, \mathrm{pc}^{-3})"
+
+const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
+
 """
 Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
 """
@@ -78,13 +83,101 @@ function plot_centre!(positions; rotation=(0,0), width=5, z_filter=:sphere,
 end
 
 
-const log_r_label = L"\log\ (r\, /\, \mathrm{kpc})"
-const log_rho_label = L"\log\ (\rho\, /\, \mathrm{M}_\odot\, \mathrm{pc}^{-3})"
 
-function Axis_rho(gs; kwargs...)
+
+
+function xy_axis(directionx=1, directiony=2; kwargs...)
+    fig = Figure()
+
+    xlabel,ylabel = ["x", "y", "z"][[directionx, directiony]]
+
+    ax = Axis(fig[1,1], aspect=DataAspect(), 
+        xlabel = "$xlabel / kpc", ylabel="$ylabel / kpc"
+    )
+
+    return fig, ax
+end
+
+
+"""
+Plot the projected 2d density of a snapshot as a heatmap.
+"""
+function projected_density!(snap; bins=200, r_max=10, centre=true, xdirection=1, ydirection=2, kwargs...)
+
+
+    x0 = snap.x_cen[1]
+    y0 = snap.x_cen[2]
+    if centre
+        limits = (-r_max + x0, r_max + x0, -r_max + y0, r_max + y0)
+    else
+        limits = (-r_max, r_max, -r_max, r_max)
+    end
+
+
+    x = snap.positions[xdirection, :]
+    y = snap.positions[ydirection, :]
+
+	p = Arya.hist2d!(x, y;
+        bins=bins, limits=limits, weights=snap.masses, kwargs...)
+
+    return p
+end
+
+
+
+
+function rho_axis(gs; kwargs...)
     ax = Axis(gs; 
         xlabel=log_r_label, ylabel=log_rho_label, kwargs...)
     return ax
+end
+
+
+
+"""
+Plot the dark matter density profile of a snapshot.
+"""
+function plot_ρ_dm!(snap; filt_bound=true, bins=200, kwargs...)
+	rs = LilGuys.calc_r(snap)
+    mass = snap.masses
+
+    if filt_bound
+        filt = LilGuys.get_bound(snap)
+        rs = rs[filt]
+        mass = mass[filt]
+	end
+
+    r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=mass)
+	x = log10.(midpoints(r))
+	lines!(x, log10.(ρ); kwargs...)
+end
+
+
+
+function plot_ρ!(prof::LilGuys.AbstractProfile, rrange=(-2, 2); N=1000, kwargs...)
+    log_r = LinRange(rrange[1], rrange[2], N)
+    r = 10 .^ log_r
+    ρ = LilGuys.calc_ρ.(prof, r)
+
+    lines!(log_r, log10.(ρ); kwargs...)
+end
+
+
+function plot_ρ_s!(snap; bins=200, kwargs...)
+	rs = LilGuys.calc_r(snap)
+	ps = snap.weights
+	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
+	x = log10.(midpoints(r))
+	lines!(x, log10.(ρ); kwargs...)
+end
+
+
+"""
+Plot the circular velocity profile of a snapshot.
+"""
+function plot_v_circ!(snap; kwargs...)
+	rc, vc = LilGuys.calc_v_circ(snap)
+	lines!(log10.(rc), V2KMS * vc; kwargs...)
 end
 
 
@@ -116,46 +209,6 @@ function vx_hist_fit!(snap; stars=true,
 end
 
 
-function ProjectedDensity(snap; bins=200, limits=nothing, kwargs...)
-    fig = Figure()
-	ax = Axis(fig[1,1], aspect=1,
-	xlabel = "x / kpc", ylabel="y / kpc", title="initial")
-
-	p = Arya.hist2d!(ax, snap.positions[1, :], snap.positions[2, :], bins = bins, limits=limits, weights=snap.weights)
-
-    return Makie.FigureAxisPlot(fig, ax, p)
-end
-
-
-
-
-function plot_ρ_s!(snap; bins=200, kwargs...)
-	rs = LilGuys.calc_r(snap)
-	ps = snap.weights
-	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
-	x = log10.(midpoints(r))
-	lines!(x, log10.(ρ); kwargs...)
-end
-
-
-"""
-Plot the dark matter density profile of a snapshot.
-"""
-function plot_ρ_dm!(snap; bins=200, kwargs...)
-	rs = LilGuys.calc_r(snap)
-    r, ρ = LilGuys.calc_ρ_hist(rs, bins)
-	x = log10.(midpoints(r))
-	lines!(x, log10.(ρ); kwargs...)
-end
-
-
-function plot_ρ!(prof::LilGuys.AbstractProfile, rrange=(-2, 2); N=1000, kwargs...)
-    log_r = LinRange(rrange[1], rrange[2], N)
-    r = 10 .^ log_r
-    ρ = LilGuys.calc_ρ.(prof, r)
-
-    lines!(log_r, log10.(ρ); kwargs...)
-end
 
 
 end # module plots

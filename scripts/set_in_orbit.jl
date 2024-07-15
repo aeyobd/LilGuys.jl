@@ -10,7 +10,7 @@ Sets a particle in the orbit given by x_vec_0 and v_vec_0 (kpc and km/s)
 """
 function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
     cen = lguys.calc_centre(lguys.SS_State, snap)
-    centred = copy(snap)
+    centred = deepcopy(snap)
     centred.positions .-= cen.position
     centred.velocities .-= cen.velocity
     println("dx cen", cen.position)

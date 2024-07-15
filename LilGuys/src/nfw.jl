@@ -220,17 +220,20 @@ module Ludlow
         return result
     end
 
-    function solve_M200_c(Vcmax, σ_c=0)
-        dc = 10 ^ (0 + σ_c * randn())
+    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 100])
+        dc = 10 ^ (0 + δc)
 
-        f(M200) = calc_v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
+        f(M200) = LilGuys.calc_v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
 
-        M200 = find_zero(f, [0.001, 100])
+        M200 = find_zero(f, interval)
         return M200, c_ludlow(M200, 0.) * dc
     end
 
-    function solve_rmax(Vcmax, σ_c=0)
-        M200, c = solve_M200_c(Vcmax, σ_c)
+    """
+    Solves for the radius of maximum circular velocity given the maximum circular velocity
+    """
+    function solve_rmax(Vcmax, δlogc=0)
+        M200, c = solve_M200_c(Vcmax, δlogc)
         return calc_r_circ_max(NFW(M200=M200, c=c))
     end
 

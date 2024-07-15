@@ -133,6 +133,7 @@ function calc_ϵ(snap::Snapshot)
 end
 
 
+
 """
     calc_E_spec(Φ, v)
 Given potential and velocity, calculate specific energy.
@@ -219,9 +220,12 @@ end
 
 
 """
+    calc_v_circ(r, M)
+
+
 The circular velocity at radius r from the center of a mass M.
 """
-function calc_v_circ(M::Real, r::Real)
+function calc_v_circ(r::Real, M::Real)
     if r == 0
         return 0
     elseif r < 0
@@ -232,175 +236,12 @@ end
 
 
 """
-    calc_v_circ(snap, x_cen=zeros(3))
-
-Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
-"""
-function calc_v_circ(snap::Snapshot, x_cen=snap.x_cen)
-    r = calc_r(snap.positions .- x_cen)
-    m = snap.masses[sortperm(r)]
-    r = sort(r)
-    M = cumsum(m)
-    return r, calc_v_circ.(M, r)
-end
-
-
-
-"""
     get_bound(snap)
 
-Returns the bound particles of a snapshot
+Returns a filter for particles that are bound to the snapshot.
 """
 function get_bound(snap::Snapshot)
-    return snap[E_spec(snap) .< 0]
+    return calc_E_spec(snap) .< 0
 end
 
 
-
-
-"""
-    to_sky(snap::Snapshot, invert_velocity=false, verbose=false, SkyFrame=ICRS)
-
-Returns a list of observations based on snapshot particles. 
-
-Parameters
-----------
-invert_velocity : Bool
-    If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
-verbose : Bool
-    If true, prints the progress of the conversion
-SkyFrame : CoordinateFrame
-    The frame to convert the observations to
-add_centre : Bool
-    If true, adds the centre of the snapshot as an observation
-"""
-function to_sky(snap::Snapshot; 
-        invert_velocity::Bool=false, verbose::Bool=false,
-        SkyFrame = ICRS, add_centre=false
-    )
-    observations = SkyFrame[]
-
-    for i in 1:length(snap)
-        if verbose
-            print("converting $(i)/($(length(snap))\r")
-        end
-
-        pos = snap.positions[:, i] * R2KPC
-        vel = snap.velocities[:, i] * V2KMS
-        if invert_velocity
-            vel *=-1
-        end
-        gc = Galactocentric(pos, vel)
-        obs = transform(SkyFrame, gc)
-        push!(observations, obs)
-    end
-
-
-    df = to_frame(observations)
-
-    df[!, :index] = snap.index
-
-    add_weights = !(snap.weights isa lguys.ConstVector)
-    if add_weights
-        df[!, :weights] = snap.weights
-    end
-
-    if add_centre
-        pos = snap.x_cen * R2KPC
-        vel = snap.v_cen * V2KMS
-        if invert_velocity
-            vel *=-1
-        end
-        gc = Galactocentric(pos, vel)
-        obs = transform(SkyFrame, gc)
-        df1 = to_frame([obs])
-        df1[!, :index] = [0]
-        if add_weights
-            df1[!, :weights] = [0]
-        end
-
-        df = vcat(df1, df)
-    end
-
-    return df
-end
-
-
-"""
-    to_frame(obs::AbstractVector{CoordinateFrame})
-
-Converts a list of observations to a DataFrame with the same column names
-"""
-function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
-    cols = propertynames(obs[1])
-    df = DataFrame()
-    for col in cols
-        df[!, Symbol(col)] = getproperty.(obs, col)
-    end
-
-    return df
-end
-
-
-
-""" 
-	calc_v_rad(snap)
-
-returns the radial velocities relative to the snapshot centre in code units
-"""
-function calc_v_rad(snap)
-	x_vec = snap.positions .- snap.x_cen
-	v_vec = snap.velocities .- snap.v_cen
-
-	# normalize
-	x_hat = x_vec ./ lguys.calc_r(x_vec)'
-
-	# dot product
-	v_rad = sum(x_hat .* v_vec, dims=1)
-
-	# matrix -> vector
-	v_rad = dropdims(v_rad, dims=1)
-	
-	return v_rad 
-end
-
-
-"""
-    calc_v_circ_max(r, v_circ; percen=80, p0=[6., 30.])
-
-Fits the maximum circular velocity of a rotation curve assuming a NFW
-profile. Returns the parameters of the fit and the range of radii used.
-"""
-function fit_v_r_circ_max(r, v_circ; percen=80, p0=[6., 30.])
-    filt = v_circ .> percentile(v_circ, percen)
-    fit = curve_fit(v_circ_max_model, r[filt], v_circ[filt], p0)
-
-    return (; 
-        r_circ_max=fit.param[1], 
-        v_circ_max=fit.param[2],
-        r_min = minimum(r[filt]), 
-        r_max = maximum(r[filt]),
-        fit=fit,
-       )
-end
-
-"""
-    fit_v_r_max(snap; kwargs...)
-
-Fits circular velocity of snapshot
-"""
-function fit_v_r_circ_max(snap; kwargs...)
-    r, v_circ = calc_v_circ(snap)
-    return fit_v_r_circ_max(r, v_circ; kwargs...)
-end
-
-
-"""
-NFW circular velocity model
-"""
-function v_circ_max_model(r, param)
-	Rmx,Vmx = param
-	x = r ./ Rmx .* lguys.α_nfw
-	inner = @. (nm.log(1+x) - x/(1+x)) / x
-	return @. Vmx / 0.46499096281742197 * nm.sqrt(inner)
-end
