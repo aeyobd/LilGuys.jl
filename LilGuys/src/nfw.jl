@@ -15,7 +15,7 @@ The profile may be specified in terms of
 - M_s, r_s. The scale mass and scale radius
 - M200, c. The 
 - M200, r_s
-- V_circ_max, r_circ_max
+- v_circ_max, r_circ_max
 """
 struct NFW <: AbstractProfile
     M_s::Float64
@@ -24,7 +24,7 @@ struct NFW <: AbstractProfile
 end
 
 function NFW(; M_s=nothing, r_s=nothing, c=nothing, M200=nothing, R200=nothing,
-    V_circ_max=nothing, r_circ_max=nothing)
+    v_circ_max=nothing, r_circ_max=nothing)
 
     if (M200 !== nothing) 
         R200 = calc_R200(M200)
@@ -37,13 +37,13 @@ function NFW(; M_s=nothing, r_s=nothing, c=nothing, M200=nothing, R200=nothing,
     end
 
 
-    if (V_circ_max !== nothing) && (r_circ_max !== nothing)
-        M_s = V_circ_max^2 * r_circ_max / G / A_NFW(α_nfw)
+    if (v_circ_max !== nothing) && (r_circ_max !== nothing)
+        M_s = v_circ_max^2 * r_circ_max / G / A_NFW(α_nfw)
         r_s = r_circ_max / α_nfw
     end
 
     if (M_s === nothing) || (r_s === nothing)
-        error("Either M_s and r_s must be given, or M200 and R200, or V_circ_max and r_circ_max")
+        error("Either M_s and r_s must be given, or M200 and R200, or v_circ_max and r_circ_max")
     end
 
 
@@ -112,7 +112,7 @@ function calc_Φ(profile::NFW, r::Real)
 end
 
 
-function calc_V_circ_max(profile::NFW)
+function calc_v_circ_max(profile::NFW)
     r_max = calc_r_circ_max(profile)
     M = calc_M(profile, r_max)
 
@@ -223,7 +223,7 @@ module Ludlow
     function solve_M200_c(Vcmax, σ_c=0)
         dc = 10 ^ (0 + σ_c * randn())
 
-        f(M200) = calc_V_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
+        f(M200) = calc_v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
 
         M200 = find_zero(f, [0.001, 100])
         return M200, c_ludlow(M200, 0.) * dc

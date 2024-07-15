@@ -7,19 +7,20 @@ using LilGuys
 
 function main()
     args = get_args()
-    snap = load_snap(args["input"], args["snap"], args["centres"])
+    snap = load_snap(args["input"], args["snap"])
     df = global_properties(snap)
+    df = profiles(snap)
 end
 
 
 function global_properties(snap)
 
-    E_kin = lguys.calc_K_tot(snap)
-    E_pot = lguys.calc_W_tot(snap)
+    E_kin = LilGuys.calc_K_tot(snap)
+    E_pot = LilGuys.calc_W_tot(snap)
     E_tot = E_kin + E_pot
 
 
-    fit = lguys.fit_v_circ(r, v_circ)
+    fit = LilGuys.fit_v_r_circ_max(snap)
 
     df = Dict(
         "E_kin" => E_kin,
@@ -28,17 +29,24 @@ function global_properties(snap)
         "v_circ_max" => fit[:v_circ_max],
         "r_circ_max" => fit[:r_circ_max],
     )
+
+    println(df)
     return df
 end
 
 
-function profiles(snap)
-    r, v_circ = lguys.calc_v_circ(snap)
+function profiles(snap; N_bins=100)
+    radii = LilGuys.calc_radii(snap)
+    idx_sorted = sortperm(radii)
+    M = cumsum(snap.masses)[idx]
 
+    r_rho, rho = LilGuys.calc_ρ_hist(snap, N_bins)
 
     df = Dict(
-        "r_circ" => r,
-        "v_circ" => v_circ
+        "r_circ" => r_circ,
+        "v_circ" => v_circ,
+        "r_rho" => r_rho,
+        "rho" => rho,
     )
 end
 
@@ -52,13 +60,9 @@ function get_args()
             default="combined.hdf5"
         "-o", "--output"
             help="Output file"
-            default="centres.csv"
         "-v", "--verbose"
             help="verbose"
             action="store_true"
-        "-c" "--centres"
-            help="Centres file"
-            default="centres.hdf5"
         "-s", "--snap"
             help="Snap index"
             default=1
@@ -72,18 +76,8 @@ function get_args()
 end
 
 
-function load_snap(filename, snap, centres)
+function load_snap(filename, snap)
     out = Output(filename)
-
-    LilGuys.h5open(centres, "r") do f
-        if LilGuys.get_vector(f, "snapshots")[end] != length(out)
-            error("out index does not match")
-        end
-
-        out.x_cen .= LilGuys.get_vector(f, "positions")
-        out.v_cen .= LilGuys.get_vector(f, "velocities")
-    end
-
     return out[snap]
 end
 

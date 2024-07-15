@@ -199,6 +199,8 @@ end
     save(filename, snap)
 
 Save a snapshot to an HDF5 file.
+
+Notes: does regenerate the snapshot's header.
 """
 function save(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
@@ -214,9 +216,8 @@ end
 
 
 function save(h5f::HDF5.H5DataStore, snap::Snapshot)
-    if mass_is_fixed(snap)
-        snap.header["MassTable"][2] = snap.masses[1]
-    end
+    regenerate_header!(snap)
+
     set_header!(h5f, snap.header)
 
     for (var, _) in h5vectors
@@ -260,11 +261,11 @@ Create a default Gadget header for a snapshot with N particles and DM mass `mass
 function make_default_header(N, mass)
 
     return Dict(
-        "NumPart_ThisFile"=>F[0, N],
+        "NumPart_ThisFile"=>UInt64[0, N],
         "MassTable"=>F[0.0, mass],
         "Time"=>0.0,
         "Redshift"=>0.0,
-        "NumPart_Total"=>F[0, N],
+        "NumPart_Total"=>UInt64[0, N],
         "NumFilesPerSnapshot"=>1,
         "BoxSize"=>1000,
        )
@@ -273,17 +274,18 @@ end
 
 
 """
-Regenerates the header of the snapshot.
+Regenerates the header of the snapshot, accounting for changes in particle mass and number of particles.
 """
 function regenerate_header!(snap::Snapshot)
     if mass_is_fixed(snap)
-        m = snap.masses[1]
+        snap.header["MassTable"][2] = snap.masses[1]
     else
-        m = 0.0
+        snap.header["MassTable"][2] = 0.0
     end
 
-    N = length(snap)
-    snap.header = make_default_header(N, m)
+    if length(snap) != snap.header["NumPart_ThisFile"][2]
+        snap.header["NumPart_ThisFile"][2] = length(snap)
+    end
 end
 
 
@@ -306,3 +308,32 @@ function make_gadget2_header(N, mass)
 end
 
 
+"""
+returns a snapshot scaled by the given mass and radius (using code units)
+"""
+function rescale(snap::Snapshot, m_scale, r_scale)
+    v_scale = sqrt(G * m_scale / r_scale)
+    a_scale = G*m_scale / r_scale^2 # = v_scale^2 / r_scale
+    Φ_scale = G * m_scale / r_scale # = v_scale^2
+
+    rescaled = deepcopy(snap)
+
+    rescaled.positions = snap.positions * r_scale
+    rescaled.velocities = snap.velocities * v_scale
+    rescaled.masses = snap.masses * m_scale
+
+    if snap.Φs !== nothing
+        rescaled.Φs .*= Φ_scale
+    end
+
+    if snap.Φs_ext !== nothing
+        rescaled.Φ_ext .*= Φ_scale
+    end
+
+
+    if snap.accelerations !== nothing
+        rescaled.accelerations .*= a_scale
+    end
+
+    return rescaled
+end

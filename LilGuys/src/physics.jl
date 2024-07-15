@@ -1,6 +1,7 @@
 import LinearAlgebra: ×
 import DataFrames: DataFrame
 import LsqFit: curve_fit
+import NaNMath as nm
 
 
 
@@ -370,8 +371,8 @@ end
 Fits the maximum circular velocity of a rotation curve assuming a NFW
 profile. Returns the parameters of the fit and the range of radii used.
 """
-function fit_v_r_max(r, v_circ; percen=80, p0=[6., 30.])
-    filt = v_circ .> percen
+function fit_v_r_circ_max(r, v_circ; percen=80, p0=[6., 30.])
+    filt = v_circ .> percentile(v_circ, percen)
     fit = curve_fit(v_circ_max_model, r[filt], v_circ[filt], p0)
 
     return (; 
@@ -388,16 +389,16 @@ end
 
 Fits circular velocity of snapshot
 """
-function fit_v_r_max(snap; kwargs...)
+function fit_v_r_circ_max(snap; kwargs...)
     r, v_circ = calc_v_circ(snap)
-    return fit_v_r_max(r, v_circ; kwargs...)
+    return fit_v_r_circ_max(r, v_circ; kwargs...)
 end
 
 
 """
 NFW circular velocity model
 """
-function v_circ_max_model(r::Real, param)
+function v_circ_max_model(r, param)
 	Rmx,Vmx = param
 	x = r ./ Rmx .* lguys.α_nfw
 	inner = @. (nm.log(1+x) - x/(1+x)) / x

@@ -17,7 +17,7 @@ end
 
 Calculates the density profile given a set of particles located at `r` with masses `masses` by binning into `r_bins`.
 """
-function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
+function calc_ρ_hist(r::AbstractVector{T}, bins::AbstractVector; weights=nothing) where T <: Real
     if weights == nothing
         weights = ones(length(r))
     end
@@ -29,7 +29,7 @@ function calc_ρ_hist(r, bins::AbstractVector; weights=nothing)
 end
 
 
-function calc_ρ_hist(r, bins::Int; weights=nothing, equal_width=false)
+function calc_ρ_hist(r::AbstractVector{T}, bins::Int; weights=nothing, equal_width=false) where T <: Real
     if equal_width
         x1 = minimum(r)
         x2 = maximum(r)
@@ -42,7 +42,7 @@ function calc_ρ_hist(r, bins::Int; weights=nothing, equal_width=false)
 end
 
 
-function calc_ρ_hist(r; weights=nothing)
+function calc_ρ_hist(r::AbstractVector{T}; weights=nothing) where T <: Real
     r_bins = round(Int64, 0.1 * sqrt(length(r)))
     return calc_ρ_hist(r, r_bins, weights=weights)
 end

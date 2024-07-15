@@ -35,11 +35,11 @@ function calc_M end
 
 
 """
-    calc_V_circ(profile, r)
+    calc_v_circ(profile, r)
 
 Calculates the circular velocity at radius r
 """
-function calc_V_circ end
+function calc_v_circ end
 
 
 @kwdef struct Plummer <: AbstractProfile
@@ -259,7 +259,7 @@ function calc_Σ_from_ρ(profile::AbstractProfile, R::Real)
 end
 
 
-function calc_V_circ(profile::AbstractProfile, r)
+function calc_v_circ(profile::AbstractProfile, r)
     return sqrt(G * calc_M(profile, r) / r)
 end
 

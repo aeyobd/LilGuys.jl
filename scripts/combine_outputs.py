@@ -19,7 +19,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Combine multiple Gadget outputs into a single file"
         )
-    parser.add_argument("centre_path", help="Path to file containing the centre of the simulation, optional")
+    parser.add_argument("centre_path", help="Path to file containing the centre of the simulation, optional", default=None, nargs='?')
     parser.add_argument("-o", "--output", help="Output file name", default="combined.hdf5")
     parser.add_argument("-i", "--input", help="Path to input files", default=".")
 

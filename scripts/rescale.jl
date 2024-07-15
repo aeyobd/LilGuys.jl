@@ -1,22 +1,11 @@
 #!/usr/bin/env julia
 
 
-import LilGuys as lguys
+using LilGuys
 using ArgParse
 import TOML
 
 
-"""
-returns a snapshot scaled by the given mass and radius (using code units)
-"""
-function rescale(snap::lguys.Snapshot, m_scale, r_scale)
-    v_scale = sqrt(lguys.G * m_scale / r_scale)
-
-    positions = snap.positions * r_scale
-    velocities = snap.velocities * v_scale
-    masses = snap.masses * m_scale
-    return lguys.Snapshot(positions, velocities, masses)
-end
 
 
 function get_args()
@@ -28,13 +17,11 @@ function get_args()
         "output"
             help = "output snapshot"
             required = true
-        "--params", "-p"
-            help = "parameter file to read in Ms & Rs"
         "--mass" , "-m"
-            help = "scale mass (not mass inside scale radius) in 10^10 Msun"
+            help = "multiplicative mass scale factor"
             arg_type = Float64
         "--radius", "-r"
-            help = "scale radius in kpc"
+            help = "multiplicative radius scale factor"
             arg_type = Float64
         "--max-radius"
             help = "truncate particles outside this radius (kpc)"
@@ -49,17 +36,11 @@ end
 function main()
     args = get_args()
 
-    snap = lguys.Snapshot(args["input"])
-
-    if args["params"] !== nothing
-        params = TOML.parsefile(args["params"])
-        args["mass"] = params["profile"]["M_s"]
-        args["radius"] = params["profile"]["r_s"]
-    end
+    snap = Snapshot(args["input"])
 
     r_scale = args["radius"] 
-    m_scale = args["mass"] * lguys.A_NFW(1) # zeno scales to M inside r
-    scaled = rescale(snap, m_scale, r_scale)
+    m_scale = args["mass"]
+    scaled = LilGuys.rescale(snap, m_scale, r_scale)
 
     if args["max-radius"] !== nothing
         scaled = scaled[get_r(scaled.positions) .< args["max-radius"]]
