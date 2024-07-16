@@ -1,8 +1,29 @@
 coordinate_systems = [
-    lguys.ICRS, lguys.ICRS_Cartesian,
-    lguys.GSR, lguys.GSR_Cartesian,
+    lguys.ICRS, lguys.Cartesian{lguys.ICRS},
+    lguys.GSR, lguys.Cartesian{lguys.GSR},
     lguys.Galactocentric 
    ]
+
+
+@testset "sky to cartesian" begin
+    icrs = lguys.ICRS(ra=0, dec=0, distance=1,
+                      pmra=0, pmdec=0, radial_velocity=0)
+
+    cart = lguys.transform(lguys.Cartesian{lguys.ICRS}, icrs)
+
+    @test cart.x ≈ 1 rtol=1e-2
+    @test cart.y ≈ 0 rtol=1e-2
+    @test cart.z ≈ 0 rtol=1e-2
+    @test cart.v_x ≈ 0 rtol=1e-2
+    @test cart.v_y ≈ 0 rtol=1e-2
+    @test cart.v_z ≈ 0 rtol=1e-2
+
+end
+
+@testset "cartesian to sky" begin
+
+end
+
 
 @testset "helio to galcen: Sag A*" begin
     gc = lguys.ICRS(ra = 266.4051, dec=-28.936175, distance=8.122,
@@ -10,7 +31,7 @@ coordinate_systems = [
 
     phase = lguys.transform(lguys.Galactocentric, gc)
 
-    @test lguys.get_position(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.position_of(phase) ≈ [0,0,0] atol=1e-2
     @test phase.v_x ≈ 0 atol=0.1
     @test phase.v_y ≈ 0 atol=0.1
     @test phase.v_z ≈ 0 atol=0.1
@@ -20,7 +41,7 @@ coordinate_systems = [
     sun = lguys.ICRS(ra = 0, dec=-0, distance=0,
                              pmra=0, pmdec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, sun)
-    @test lguys.get_position(phase) ≈ [-8.122, 0, 0] rtol=3e-3
+    @test lguys.position_of(phase) ≈ [-8.122, 0, 0] rtol=3e-3
     @test phase.v_x ≈12.9 atol=0.1
     @test phase.v_y ≈ 245.6 atol=0.1
     @test phase.v_z ≈ 7.78 atol=0.1
@@ -40,24 +61,6 @@ end
 end
 
 
-# @testset "inverse" begin 
-#     for frame1 in coordinate_systems
-#         for frame2 in coordinate_systems
-#             N = 100
-#             phase = [frame1(
-#                      for _ in 1:N]
-#             phase2 = lguys.transform.(lguys.Galactocentric, lguys.transform.(lguys.ICRS, phase))
-# 
-#             for i in 1:N
-#                 p = phase[i]
-#                 q = phase2[i]
-#                 for field in fieldnames(frame1)
-#                     @test p.(field) ≈ q.(field) rtol=1e-2
-#                 end
-#             end
-#         end
-#     end
-# end
 
 
 @testset "helio to galcen: inverse" begin
@@ -88,8 +91,8 @@ end
 
     phase = lguys.transform(lguys.Galactocentric, gc)
 
-    @test lguys.get_position(phase) ≈ [0,0,0] atol=1e-2
-    @test lguys.get_velocity(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.position_of(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.velocity_of(phase) ≈ [0,0,0] atol=1e-2
 
 
 
@@ -99,16 +102,16 @@ end
 
     frame = phase.frame
     theta = asin(frame.z_sun / frame.d)
-    @test lguys.get_position(phase) ≈ [-8.122*cos(theta), 0, 8.122 * sin(theta)] atol=3e-3
-    @test lguys.get_velocity(phase) ≈ [0, 0, 0] atol=3e-3
+    @test lguys.position_of(phase) ≈ [-8.122*cos(theta), 0, 8.122 * sin(theta)] atol=3e-3
+    @test lguys.velocity_of(phase) ≈ [0, 0, 0] atol=3e-3
 
 
     gsr = lguys.GSR(ra=266.4051, dec=-28.936175, distance=8.122,
                     pmra=-3.151, pmdec=-5.547, radial_velocity=-12.9)
 
     gc = lguys.transform(lguys.Galactocentric, gsr)
-    @test lguys.get_position(gc) ≈ [0,0,0] atol=1e-2
-    @test lguys.get_velocity(gc) ≈ - frame.v_sun atol = 0.2
+    @test lguys.position_of(gc) ≈ [0,0,0] atol=1e-2
+    @test lguys.velocity_of(gc) ≈ - frame.v_sun atol = 0.2
 end
 
 
@@ -137,4 +140,47 @@ end
 
     @test gsr.distance ≈ icrs.distance rtol=1e-2
     @test gsr.radial_velocity ≈ 123.30460087379765 rtol=1e-2
+end
+
+
+function inverse_test(frame1::Type{<:lguys.AbstractCartesian}, frame2)
+    N = 10
+
+    p1 = [frame1(x=rand(), y=rand(), z=rand(),
+                 v_x=rand(), v_y=rand(), v_z=rand())
+             for _ in 1:N]
+
+    p2 = lguys.transform.(frame1, lguys.transform.(frame2, p1))
+
+    for field in [:x, :y, :z, :v_x, :v_y, :v_z]
+        @test getfield.(p1, field) ≈ getfield.(p2, field) rtol=1e-2
+    end
+
+end
+
+function inverse_test(frame1::Type{<:lguys.SkyCoord}, frame2)
+    N = 10
+
+    p1 = [frame1(ra=360rand(), dec=-90 + 180rand(), distance=100*rand(),
+                 pmra=10*randn(), pmdec=10*randn(), radial_velocity=100*randn())
+             for _ in 1:N]
+
+    p2 = lguys.transform.(frame1, lguys.transform.(frame2, p1))
+
+    for field in [:ra, :dec, :distance, :pmra, :pmdec, :radial_velocity]
+        @test getfield.(p1, field) ≈ getfield.(p2, field) rtol=1e-2
+    end
+
+end
+
+
+@testset "inverse" begin 
+    for frame1 in coordinate_systems
+        for frame2 in coordinate_systems
+            @testset "inverse - $frame1 -> $frame2 -> $frame1" begin
+                inverse_test(frame1, frame2)
+            end
+
+        end
+    end
 end

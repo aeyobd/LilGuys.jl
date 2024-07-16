@@ -1,13 +1,28 @@
 using Printf
 import Base: +, *
 
+
 """An abstract type for a (sky) coordinate frame"""
 abstract type CoordinateFrame end
-abstract type AbstractPhasePoint <: CoordinateFrame end
 
 
+""" A cartesian coordinate representation.
 
-@kwdef struct GalactocentricFrame
+Requires properties x, y, z, v_x, v_y, v_z
+"""
+abstract type AbstractCartesian <: CoordinateFrame end
+
+
+""" A spherical (sky) coordinate representation.
+
+Requires properties ra, dec, distance, pmra, pmdec, radial_velocity"""
+abstract type SkyCoord <: CoordinateFrame end
+
+
+"""
+A type representing a Galactic coordinate frame specification
+"""
+@kwdef struct GalactocentricFrame <: CoordinateFrame
     """ distance from sun to centre of galaxy in kpc"""
     d::F = 8.122 
     
@@ -49,52 +64,13 @@ v_y = d * (pmra * sin(η) - pmdec * cos(η))
 """
 const default_gc_frame = GalactocentricFrame()
 
-@kwdef struct PhasePoint{T} <: AbstractPhasePoint
-    x::F
-    y::F
-    z::F
-    v_x::F = NaN
-    v_y::F = NaN
-    v_z::F = NaN
-end
 
-
-
-function PhasePoint{T}(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]) where T
-    if length(pos) != 3
-        error("position must be a 3-vector")
-    end
-    if length(vel) != 3
-        error("velocity must be a 3-vector")
-    end
-    return PhasePoint{T}(pos..., vel...)
-end
-
-
-"""
-    get_position(pp::AbstractPhasePoint)
-
-Returns [x, y, z], the position of phase point.
-"""
-function get_position(pp::AbstractPhasePoint)
-    return [pp.x, pp.y, pp.z]
-end
-
-
-"""
-    get_velocity(pp::AbstractPhasePoint)
-
-Returns [v_x, v_y, v_z], the velocity of phase point.
-"""
-function get_velocity(pp::AbstractPhasePoint)
-    return [pp.v_x, pp.v_y, pp.v_z]
-end
 
 
 """ 
-A sky coordinate in an arbitrary frame
+ICRS frame
 """
-@kwdef struct SkyCoord{T} <: CoordinateFrame
+@kwdef struct ICRS <: SkyCoord
     """ Right ascension in degrees """
     ra::F
 
@@ -116,8 +92,36 @@ end
 
 
 
+""" 
+Galactic standard of rest frame. I.E. ICRS minus the solar velocity.
+"""
+@kwdef struct GSR <: SkyCoord
+    """ Right ascension in degrees """
+    ra::F
+
+    """ Declination in degrees """
+    dec::F
+
+    """ distance in kpc """
+    distance::F = NaN
+
+    """ proper motion in right ascension in mas/yr times cos(dec)"""
+    pmra::F = NaN
+
+    """ Proper motion in declination in mas/yr """
+    pmdec::F = NaN
+
+    """ Radial velocity in km/s """
+    radial_velocity::F = NaN
+
+    frame::GalactocentricFrame = default_gc_frame
+end
+
+
+
+
 """ A Galactocentric point """
-@kwdef struct Galactocentric <: AbstractPhasePoint
+@kwdef struct Galactocentric <: AbstractCartesian
     x::F
     y::F
     z::F
@@ -127,7 +131,10 @@ end
     frame::GalactocentricFrame = default_gc_frame
 end
 
-function Galactocentric(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN], frame::GalactocentricFrame = default_gc_frame) 
+
+
+
+function Galactocentric(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]; frame::GalactocentricFrame = default_gc_frame) 
     if length(pos) != 3
         error("position must be a 3-vector")
     end
@@ -139,36 +146,8 @@ end
 
 
 
-""" A point in the simulation frame """
-const SimPoint = PhasePoint{:SimPoint}
-
-""" A point in the ICRS frame """
-const ICRS_Cartesian = PhasePoint{:ICRS} 
-
-""" A point in the GSR frame """
-const GSR_Cartesian = PhasePoint{:GSR}
-
-""" Galactic standard of rest """
-const GSR = SkyCoord{:GSR}
-
-""" International Celestial Reference System """
-const ICRS = SkyCoord{:ICRS}
-    
-
-
-function Base.show(io::IO, pp::PhasePoint{T}) where T
-    print(io, "$T point at ")
-    @printf io "(%4.2f, %4.2f, %4.2f) kpc, " pp.x pp.y pp.z
-
-    if pp.v_x !== NaN && pp.v_y !== NaN && pp.v_z !== NaN
-        @printf io "(%4.2f, %4.2f, %4.2f) km/s" pp.v_x pp.v_y pp.v_z
-    end
-    return io
-end
-
-
-function Base.show(io::IO, coord::SkyCoord{T}) where T
-    print(io, "$T at ")
+function Base.show(io::IO, coord::SkyCoord) 
+    print(io, "$(typeof(coord)) at ")
     @printf io "(%4.2f, %4.2f) deg" coord.ra coord.dec
     if coord.distance !== NaN
         @printf ", "
@@ -186,6 +165,74 @@ function Base.show(io::IO, coord::SkyCoord{T}) where T
 
     return io
 end
+
+
+
+
+"""
+    Cartesian
+
+A Cartesian representation of a given skycoord type
+"""
+@kwdef struct Cartesian{T<:CoordinateFrame} <: AbstractCartesian
+    x::F
+    y::F
+    z::F
+    v_x::F = NaN
+    v_y::F = NaN
+    v_z::F = NaN
+
+    coord::Union{T, Nothing} = nothing
+end
+
+
+
+function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where T<:CoordinateFrame
+    if length(pos) != 3
+        error("position must be a 3-vector")
+    end
+    if length(vel) != 3
+        error("velocity must be a 3-vector")
+    end
+    return Cartesian{T}(pos..., vel..., coord)
+end
+
+
+
+"""
+    position_of(pp::AbstractCartesian)
+
+Returns [x, y, z], the position of phase point.
+"""
+function position_of(pp::AbstractCartesian)
+    return [pp.x, pp.y, pp.z]
+end
+
+
+"""
+    velocity_of(pp::AbstractPhasePoint)
+
+Returns [v_x, v_y, v_z], the velocity of phase point.
+"""
+function velocity_of(pp::AbstractCartesian)
+    return [pp.v_x, pp.v_y, pp.v_z]
+end
+
+
+
+function Base.show(io::IO, pp::Cartesian{T}) where T
+    print(io, "$T point at ")
+    @printf io "(%4.2f, %4.2f, %4.2f) kpc, " pp.x pp.y pp.z
+
+    if pp.v_x !== NaN && pp.v_y !== NaN && pp.v_z !== NaN
+        @printf io "(%4.2f, %4.2f, %4.2f) km/s" pp.v_x pp.v_y pp.v_z
+    end
+    return io
+end
+
+
+
+
 
 
 """
@@ -215,3 +262,6 @@ assumed to be normally distributed.
 function rand_coords(obs::ICRS, err::ICRS, N::Int)
     return [rand_coord(obs, err) for _ in 1:N]
 end
+
+
+

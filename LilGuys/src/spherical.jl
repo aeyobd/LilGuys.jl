@@ -41,24 +41,20 @@ end
 """
     angular_distance(α1, δ1, α2, δ2)
 
-Computes the angular distance between two points on the sky, 
+Computes the angular distance in degrees between two points on the sky, 
 assuming RA/DEC and in degrees.
 """
-function angular_distance(α1, δ1, α2, δ2)
-    a = @. sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2)
-    if any(a .> nextfloat(1.0, 5))
-        raise(DomainError("acosd: domain error"))
+function angular_distance(α1::Real, δ1::Real, α2::Real, δ2::Real)
+    a = sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2)
+    if abs(a) > nextfloat(1.0, 5)
+        raise(DomainError("a greater than 1: $a"))
     end
 
-    if a isa Number
-        if a > 1
-            a = 1
-        end
-    else
-        a[a .> 1] .= 1
+    if abs(a) > 1
+        a = sign(a) * 1
     end
 
-    return acosd.(a)
+    return acosd(a)
 end
 
 
@@ -112,6 +108,10 @@ function cartesian_to_sky(x::AbstractVector, y::AbstractVector, z::AbstractVecto
     return [ra dec r]
 end
 
+
+function sky_to_cartesian(ra, dec, r)
+    return r .* unit_vector(ra, dec)
+end
 
 
 """
