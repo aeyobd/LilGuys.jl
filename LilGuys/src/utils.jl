@@ -4,6 +4,23 @@ import SpecialFunctions: erf
 
 
 """
+general method to convert a struct to a dictionary
+"""
+function struct_to_dict(S)
+    return Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
+end
+
+
+"""
+general method to convert a dictionary to a named tuple
+"""
+function dict_to_tuple(D)
+    return NamedTuple((Symbol(key), value) for (key, value) in D)
+end
+
+
+
+"""
     randu(low, high[, size...])
 
 Returns a random number between low and high.
@@ -69,20 +86,12 @@ function gradient(y::AbstractVector{T}) where T<:Real
 end
 
 
-"""
-    midpoint(x)
-
-Computes the midpoint of each element of a vector (for example, bin centres).
-"""
-function midpoint(x::AbstractVector{T}) where T<:Real
-    return (x[1:end-1] + x[2:end]) / 2
-end
-
 
 
 
 """
-Returns a linear interpolation of the given xs and ys
+Returns a linear interpolation of the given xs and ys.
+Is truncated and will return the first or last value if x is outside the range.
 """
 function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
     if length(xs) != length(ys)
@@ -90,6 +99,9 @@ function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
     end
 
     return function(x::Real)
+        if !isfinite(x)
+            return NaN
+        end
         if x < xs[1]
             return ys[1]
         elseif x > xs[end]
@@ -213,36 +225,4 @@ end
 
 
 
-const arcmin_to_rad = π / (60 * 180)
 
-
-"""
-Calculates the physical diameter given the angular diameter and distance.
-
-TODO: could also use Unitful to be more general
-"""
-function arcmin_to_kpc(arcmin::Real, distance::Real)
-    return arcmin * arcmin_to_rad * distance 
-end
-
-
-"""
-Converts a physical length to a sky angular diameter in arcminutes
-"""
-function kpc_to_arcmin(length::Real, distance::Real)
-    return length / distance / arcmin_to_rad
-end
-
-
-
-"""
-general method to convert a struct to a dictionary
-"""
-function struct_to_dict(S)
-    return Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
-end
-
-
-function dict_to_tuple(D)
-    return NamedTuple((Symbol(key), value) for (key, value) in D)
-end

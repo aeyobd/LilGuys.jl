@@ -47,7 +47,7 @@ end
 
 @testset "kinetic energy" begin
     snap = create_snapshot()
-    actual = lguys.calc_E_spec_kin(snap)
+    actual = lguys.calc_K_spec(snap)
     expected = [0.5, 2, 1.125]
 
     @test actual ≈ expected

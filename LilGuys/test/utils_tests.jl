@@ -51,18 +51,34 @@ end
 end
 
 
-@testset "gradient" begin
+@testset "gradient: simple cases" begin
     x = LinRange(-1, 1, 100)
     y = x .^ 2
     g = lguys.gradient(y, x)
     @test g ≈ 2x atol=0.05
 
+    dx = x[2] - x[1]
+
+    g = lguys.gradient(y)
+    @test g ≈ 2x * dx atol=0.05
 end
+
+
+
 
 
 @testset "lerp" begin 
+    x = [0., 0.5, 1.]
+    y = [0., 1., 0.5]
+
+    f = lguys.lerp(x, y)
+    @test f.([-25, 0, 0.1, 0.3, 0.6, 1., 1.1]) ≈ [0., 0., 0.2, 0.6, 0.9, 0.5, 0.5]
+    @test f(Inf) === NaN
+    @test f(-Inf) === NaN
+    @test f(NaN) === NaN
 end
     
+
 
 @testset "normal cdf" begin
     N = 1000
@@ -203,4 +219,31 @@ end
     σ = 1/sqrt(N)
     @test cen ≈ zeros(3) atol=5σ
     @test err ≈ 1/sqrt(N) atol=5σ
+end
+
+
+
+@testset "struct_to_dict" begin
+    struct Foo
+        a::Int
+        b::Float64
+        c::String
+    end
+
+    f = Foo(1, 2.0, "3")
+    d = lguys.struct_to_dict(f)
+    @test d == Dict(:a => 1, :b => 2.0, :c => "3")
+end
+
+
+@testset "dict_to_tuple" begin
+    d = Dict("a" => 1, "b" => 2.0, "q" => "3")
+    t = lguys.dict_to_tuple(d)
+
+    # may be reordered, so test for set equality
+    @test Set(keys(t))  == Set([:a, :b, :q])
+    @test t.a == 1
+    @test t.b == 2.0
+    @test t.q == "3"
+
 end

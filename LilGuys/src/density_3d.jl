@@ -7,7 +7,7 @@ import TOML
 An simulated 3D density profile. 
 All properties are in code units.
 """
-@kwdef mutable struct ObsProfile3D
+@kwdef struct ObsProfile3D
     """ Total Energy """
     E::F
 
@@ -27,7 +27,7 @@ All properties are in code units.
 
     log_r::Vector{F}
     log_r_bins::Vector{F}
-    counts::Vector{F}
+    counts::Vector{Int}
 
     mass_in_shell::Vector{F}
     mass_in_shell_err::Vector{F}
@@ -35,16 +35,77 @@ All properties are in code units.
     M_in::Vector{F}
     M_in_err::Vector{F}
 
-    ρ::Vector{F}
-    ρ_err::Vector{F}
+    rho::Vector{F}
+    rho_err::Vector{F}
 
     v_circ::Vector{F}
     v_circ_err::Vector{F}
 
     t_circ::Vector{F}
-
-
 end
+
+
+"""
+A collection of 3D density profiles.
+"""
+struct Profiles3D
+    snapshot_index::Vector{Int}
+    profiles::Vector{ObsProfile3D}
+end
+
+function Base.length(profs::Profiles3D)
+    return length(profs.profiles)
+end
+
+function Base.getindex(profs::Profiles3D, i::Int)
+    return profs.profiles[i]
+end
+
+
+function Profiles3D(filename::String)
+    h5open(filename, "r") do f
+        snapshot_index = read(f, "snapshot_index")
+
+        profiles = ObsProfile3D[]
+
+        for i in eachindex(snapshot_index)
+            df = Dict()
+
+            for key in fieldnames(ObsProfile3D)
+                ndims = length(size(read(f, string(key))))
+                if ndims == 1
+                    data = f[string(key)][i]
+                else
+                    data = f[string(key)][:, i]
+                end
+                df[key] = data
+            end
+
+            prof = ObsProfile3D(;df...)
+
+            push!(profiles, prof)
+        end
+        return Profiles3D(snapshot_index, profiles)
+    end
+end
+
+
+function save(filename::String, profs::Profiles3D)
+    h5open(filename, "w") do f
+        write(f, "snapshot_index", profs.snapshot_index)
+
+        for key in fieldnames(ObsProfile3D)
+            data = getfield.(profs.profiles, key)
+            if eltype(data) <: Real
+                write(f, string(key), data)
+            elseif eltype(data) <: AbstractVector
+                write(f, string(key), hcat(data...))
+            end
+        end
+    end
+end
+
+
 
 function Base.print(io::IO, prof::ObsProfile3D)
     TOML.print(io, struct_to_dict(prof))
@@ -68,9 +129,15 @@ function calc_profile(snap::Snapshot;
     end
     N_bound = length(snap)
 
-    W = calc_W_tot(snap)
     K = calc_K_tot(snap)
-    E = W + K
+
+    if !isnothing(snap.Φs)
+        W = calc_W_tot(snap)
+        E = W + K
+    else
+        E = NaN
+        W = NaN
+    end
 
     L = calc_L_tot(snap)
 
@@ -86,17 +153,18 @@ function calc_profile(snap::Snapshot;
     mass_in_shell_err = h.err
 
     V = 4π/3 * diff((10 .^ log_r_bins) .^ 3)
-    ρ = mass_in_shell ./ V
-    ρ_err = mass_in_shell_err ./ V
+    rho = mass_in_shell ./ V
+    rho_err = mass_in_shell_err ./ V
 
 
     M_in = cumsum(mass_in_shell)
     M_in_err = cumsum(counts) .^ -0.5 .* M_in
 
-
-    v_circ = calc_v_circ.(r, M_in)
+    # circular velocity is mass inclusive
+    r_right = 10 .^ log_r_bins[2:end]
+    v_circ = calc_v_circ.(r_right, M_in)
     v_circ_err = zeros(length(v_circ))
-    t_circ = r ./ v_circ
+    t_circ = r_right ./ v_circ
     t_circ_err = zeros(length(t_circ))
 
     fit = fit_v_r_circ_max(r, v_circ)
@@ -115,8 +183,8 @@ function calc_profile(snap::Snapshot;
         mass_in_shell_err=mass_in_shell_err,
         M_in=M_in,
         M_in_err=M_in_err,
-        ρ=ρ,
-        ρ_err=ρ_err,
+        rho=rho,
+        rho_err=rho_err,
         v_circ=v_circ,
         v_circ_err=v_circ_err,
         t_circ=t_circ,

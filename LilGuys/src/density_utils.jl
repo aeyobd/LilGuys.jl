@@ -2,7 +2,6 @@ import Base: @kwdef
 
 import LinearAlgebra: diag, dot, norm, normalize
 
-import LilGuys as lguys
 
 using Measurements
 import Arya: histogram
@@ -107,7 +106,7 @@ function calc_properties(rs;
 
     h = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
     log_r_bin = h.bins
-    log_r = lguys.midpoint(log_r_bin)
+    log_r = midpoints(log_r_bin)
     δ_log_r = diff(log_r_bin) ./ 2
 
     h.err[isnan.(h.err)] .= 0
@@ -192,8 +191,8 @@ end
 Calculate the logarithmic slope of the density profile given the radii `log_rs` and the surface densities `Σs`.
 """
 function calc_Γ(log_rs, Σs)
-	d_log_r = lguys.gradient(log_rs)
-	d_log_Σ = lguys.gradient(log10.(Σs))
+	d_log_r = gradient(log_rs)
+	d_log_Σ = gradient(log10.(Σs))
 
 	return d_log_Σ ./ d_log_r
 end

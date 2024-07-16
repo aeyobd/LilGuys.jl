@@ -130,7 +130,7 @@ end
 NFW concentration parameter = r_s / r_200
 """
 function calc_c(profile::NFW; tol=1e-3)
-    f(c) = 200ρ_crit - lguys.calc_ρ_mean(profile, c * profile.r_s)
+    f(c) = 200ρ_crit - calc_ρ_mean(profile, c * profile.r_s)
     c = find_zero(f, 10)
 
     if abs(f(c)) > tol
@@ -220,8 +220,15 @@ module Ludlow
         return result
     end
 
-    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 100])
-        dc = 10 ^ (0 + δc)
+    """
+        solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000])
+
+    Solves for the mass and concentration of a halo given the maximum circular velocity. Calls Roots.find_zero to solve for the mass on the given interval and can apply a multiplicative factor `δlogc` to the concentration parameter.
+
+    See also [`c_ludlow`](@ref), [`solve_rmax`](@ref)
+    """
+    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000])
+        dc = 10 ^ (0 + δlogc)
 
         f(M200) = LilGuys.calc_v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
 
@@ -230,10 +237,12 @@ module Ludlow
     end
 
     """
+    solve_rm(Vcmax, δlogc=0; kwargs...)
+
     Solves for the radius of maximum circular velocity given the maximum circular velocity
     """
-    function solve_rmax(Vcmax, δlogc=0)
-        M200, c = solve_M200_c(Vcmax, δlogc)
+    function solve_rmax(Vcmax, δlogc=0; kwargs...)
+        M200, c = solve_M200_c(Vcmax, δlogc; kwargs...)
         return calc_r_circ_max(NFW(M200=M200, c=c))
     end
 

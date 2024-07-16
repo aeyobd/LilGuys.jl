@@ -19,33 +19,10 @@ function main()
         push!(profiles, prof)
     end
 
-    # scalars
-    E = [p.E for p in profiles]
-    W = [p.W for p in profiles]
-    K = [p.K for p in profiles]
-    v_circ_max = [p.v_circ_max for p in profiles]
-    r_circ_max = [p.r_circ_max for p in profiles]
-    N_bound = [p.N_bound for p in profiles]
 
-    # vectors
-    log_r = collect_vector(profiles, :log_r)
-    rho = collect_vector(profiles, :ρ)
-    v_circ = collect_vector(profiles, :v_circ)
-    M_in = collect_vector(profiles, :M_in)
+    profs = LilGuys.Profiles3D(snap_idx, profiles)
 
-    h5open(args["output"], "w") do f
-        f["snapshots"] = collect(snap_idx)
-        f["E"] = E
-        f["W"] = W
-        f["K"] = K
-        f["v_circ_max"] = v_circ_max
-        f["r_circ_max"] = r_circ_max
-        f["N_bound"] = N_bound
-
-        f["log_r"] = log_r
-
-    end
-
+    LilGuys.save(args["output"], profs)
 end
 
 
