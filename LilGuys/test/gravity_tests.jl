@@ -20,46 +20,80 @@ end
     pos = [0.;0;0;;]
     mass = ones(1)
 
-    let 
-        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
 
-        x_vec = [0.;0;0]
-        @test f(x_vec) === -Inf
+    x_vec = [0.;0;0]
+    @test f(x_vec) === -Inf
 
-        x_vec = [1.;0;0]
-        @test f(x_vec) ≈ -1.
+    x_vec = [1.;0;0]
+    @test f(x_vec) ≈ -1.
 
-        x_vec = [10.;0;0]
-        @test f(x_vec) ≈ -1/10
-
-
-    end
-    let
-        pos = [
-               0. 2.
-               0. 0.
-               0. 0.
-              ]
-        mass = ones(2)
-        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
-        @test f([1.;0;0]) ≈ -2.
-
-    end
-
-    let
-        pos = [
-               1. 0. 0. -4. -4. 0.
-               0. 2. 0. 0. -3. 0.
-               0. 0. 3. 0. 0. -6.
-              ]
-
-        mass = [1., 2, 3, 4, 5, 6]
-
-        f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
-        @test f([0.;0;0]) ≈ -6.
-
-    end
+    x_vec = [10.;0;0]
+    @test f(x_vec) ≈ -1/10
 end
+
+@testset "Φ grav matrix" begin
+    pos = [
+           0. 2.
+           0. 0.
+           0. 0.
+          ]
+    mass = ones(2)
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    @test f([1.;0;0]) ≈ -2.
+end
+
+
+@testset "Φ grav matrix" begin
+    pos = [
+           1. 0. 0. -4. -4. 0.
+           0. 2. 0. 0. -3. 0.
+           0. 0. 3. 0. 0. -6.
+          ]
+
+    mass = [1., 2, 3, 4, 5, 6]
+
+    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    @test f([0.;0;0]) ≈ -6.
+end
+
+
+@testset "Φ grav snapshot, simple" begin
+    snap = lguys.Snapshot([0 1 5.]', zeros(3, 1), [1.])
+    Φs = lguys.calc_Φ(snap)
+    # @test Φs ≈ [0.]
+
+    # snap = lguys.Snapshot([[0,0,1] [0,1,0]], zeros(3, 2), [1., π])
+    # Φs = lguys.calc_Φ(snap)
+    # @test Φs ≈ [-1, -π] ./ √2
+end
+
+
+
+@testset "Φ grav snapshot" begin
+    N = 100
+    pos = randn(3, N)
+    mass = rand(N)
+
+    snap = lguys.Snapshot(pos, zeros(3, N), mass)
+
+    Φs = lguys.calc_Φ(snap)
+
+    Φ_exp = Vector{Float64}(undef, N)
+    for i in 1:N
+        for j in 1:N
+            if i != j
+                r = lguys.calc_r(pos[:,i], pos[:,j])
+                Φ_exp[i] += lguys.calc_Φ(r, mass[j])
+            end
+        end
+    end
+
+    @test Φs ≈ Φ_exp
+end
+
+
+
 
 function make_rad_Φ(rs)
     N = length(rs)

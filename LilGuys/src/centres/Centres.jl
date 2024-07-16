@@ -2,7 +2,6 @@ module Centres
     
     export SS_State, calc_centre, calc_centres, StaticState
     export calc_centre!
-    export MostBoundState
     export shrinking_spheres
 
     using ..LilGuys
@@ -14,5 +13,4 @@ module Centres
     include("centre_output.jl")
     include("shrinking_spheres.jl")
 
-    include("most_bound.jl")
 end

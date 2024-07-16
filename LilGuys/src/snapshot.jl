@@ -88,10 +88,17 @@ Create a snapshot.
 """
 function Snapshot(positions, velocities, masses)
     N = size(positions, 2)
+    if size(velocities) != size(positions)
+        throw(DimensionMismatch("velocities and positions must have the same size"))
+    end
+
     if mass_is_fixed(masses)
         m_header = masses[1]
     else
         m_header = 0.0
+        if length(masses) != N
+            throw(DimensionMismatch("masses must have the same length as the number of particles"))
+        end
     end
 
     header = make_default_header(N, m_header)

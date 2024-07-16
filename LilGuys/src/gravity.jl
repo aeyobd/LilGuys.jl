@@ -158,6 +158,21 @@ function calc_Φ(snap::Snapshot, x_vec)
     return calc_Φ(snap.positions, snap.masses, x_vec)
 end
 
+function calc_Φ(snap::Snapshot)
+    Φ = Vector{F}(undef, length(snap))
+
+    N = length(snap)
+    for i in 1:N
+        j = 1:N .!= i
+        positions = snap.positions[:, j]
+        masses = snap.masses[j]
+
+        Φ[i] = calc_Φ(positions, masses, snap.positions[:, i])
+    end
+
+    return Φ
+end
+
 
 """
     calc_Φ(masses, positions, x_vec)

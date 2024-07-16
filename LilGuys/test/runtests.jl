@@ -2,9 +2,12 @@ include("setup.jl")
 
 
 tests = ["units", "utils", 
+         "io",
          "snapshot", "profile", 
          "coordinates", "physics", "gravity", 
-         "centre_static", "profiles", "spherical"]
+         "centre_static", "profiles", "spherical",
+         "shrinking_spheres",
+        ]
 
 for test in tests
     @testset "$test" begin

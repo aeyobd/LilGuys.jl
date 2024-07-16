@@ -17,6 +17,11 @@ function calc_centres(StateType, out::Output; reinit_state=false, verbose=false,
 
         update_prior!(state, dt)
         cen = state.centre
+
+        if verbose
+            println("using prior: $cen")
+        end
+
         if reinit_state
             state = StateType(out[i]; verbose=verbose, kwargs...)
             state.centre = cen

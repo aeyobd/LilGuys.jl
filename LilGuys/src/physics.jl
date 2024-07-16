@@ -12,7 +12,7 @@ The magnitude of a 3-vector or each vector in a matrix. Or, the distance between
 """
 function calc_r(x::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3
-        error("Matrix must have shape 3×N")
+        throw(DimensionMismatch("matrix must have 3 rows"))
     end
     return _calc_r(x)
 end
@@ -25,7 +25,7 @@ end
 
 function calc_r(x::AbstractVector{T}) where T<:Real
     if length(x) != 3
-        error("Vector must have length 3")
+        throw(DimensionMismatch("Vector must have length 3"))
     end
     return _calc_r(x)
 end
@@ -33,12 +33,9 @@ end
 
 function _calc_r(x::AbstractVector{T}) where T<:Real
     r = sqrt.(sum(x.^2, dims=1))
-    if length(size(r)) == 1
-        return r[1]
-    else
-        return dropdims(r, dims=1)
-    end
+    return r[1]
 end
+
 
 function _calc_r(x::AbstractMatrix{T}) where T<:Real
     r = sqrt.(sum(x.^2, dims=1))
@@ -73,9 +70,9 @@ get_x(snap::Snapshot) = get_x(snap.positions)
 get_y(snap::Snapshot) = get_y(snap.positions)
 get_z(snap::Snapshot) = get_z(snap.positions)
 
-get_x(A::AbstractMatrix{T}) where T<:Real = A[1, :]
-get_y(A::AbstractMatrix{T}) where T<:Real = A[2, :]
-get_z(A::AbstractMatrix{T}) where T<:Real = A[3, :]
+get_x(A::AbstractMatrix{<:Real}) = A[1, :]
+get_y(A::AbstractMatrix{<:Real}) = A[2, :]
+get_z(A::AbstractMatrix{<:Real}) = A[3, :]
 
 get_v_x(snap::Snapshot) = get_x(snap.velocities)
 get_v_y(snap::Snapshot) = get_y(snap.velocities)
@@ -95,10 +92,25 @@ function calc_K_spec(snap::Snapshot, v_cen=snap.v_cen)
 end
 
 
+"""
+    calc_K_tot(snap)
+
+Total kinetic energy of a snapshot
+"""
 function calc_K_tot(snap::Snapshot)
     return sum(snap.masses .* calc_K_spec(snap))
 end
 
+
+
+@doc raw"""
+    calc_W_tot(snap)
+
+Total potential energy of a snapshot
+```math
+    W = -\frac{1}{2} \sum m_i Φ_i
+```
+"""
 function calc_W_tot(snapshot::Snapshot)
     return -1/2 * sum(snapshot.masses .* snapshot.Φs)
 end
@@ -111,7 +123,8 @@ end
 Specific energy of each particle of a snapshot
 """
 function calc_E_spec(snap::Snapshot)
-    if snap.Φs == nothing || all(snap.Φs .== 0)
+    if snap.Φs == nothing 
+        @warn "Snapshot does not contain Φ using radial Φ approximation."
         Φ = calc_radial_discrete_Φ(snap)
     else
         Φ = snap.Φs
@@ -162,10 +175,6 @@ function calc_E_tot(snap::Snapshot, v_cen=snap.v_cen)
 end
 
 
-function calc_L_spec(snap::Snapshot)
-    return calc_L_spec(snap.positions, snap.velocities)
-end
-
 
 """
     calc_L_spec(x, v)
@@ -178,12 +187,17 @@ function calc_L_spec(x::AbstractVector{T}, v::AbstractVector{T}) where T<:Real
 end
 
 
+function calc_L_spec(snap::Snapshot)
+    return calc_L_spec(snap.positions, snap.velocities)
+end
+
+
 function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3 || size(v, 1) != 3
-        error("Matrices must have shape 3×N")
+        throw(DimensionMismatch("Matrices must have 3 rows"))
     end
     if size(x, 2) != size(v, 2)
-        error("Matrices must have same number of columns")
+        throw(DimensionMismatch("Matrices must have the same number of columns"))
     end
 
     L = Matrix{F}(undef, 3, size(x, 2))
@@ -195,12 +209,6 @@ function calc_L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     return L
 end
 
-
-
-function calc_L(snap::Snapshot)
-    m = reshape(snap.masses, 1, :)
-    return calc_L_spec(snap) .* m
-end
 
 
 
@@ -226,10 +234,10 @@ end
 The circular velocity at radius r from the center of a mass M.
 """
 function calc_v_circ(r::Real, M::Real)
-    if r == 0
+    if M < 0 || r < 0
+        throw(DomainError("M and r must be positive"))
+    elseif r == 0
         return 0
-    elseif r < 0
-        error("r must be positive")
     end
     return  sqrt(G*M/r)
 end

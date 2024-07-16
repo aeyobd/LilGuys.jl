@@ -1,6 +1,13 @@
+import StatsBase: percentile
+
 Point = Vector{F}
+
+"""Abstract centre finding state"""
 abstract type AbstractState end
 
+"""
+A struct representing a centre estimate for a snapshot
+"""
 struct Centre
     position::Point
     position_err::F
@@ -10,6 +17,16 @@ struct Centre
     acceleration_err::F
 end
 
+
+function Centre()
+    return Centre(zeros(3), NaN,
+                  zeros(3), NaN,
+                  zeros(3), NaN)
+end
+
+
+
+"""State representing a static centre"""
 @kwdef mutable struct StaticState <: AbstractState
     centre::Centre
     method = "com"
@@ -19,6 +36,8 @@ end
 function StaticState(snap::Snapshot; method="com")
     return StaticState(centre=Centre(), method=method)
 end
+
+
 
 function calc_centre!(state::StaticState, snap)
     if state.method == "com"
@@ -34,12 +53,6 @@ function calc_next_centre!(state::StaticState, snap)
     calc_centre!(state, snap)
 end
 
-
-function Centre()
-    return Centre(zeros(3), NaN,
-                  zeros(3), NaN,
-                  zeros(3), NaN)
-end
 
 
 function mean_centre(snap::Snapshot, filter)
@@ -62,6 +75,21 @@ end
 
 
 
+
+
+function centre_of_mass(snap::Snapshot)
+    return weighted_centre(snap, snap.masses)
+end
+
+
+function centre_weighted_potential(snap::Snapshot)
+    return weighted_centre(snap, -snap.Φs)
+end
+
+
+"""
+Simple weighted centre of a snapshot
+"""
 function weighted_centre(snap::Snapshot, weights::AbstractVector)
     position = centroid(snap.positions, weights)
     position_err = centroid_err(snap.positions, weights)
@@ -79,16 +107,10 @@ function weighted_centre(snap::Snapshot, weights::AbstractVector)
 end
 
 
-function centre_of_mass(snap::Snapshot)
-    return weighted_centre(snap, snap.masses)
-end
 
-
-function centre_weighted_potential(snap::Snapshot)
-    return weighted_centre(snap, -snap.Φs)
-end
-
-
+"""
+Computes the COM of particles with a potential below a certain percentile.
+"""
 function centre_potential_percen(snap::Snapshot, percen=5)
     if snap.Φs === nothing
         Φs = calc_radial_discrete_Φ(snap)
@@ -99,38 +121,4 @@ function centre_potential_percen(snap::Snapshot, percen=5)
     filt = Φs .< Φcut
     return centre_of_mass(snap[filt])
 end
-    
-
-
-function ϕ_eff(positions, velocities, masses; h=0.08)
-	N = length(masses)
-	ϕ = zeros(N)
-
-	for i in 1:N
-		if i % 100 == 0
-			print("\r $i / $N")
-		end
-
-		ϕ_g = @. -masses / sqrt(calc_r(positions[:, i], positions)^2 + h^2)
-		ϕ_v =  1/N * 1/2 * calc_r(velocities[:, i], velocities).^2
-			
-		ϕ[i] = sum(min.(ϕ_g .+ ϕ_v, 0))
-		
-	end
-	return ϕ
-
-end
-
-function calc_ρ_eff(x_vec, v_vec, positions, velocities, masses; h)
-    N = length(masses)
-
-    ϕ_g = @. -masses / sqrt(calc_r(x_vec, positions)^2 + h^2)
-    ϕ_v =  1/N * 1/2 * calc_r(v_vec, velocities).^2
-    ϕs = @. min(ϕ_g + ϕ_v, 0)
-    return sum(ϕs)
-end
-
-
-
-
 

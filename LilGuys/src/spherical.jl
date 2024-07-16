@@ -2,6 +2,7 @@
     to_tangent(α, δ, α_0, δ_0)
 
 Computes the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
+α and δ may be reals or vectors
 """
 function to_tangent(α::Real, δ::Real, α_0::Real, δ_0::Real)
     xi, eta = _to_tangent(α, δ, α_0, δ_0)
@@ -37,6 +38,12 @@ function _to_tangent(α, δ, α_0, δ_0)
 end
 
 
+"""
+    angular_distance(α1, δ1, α2, δ2)
+
+Computes the angular distance between two points on the sky, 
+assuming RA/DEC and in degrees.
+"""
 function angular_distance(α1, δ1, α2, δ2)
     a = @. sind(δ1) * sind(δ2) + cosd(δ1) * cosd(δ2) * cosd(α1 - α2)
     if any(a .> nextfloat(1.0, 5))
@@ -55,10 +62,11 @@ function angular_distance(α1, δ1, α2, δ2)
 end
 
 
-"""
-    unit_vector(ra::F, dec::F)
 
-Returns the unit vector pointing at the posision (ra, dec) in degrees on the sky.
+"""
+    unit_vector(ra, dec)
+
+Returns the unit vector(s) pointing at the position(s) (ra, dec) in degrees on the sky. ra and dec may be reals or vectors, but should be in degrees.
 """
 function unit_vector(ra::F, dec::F)
     x = cosd(dec) * cosd(ra)
@@ -76,6 +84,11 @@ function unit_vector(ra::Vector{F}, dec::Vector{F}) where F
 end
 
 
+"""
+    cartesian_to_sky(x, y, z)
+
+Converts cartesian coordinates to spherical coordinates (RA, DEC, r)
+"""
 function cartesian_to_sky(x, y, z)
 
     R = sqrt(x^2 + y^2)
@@ -88,7 +101,8 @@ function cartesian_to_sky(x, y, z)
 end
 
 
-function cartesian_to_sky(x::Vector{F}, y::Vector{F}, z::Vector{F}) where F
+
+function cartesian_to_sky(x::AbstractVector, y::AbstractVector, z::AbstractVector)
     R = sqrt.(x.^2 + y.^2)
     r = sqrt.(x.^2 + y.^2 + z.^2)
 
@@ -97,6 +111,7 @@ function cartesian_to_sky(x::Vector{F}, y::Vector{F}, z::Vector{F}) where F
 
     return [ra dec r]
 end
+
 
 
 """
@@ -111,6 +126,7 @@ function Rx_mat(u::Real)
             0  c  s
             0 -s  c]
 end
+
 
 
 """
@@ -142,6 +158,9 @@ function Rz_mat(w::Real)
 end
 
 
+"""
+Rotation matrix
+"""
 function R_mat(u::Real, v::Real, w::Real)
     return Rz_mat(w) * Ry_mat(v) * Rx_mat(u)
 end
