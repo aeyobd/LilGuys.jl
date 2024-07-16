@@ -5,34 +5,42 @@ Calculates the centres for each snapshot in the output.
 The details of the implementation are based on the given StateType.
 """
 function calc_centres(StateType, out::Output; reinit_state=false, verbose=false, skip=1, kwargs...)
+
+    out_idx = 1:skip:length(out)
+
+    centres = Vector{Centre}(undef, length(out_idx))
+
     state = StateType(out[1]; verbose=verbose, kwargs...)
 
     calc_centre!(state, out[1])
-    centres = [state.centre]
+    centres[1] = state.centre
 
-    time = out.times[1]
+    time_last = out.times[1]
 
-    for i in 1+skip:skip:length(out)
-        dt = out.times[i] - time
+    for ii in 2:length(out_idx)
+        i = out_idx[ii]
+        i_last = out_idx[ii-1]
+        dt = out.times[i] - out.times[i_last]
+        snap = out[i]
 
         update_prior!(state, dt)
         cen = state.centre
 
         if verbose
-            println("using prior: $cen")
+            println("using prior: $(cen.position)")
+            println("error : $(cen.position_err)")
         end
 
         if reinit_state
-            state = StateType(out[i]; verbose=verbose, kwargs...)
+            state = StateType(snap; verbose=verbose, kwargs...)
             state.centre = cen
-            calc_centre!(state, out[i])
+            calc_centre!(state, snap)
         else
-            calc_next_centre!(state, out[i])
+            calc_next_centre!(state, snap)
         end
 
        
-        push!(centres, state.centre)
-        time = out.times[1]
+        centres[ii] = state.centre
 
         if verbose
             println("completed snapshot $i")

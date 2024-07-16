@@ -1,22 +1,5 @@
 import Base: @kwdef
 
-const kpc_mas_yr = 4.740470463533348 # km/s
-
-
-@kwdef struct GalactocentricFrame
-    d::F = 8.122 # kpc
-    ra::F = 266.4051 # Sag A* ra in deg
-    dec::F = -28.936175 # Sag A* dec in deg
-    η::F = 58.5986320306 # degrees
-    z_sun::F = 0.0208 # kpc, solar height above galactic midplane
-    v_sun::Vector{F} =  [12.9, 245.6, 7.78]
-end
-
-function gc_rest_frame()
-    return GalactocentricFrame(; v_sun=[0., 0., 0.])
-end
-
-
 
 function transform(::Type{T}, obs::T) where T
     return obs
@@ -47,86 +30,86 @@ function transform(::Type{SkyCoord{T}}, cart::PhasePoint{T}) where T
 end
 
 
-function transform(::Type{Galactocentric}, cart::ICRS_Cartesian, frame=GalactocentricFrame())
-    x_gc = _cartesian_to_galcen_position(cart, frame)
-    v_gc = _cartesian_to_galcen_velocity(cart, frame)
+function transform(::Type{Galactocentric}, cart::ICRS_Cartesian, frame=default_gc_frame)
+    x_gc = _heliocen_to_galcen_position(cart, frame)
+    v_gc = _heliocen_to_galcen_velocity(cart, frame)
 
     return Galactocentric(x_gc, v_gc)
 end
 
 
-function transform(::Type{ICRS_Cartesian}, galcen::Galactocentric, frame=GalactocentricFrame())
-    x_icrs = _galcen_to_cartesian_position(galcen, frame)
-    v_icrs = _galcen_to_cartesian_velocity(galcen, frame)
+function transform(::Type{ICRS_Cartesian}, galcen::Galactocentric, frame=default_gc_frame)
+    x_icrs = _galcen_to_heliocen_position(galcen)
+    v_icrs = _galcen_to_heliocen_velocity(galcen)
 
     return ICRS_Cartesian(x_icrs, v_icrs)
 end
 
 
 
-function transform(::Type{Galactocentric}, cart::HelioRest_Cartesian, frame=gc_rest_frame())
-    x_gc = _cartesian_to_galcen_position(cart, frame)
-    v_gc = _cartesian_to_galcen_velocity(cart, frame)
+function transform(::Type{Galactocentric}, cart::GSR_Cartesian, frame=default_gc_frame)
+    x_gc = _heliocen_to_galcen_position(cart, frame)
+    v_gc = _gsr_to_galcen_velocity(cart, frame)
 
     return Galactocentric(x_gc, v_gc)
 end
 
 
-function transform(::Type{HelioRest_Cartesian}, galcen::Galactocentric, frame=gc_rest_frame())
-    x_icrs = _galcen_to_cartesian_position(galcen, frame)
-    v_icrs = _galcen_to_cartesian_velocity(galcen, frame)
+function transform(::Type{GSR_Cartesian}, galcen::Galactocentric)
+    x_gsr = _galcen_to_heliocen_position(galcen)
+    v_gsr = _galcen_to_gsr_velocity(galcen)
 
-    return HelioRest_Cartesian(x_icrs, v_icrs)
+    return GSR_Cartesian(x_gsr, v_gsr)
 end
 
 
-function transform(::Type{Galactocentric}, obs::ICRS, frame=GalactocentricFrame())
+function transform(::Type{Galactocentric}, obs::ICRS, frame=default_gc_frame)
     cart = transform(ICRS_Cartesian, obs)
     return transform(Galactocentric, cart, frame)
 end
 
 
 
-function transform(::Type{ICRS}, galcen::Galactocentric, frame=GalactocentricFrame())
+function transform(::Type{ICRS}, galcen::Galactocentric, frame=default_gc_frame)
     cart = transform(ICRS_Cartesian, galcen, frame)
     return transform(ICRS, cart)
 end
 
 
-function transform(::Type{Galactocentric}, obs::HelioRest, frame=gc_rest_frame())
-    cart = transform(HelioRest_Cartesian, obs)
-    return transform(Galactocentric, cart, frame)
+function transform(::Type{Galactocentric}, obs::GSR)
+    cart = transform(GSR_Cartesian, obs)
+    return transform(Galactocentric, cart, default_gc_frame)
 end
 
 
 
-function transform(::Type{HelioRest}, galcen::Galactocentric, frame=gc_rest_frame())
-    cart = transform(HelioRest_Cartesian, galcen, frame)
-    return transform(HelioRest, cart)
+function transform(::Type{GSR}, galcen::Galactocentric)
+    cart = transform(GSR_Cartesian, galcen)
+    return transform(GSR, cart)
 end
 
 
-function transform(::Type{HelioRest_Cartesian}, obs::ICRS_Cartesian)
+function transform(::Type{GSR_Cartesian}, obs::ICRS_Cartesian)
     gc = transform(Galactocentric, obs)
-    return transform(HelioRest_Cartesian, gc)
+    return transform(GSR_Cartesian, gc)
 end
 
 
-function transform(::Type{ICRS_Cartesian}, obs::HelioRest_Cartesian)
+function transform(::Type{ICRS_Cartesian}, obs::GSR_Cartesian)
     gc = transform(Galactocentric, obs)
     return transform(ICRS_Cartesian, gc)
 end
 
 
-function transform(::Type{ICRS}, obs::HelioRest)
+function transform(::Type{ICRS}, obs::GSR)
     gc = transform(Galactocentric, obs)
     return transform(ICRS, gc)
 end
 
 
-function transform(::Type{HelioRest}, obs::ICRS)
+function transform(::Type{GSR}, obs::ICRS)
     gc = transform(Galactocentric, obs)
-    return transform(HelioRest, gc)
+    return transform(GSR, gc)
 end
 
 
@@ -165,13 +148,7 @@ end
 function _cartesian_to_observation_position(cart::PhasePoint)
     x, y, z = cart.x, cart.y, cart.z
 
-    R = sqrt(x^2 + y^2)
-    r = sqrt(x^2 + y^2 + z^2)
-
-    ra = mod(atand(y, x), 360) # atan2 -> 0 to 360
-    dec = atand(z / R) # atan -> -90 to 90
-
-    return [ra, dec, r]
+    return cartesian_to_sky(x, y, z)
 end
 
 
@@ -189,7 +166,8 @@ function _cartesian_to_observation_velocity(cart::PhasePoint)
     return [v_α/kpc_mas_yr, v_δ/kpc_mas_yr, v_r]
 end
 
-function _cartesian_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFrame())
+
+function _heliocen_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFrame())
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R(frame)
@@ -201,26 +179,38 @@ function _cartesian_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFra
     return x_gc
 end
 
-function _cartesian_to_galcen_position(cart::PhasePoint, frame=GalactocentricFrame())
-    return _cartesian_to_galcen_position(cart.position, frame)
+
+function _heliocen_to_galcen_position(cart::PhasePoint, frame=default_gc_frame)
+    return _heliocen_to_galcen_position(get_position(cart), frame)
 end
 
-function _cartesian_to_galcen_velocity(v_vec::Vector{F}, frame=GalactocentricFrame())
+
+function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
     R_mat = _coordinate_R(frame)
     H_mat = _coordinate_H(frame)
 
     v_gc = H_mat * (R_mat * v_vec)
-    v_gc .+= frame.v_sun
     return v_gc 
 end
 
-function _cartesian_to_galcen_velocity(cart::PhasePoint, frame=GalactocentricFrame())
-    return _cartesian_to_galcen_velocity(cart.velocity, frame)
+
+function _heliocen_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+    v_gc = _gsr_to_galcen_velocity(v_vec, frame)
+    return v_gc .+ frame.v_sun
+end
+
+
+function _gsr_to_galcen_velocity(cart::GSR_Cartesian, frame=default_gc_frame)
+    return _gsr_to_galcen_velocity(get_velocity(cart), frame)
+end
+
+function _heliocen_to_galcen_velocity(cart::ICRS_Cartesian, frame=default_gc_frame)
+    return _heliocen_to_galcen_velocity(get_velocity(cart), frame)
 end
 
 
 
-function _galcen_to_cartesian_position(x_vec::Vector{F}, frame=GalactocentricFrame())
+function _galcen_to_heliocen_position(x_vec::Vector{F}, frame=default_gc_frame)
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R_inv(frame)
@@ -231,22 +221,30 @@ function _galcen_to_cartesian_position(x_vec::Vector{F}, frame=GalactocentricFra
     return x_icrs
 end
 
-function _galcen_to_cartesian_position(galcen::Galactocentric, frame=GalactocentricFrame())
-    return _galcen_to_cartesian_position(galcen.position, frame)
+
+function _galcen_to_heliocen_position(galcen::Galactocentric)
+    return _galcen_to_heliocen_position(get_position(galcen), galcen.frame)
 end
 
 
-function _galcen_to_cartesian_velocity(v_vec::Vector{F}, frame=GalactocentricFrame())
+function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame)
     R_mat = _coordinate_R_inv(frame)
     H_mat = _coordinate_H_inv(frame)
 
-    v_icrs = R_mat * (H_mat * (v_vec .- frame.v_sun))
+    v_icrs = R_mat * (H_mat * (v_vec )) # .- frame.v_sun))
     return v_icrs
 end
 
+function _galcen_to_heliocen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+    return _galcen_to_gsr_velocity(v_vec .- frame.v_sun, frame) 
+end
 
-function _galcen_to_cartesian_velocity(galcen::Galactocentric, frame=GalactocentricFrame())
-    return _galcen_to_cartesian_velocity(galcen.velocity, frame)
+function _galcen_to_gsr_velocity(galcen::Galactocentric)
+    return _galcen_to_gsr_velocity(get_velocity(galcen), galcen.frame)
+end
+
+function _galcen_to_heliocen_velocity(galcen::Galactocentric)
+    return _galcen_to_heliocen_velocity(get_velocity(galcen), galcen.frame)
 end
 
 
@@ -283,31 +281,3 @@ function _coordinate_H_inv(frame::GalactocentricFrame)
     return Ry_mat(-θ)
 end
 
-
-"""
-    rand_coord(obs::ICRS, err::ICRS)
-
-Generate a random coordinate based on the observed coordinate and its error
-assumed to be normally distributed.
-"""
-function rand_coord(obs::ICRS, err::ICRS)
-    return ICRS(
-        ra = obs.ra + randn() * err.ra,
-        dec = obs.dec + randn() * err.dec,
-        pmra = obs.pmra + randn() * err.pmra,
-        pmdec = obs.pmdec + randn() * err.pmdec,
-        radial_velocity = obs.radial_velocity + randn() * err.radial_velocity,
-        distance = obs.distance + randn() * err.distance,
-       )
-end
-
-
-"""
-    rand_coords(obs::ICRS, err::ICRS, N::Int)
-
-Generate N random coordinates based on the observed coordinate and its error
-assumed to be normally distributed.
-"""
-function rand_coords(obs::ICRS, err::ICRS, N::Int)
-    return [rand_coord(obs, err) for _ in 1:N]
-end

@@ -159,7 +159,9 @@ end
 
 
 """
-Rotation matrix
+Rotation matrix 
+
+R = Rz(w) * Ry(v) * Rx(u)
 """
 function R_mat(u::Real, v::Real, w::Real)
     return Rz_mat(w) * Ry_mat(v) * Rx_mat(u)

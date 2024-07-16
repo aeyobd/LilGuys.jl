@@ -4,7 +4,8 @@ include("setup.jl")
 tests = ["units", "utils", 
          "io",
          "snapshot", "profile", 
-         "coordinates", "physics", "gravity", 
+         "coordinates", "coord_trans",
+         "physics", "gravity", 
          "centre_static", "profiles", "spherical",
          "shrinking_spheres",
         ]

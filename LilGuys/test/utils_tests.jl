@@ -1,3 +1,18 @@
+@testset "const vector initialization" begin
+    a = 234
+    N=10
+    v = lguys.ConstVector(a, N)
+
+    @test length(v) == N
+    @test size(v) == (N,)
+
+    @test eltype(v) == Float64
+    @test all(v .== a)
+    @test collect(v) == [a for _ in 1:N]
+end
+
+
+
 @testset "mean" begin
     @test lguys.mean([1,2,3]) == 2
     @test lguys.mean([1, 0.5, 0, -0.5, -1]) == 0.

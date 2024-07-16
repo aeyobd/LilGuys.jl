@@ -1,6 +1,29 @@
 import StatsBase: mean, std, percentile, midpoints
 import SpecialFunctions: erf
+import Base: *
 
+
+
+struct ConstVector <: AbstractArray{F, 1}
+    value::F
+    size::Int
+end
+
+
+function (*)(a::ConstVector, s::F)
+    return ConstVector(a.value * s, a.size)
+end
+
+
+function (*)(s::F, a::ConstVector)
+    return a * s
+end
+
+
+Base.getindex(v::ConstVector, i::Int) = v.value
+Base.show(io::IO, v::ConstVector) = print(io, v.value)
+Base.size(v::ConstVector) = (v.size,)
+Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 
 
 """
