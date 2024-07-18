@@ -22,6 +22,16 @@ end
 
 @testset "cartesian to sky" begin
 
+    cart = lguys.Cartesian{lguys.ICRS}(x=1, y=0, z=0,
+                                      v_x=0, v_y=0, v_z=0)
+    icrs = lguys.transform(lguys.ICRS, cart)
+
+    @test icrs.ra ≈ 0 rtol=1e-2
+    @test icrs.dec ≈ 0 rtol=1e-2
+    @test icrs.distance ≈ 1 rtol=1e-2
+    @test icrs.pmra ≈ 0 rtol=1e-2
+    @test icrs.pmdec ≈ 0 rtol=1e-2
+    @test icrs.radial_velocity ≈ 0 rtol=1e-2
 end
 
 
@@ -183,4 +193,9 @@ end
 
         end
     end
+end
+
+
+@testset "galactocentric frame settings" begin
+    @test false broken=true
 end

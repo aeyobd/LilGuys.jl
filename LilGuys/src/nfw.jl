@@ -102,11 +102,22 @@ A_NFW(c) = \log(1 + c) - \frac{c}{1 + c}
 ```
 """
 function A_NFW(c::Real)
+    if c < 0
+        throw(DomainError(c, "c must be positive"))
+    elseif c === Inf
+        return Inf
+    end
     return log(1 + c) - c / (1 + c)
 end
 
 
 function calc_Φ(profile::NFW, r::Real)
+    if r < 0
+        throw(DomainError(r, "r must be positive"))
+    elseif r === 0
+        return -Inf
+    end
+
     x = r / profile.r_s
     return -G * profile.M_s / profile.r_s * log(1 + x) / x
 end
