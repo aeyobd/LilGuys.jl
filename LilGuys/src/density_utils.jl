@@ -74,7 +74,9 @@ end
 
 Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
 
-Parameters
+
+# Arguments
+- `bins`: Passed to Arya.histogram. Bins in log r for histogram.
 ----------
 rs : Vector{F}
     The radii of the profile.
