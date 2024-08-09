@@ -3,10 +3,14 @@ import SpecialFunctions: erf
 import Base: *
 
 
+"""
+    ConstVector(value, size)
 
+Memory efficient vector which is constant (useful for type-enforced vectors, e.g. unit weights...)
+"""
 struct ConstVector <: AbstractArray{F, 1}
     value::F
-    size::Int
+    size::UInt
 end
 
 
@@ -14,14 +18,13 @@ function (*)(a::ConstVector, s::F)
     return ConstVector(a.value * s, a.size)
 end
 
-
 function (*)(s::F, a::ConstVector)
     return a * s
 end
 
 
 Base.getindex(v::ConstVector, i::Int) = v.value
-Base.show(io::IO, v::ConstVector) = print(io, v.value)
+Base.show(io::IO, v::ConstVector) = print(io, v.value) # TODO: test
 Base.size(v::ConstVector) = (v.size,)
 Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 
@@ -118,7 +121,7 @@ Is truncated and will return the first or last value if x is outside the range.
 """
 function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
     if length(xs) != length(ys)
-        throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))"))
+        throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))")) # TODO: test
     end
 
     return function(x::Real)
@@ -134,13 +137,13 @@ function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
         if i <= 1
             return ys[1]
         elseif i > length(xs)
-            return ys[end]
+            return ys[end] # TODO: test
         elseif 1 < i <= length(xs)
             x1, x2 = xs[i-1], xs[i]
             y1, y2 = ys[i-1], ys[i]
             return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
         else
-            return NaN
+            return NaN # TODO: test
         end
     end
 
@@ -189,15 +192,9 @@ Computes the logit function at the point p.
 f(p) = \\log\\left(\\frac{p}{1-p}\\right)
 ````
 """
-function logit(p::Real)
+function logit(p::Real) # TODO: test
     return log(p / (1-p))
 end
-
-
-
-
-
-
 
 
 

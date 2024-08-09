@@ -42,5 +42,5 @@ end
 
 @testset "v circ max" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
-    r_max = lguys.calc_r_circle(nfw)
+    r_max = lguys.calc_r_circ_max(nfw)
 end

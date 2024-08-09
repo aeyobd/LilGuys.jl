@@ -1,14 +1,31 @@
+"""Internal float unit """
+F = Float64
+
+"""Optionally specified vector (union vector and nothing)"""
+OptVector = Union{Vector{F}, Nothing}
+
+"""Optionally specified matrix (union matrix{F} and nothing)"""
+OptMatrix = Union{Matrix{F}, Nothing}
+
+
+"""Gravitational constent in internal units"""
 const G = 1.
+
+"""Internal mass to solar masses"""
 const M2MSUN = 1e10 #Msun
+
+"""Internal length scale to kpc"""
 const R2KPC = 1. # kpc
+
+"""Internal time unit to Gyr"""
 const T2GYR = 4.715e-3 # Gyr pm 0.02 Myr
+
+"""Internal velocity unit to km/s"""
 const V2KMS = 207.4 # km/s (pm 1 fron G uncertainty)
 
-const kms_per_kpc_mas_per_yr = 4.740470463533348 
 
-F = Float64
-OptVector = Union{Vector{F}, Nothing}
-OptMatrix = Union{Matrix{F}, Nothing}
+"""The tangental velocity in km/s of an object at 1 kpc moving with a proper motion of 1 mas / year. """
+const kms_per_kpc_mas_per_yr = 4.740470463533348 
 
 
 # source IAU
@@ -38,6 +55,10 @@ function kpc_to_arcmin(length::Real, distance::Real)
     return length / distance * ARCMIN_PER_RAD
 end
 
+
+"""
+Converts a proper motion (mas/yr) at a given distance (kpc) to the tangental velocity (km/s)
+"""
 function pm_to_kms(pm::Real, distance::Real)
     return pm * distance * kms_per_kpc_mas_per_yr
 end

@@ -1,38 +1,78 @@
-@testset "const vector initialization" begin
-    a = 234
-    N=10
-    v = lguys.ConstVector(a, N)
+@testset "const vector" begin
+    @testset "initialization" begin
+        a = 234
+        N=10
+        v = lguys.ConstVector(a, N)
 
-    @test length(v) == N
-    @test size(v) == (N,)
+        @test length(v) == N
+        @test size(v) == (N,)
 
-    @test eltype(v) == Float64
-    @test all(v .== a)
-    @test collect(v) == [a for _ in 1:N]
+        @test eltype(v) == Float64
+        @test all(v .== a)
+        @test collect(v) == [a for _ in 1:N]
+
+        @test_throws InexactError lguys.ConstVector(a, -32)
+
+        @test false broken = true #println
+    end
+
+    @testset "left-multiplication" begin
+        a = π
+        N = 4
+        v = lguys.ConstVector(a, N)
+
+        for m in [2, 0.23, exp(1)]
+            @test m*a == (m*v).value
+            @test m*a == (v*m).value
+        end
+        
+    end
 end
 
 
 
+@testset "struct_to_dict" begin
+    struct Foo
+        a::Int
+        b::Float64
+        c::String
+    end
+
+    f = Foo(1, 2.0, "3")
+    d = lguys.struct_to_dict(f)
+    @test d == Dict(:a => 1, :b => 2.0, :c => "3")
+end
+
+
+@testset "dict_to_tuple" begin
+    d = Dict("a" => 1, "b" => 2.0, "q" => "3")
+    t = lguys.dict_to_tuple(d)
+
+    # may be reordered, so test for set equality
+    @test Set(keys(t))  == Set([:a, :b, :q])
+    @test t.a == 1
+    @test t.b == 2.0
+    @test t.q == "3"
+
+end
+
 @testset "mean" begin
+    # mean is imported from statsbase
     @test lguys.mean([1,2,3]) == 2
     @test lguys.mean([1, 0.5, 0, -0.5, -1]) == 0.
     @test lguys.mean([-0.3]) == -0.3
 end
 
-@testset "variance" begin
-    @test lguys.var([1,2,3]) == 1 skip=true
-    @test lguys.var([1, 0.5, 0, -0.5, -1]) == 0.5 * 5/4 skip=true# sample var
-    @test lguys.var(fill(1, 10)) == 0 skip=true
-end
-
 
 @testset "percentile" begin
+    # percentile is imported from statsbase
     x = lguys.randu(0, 1, 1000)
 
     qs = 100 * [0.1, 0.25, 0.5, 0.75, 0.9]
     p = lguys.percentile(x, qs)
     @test p ≈ qs/100 atol=0.1
 end
+
 
 @testset "randu" begin
     s = (1243, 2)
@@ -46,6 +86,8 @@ end
 
     @test μ ≈ (low + high) / 2 atol=0.03
     @test σ ≈ (high - low) / √12 atol=0.03
+    @test maximum(xs) ≈ high atol=0.01
+    @test minimum(xs) ≈ low atol=0.01
 
 end
 
@@ -238,27 +280,3 @@ end
 
 
 
-@testset "struct_to_dict" begin
-    struct Foo
-        a::Int
-        b::Float64
-        c::String
-    end
-
-    f = Foo(1, 2.0, "3")
-    d = lguys.struct_to_dict(f)
-    @test d == Dict(:a => 1, :b => 2.0, :c => "3")
-end
-
-
-@testset "dict_to_tuple" begin
-    d = Dict("a" => 1, "b" => 2.0, "q" => "3")
-    t = lguys.dict_to_tuple(d)
-
-    # may be reordered, so test for set equality
-    @test Set(keys(t))  == Set([:a, :b, :q])
-    @test t.a == 1
-    @test t.b == 2.0
-    @test t.q == "3"
-
-end
