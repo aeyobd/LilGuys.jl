@@ -1,7 +1,6 @@
 import LinearAlgebra: ×
 import DataFrames: DataFrame
 import LsqFit: curve_fit
-import NaNMath as nm
 
 
 

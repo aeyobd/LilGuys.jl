@@ -7,7 +7,7 @@ tests = ["units", "utils",
          "spherical", "coordinates", "coord_trans",
          "nfw",
          "physics", "gravity", 
-         "centre_static", "profiles", 
+         "centre_static", "analytic_profiles", 
          "shrinking_spheres",
         ]
 

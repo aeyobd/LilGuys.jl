@@ -5,10 +5,79 @@ import QuadGK: quadgk
 import Base: @kwdef
 import SpecialFunctions: besselk
 import ForwardDiff: derivative
+import TOML
+
 
 abstract type AbstractProfile end
 
 Base.Broadcast.broadcastable(p::AbstractProfile) = Ref(p)
+
+
+const RECOGNIZED_PROFILES = (
+    :Plummer,
+    :Sersic,
+    :Exp2D,
+    :Exp3D,
+    :LogCusp2D,
+    :KingProfile
+)
+
+
+"""
+    load_profile(params)
+
+Loads in the instance of a Profile from the parameter file or dictionary. 
+
+The file/dictionary may be structured as
+```toml
+[<name>]
+# r_s = 1
+# other kwargs
+```
+or 
+
+```toml
+[profile]
+[profile.<name>]
+# r_s = 1
+# other kwargs
+```
+
+Throws an error if more than one top-level key is present in the profiles, or
+if the profile is not in `RECOGNIZED_PROFILES`.
+"""
+function load_profile(params::Dict{String, <:Any})
+    if "profile" ∈ keys(params)
+        return load_profile(params["profile"])
+    end
+
+    if length(keys(params)) != 1
+        throw(ArgumentError("Only one profile can be loaded at a time"))
+    end
+
+    profile_class = first(keys(params))
+    kwargs = params[profile_class]
+
+    profile_class = Symbol(profile_class)
+
+    if profile_class ∉ RECOGNIZED_PROFILES
+        throw(KeyError("Profile $profile_class not recognized. Recognized profiles are $RECOGNIZED_PROFILES"))
+    end
+
+    profile_class = getproperty(LilGuys, profile_class)
+
+    profile = profile_class(;dict_to_tuple(kwargs)...)
+
+	return profile
+end
+
+
+function load_profile(filename::String)
+    params = TOML.parsefile(filename)
+    return load_profile(params)
+end
+
+
 
 """
     calc_ρ(profile, r)
@@ -43,14 +112,13 @@ function calc_v_circ end
 
 
 @kwdef struct Plummer <: AbstractProfile
-    a::Float64
     M::Float64 = 1
     r_s::Float64 = 1
 end
 
 
 @kwdef struct Sersic <: AbstractProfile
-    n::Float64
+    n::Float64 = 1
     M::Float64 = 1
     r_s::Float64 = 1
 end
@@ -113,8 +181,8 @@ the tidal radius.
 
 """
 @kwdef struct KingProfile <: AbstractProfile
-    M::Float64 
-    R_s::Float64 
+    M::Float64 = 1
+    R_s::Float64 = 1
     R_t::Float64 
 end
 
