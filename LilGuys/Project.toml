@@ -6,6 +6,7 @@ version = "0.1.2"
 [deps]
 Arya = "415bc928-4679-4905-9aff-233f9524af88"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DensityEstimators = "6a64a12f-920b-4cea-9d97-f6c2170ce0ee"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"

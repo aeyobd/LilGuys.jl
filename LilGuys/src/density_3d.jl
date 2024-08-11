@@ -1,4 +1,4 @@
-import Arya
+import DensityEstimators: histogram
 import StatsBase: percentile
 import TOML
 
@@ -141,13 +141,13 @@ function calc_profile(snap::Snapshot;
 
     L = calc_L_tot(snap)
 
-    h = Arya.histogram(log10.(calc_r(snap)), bins, weights=snap.masses, normalization=:none)
+    h = histogram(log10.(calc_r(snap)), bins, weights=snap.masses, normalization=:none)
     log_r_bins = h.bins
     log_r = midpoints(log_r_bins)
     r = 10 .^ log_r
 
 
-    counts = Arya.histogram(log10.(calc_r(snap)), bins, normalization=:none).values
+    counts = histogram(log10.(calc_r(snap)), bins, normalization=:none).values
 
     mass_in_shell = h.values
     mass_in_shell_err = h.err
@@ -216,7 +216,7 @@ function calc_ρ_hist(r::AbstractVector{T}, bins::AbstractVector; weights=nothin
         weights = ones(length(r))
     end
 
-    counts = Arya.histogram(r, bins, weights=weights, normalization=:none).values
+    counts = histogram(r, bins, weights=weights, normalization=:none).values
 
     Vs = 4π/3 * diff(bins .^ 3)
     return bins, counts ./ Vs

@@ -34,6 +34,17 @@ function write_fits(filename::String, frame::DataFrame;
     end
     df = to_dict(frame)
 
+    try 
+        column_names = ascii.(keys(df))
+    catch e
+        if isa(e, ArgumentError)
+            throw(ArgumentError("Column names must be ASCII"))
+        else
+            rethrow(e)
+        end
+    end
+
+
     FITS(filename, "w") do f
         write(f, df)
     end
@@ -43,6 +54,55 @@ function write_fits(filename::String, frame::DataFrame;
     end
 end
 
+
+
+"""
+    load_hdf5_table(filename, path="/")
+
+Load an HDF5 file and return a DataFrame using the specified path.
+"""
+function load_hdf5_table(filename::String, path="/")
+    df = DataFrame()
+
+    h5open(filename, "r") do f
+        for k in keys(f[path])
+            if k == "Header"
+                continue
+            end
+
+            val = HDF5.read(f[path * "/" * k])
+
+            df[!, k] = val
+        end
+    end
+
+    return df
+end
+
+
+
+"""
+    write_hdf5_table(filename, dataframe; path="/", overwrite=false)
+
+Write a DataFrame to an HDF5 file.
+"""
+function write_hdf5_table(filename::String, frame::DataFrame; path="", overwrite=false)
+    if isfile(filename) && !overwrite
+        throw(ArgumentError("File already exists: $filename"))
+    elseif isfile(filename) && overwrite
+        rm(filename, force=true)
+    end
+
+    for col in names(frame)
+        val = frame[:, col]
+
+        if val isa BitVector
+            val = Int.(val)
+        end
+
+        HDF5.h5write(filename, path * "/" * col, val)
+    end
+end
 
 
 """

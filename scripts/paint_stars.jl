@@ -1,80 +1,101 @@
+#!/usr/bin/env julia
+
 import LilGuys as lguys
 
 using DataFrames
 using HDF5
 
-import StatsBase: percentile
+import Statistics: quantile
 import TOML
 import QuadGK: quadgk
+
+import DensityEstimators
 
 using ArgParse
 
 
 function get_args()
     s = ArgParseSettings(
-        description="Calculate profiles",
+        description="""Paints stars onto a snapshot.
+Based on Rapha's codes which apply Eddingon inversion to determine the 
+distribution function of a snapshot.
+""",
     )
 
     @add_arg_table s begin
         "input"
             help="Input file"
-            default="."
-        "-o", "--output"
-            help="Output file"
-            default="profiles.hdf5"
+            required=true
         "-v", "--verbose"
             help="verbose"
             action="store_true"
-        "-k", "--skip"
-            help="Skip"
-            default=10
-            arg_type=Int
-
     end
 
     args = parse_args(s)
 
-    return args
+    params = load_params(args["input"])
+    return params
 end
 
 
 function main()
-    args = get_args()
-    params = load_params(paramname)
-    profile = load_profile(params)
+    params = get_args()
+    profile = lguys.load_profile(params)
+    snap = load_snap(params)
+    snap_df = snap_to_df(snap, params)
 
-    return 
-
-    snap_og = load_snap(params)
-    snap = filter_and_sort(snap_og)
-
-    # snapshot properties
-    ϕ = calc_phi(snap)
-    ϵ = calc_eps(snap, ϕ)
-    radii = lguys.calc_r(snap)
-    M = calc_M_in(radii, snap.masses, r)
-
+    # radii bins
+    filt = snap_df.filter
+    radii = snap_df.radii[filt]
     r_e = make_radius_bins(radii, params)
     r = lguys.midpoints(r_e)
-
     print_missing(radii, r_e, profile)
 
-    _, ν_dm = lguys.calc_ρ_hist(radii, r_e)[2]
-    ν_dm ./= length(snap)
-    ν_s = max.(lguys.calc_ρ.(profile, r), 0)
+    # density
+    _, nu_dm = lguys.calc_ρ_hist(radii, r_e)
+    nu_dm ./= length(radii)
+    nu_s = max.(lguys.calc_ρ.(profile, r), 0)
+    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s)
 
-    ψ = lguys.lerp(radii, -ϕ).(r)
-    f_dm = lguys.calc_fϵ(ν_dm, ψ, r)
-	f_s = lguys.calc_fϵ(ν_s, ψ, r)
+    # distribution functions
+    ψ = lguys.lerp(radii, -snap_df.phi[filt]).(r)
+    f_dm = lguys.calc_fϵ(nu_dm, ψ, r)
+	f_s = lguys.calc_fϵ(nu_s, ψ, r)
 
     df_E = sample_fs(f_dm, f_s, ψ, params)
 
+    # probabilities
     calc_prob = lguys.lerp(df_E.E, df_E.probs)
-    p = calc_prob.(ϵ)
-    p = normalize_probabilities(ps)
+    prob = calc_prob.(snap_df.eps[filt])
+    prob = normalize_probabilities(prob)
+    snap_df[filt, :probability] = prob
 
-    idx_all, ps_all = sort_and_collect(idx_all, idx, ps)
-    write_stars(idx_all, ps_all, params)
+    # write outputs
+    @info "writing outputs"
+    sort!(snap_df, :index)
+    lguys.write_hdf5_table(params["output_file"] * "_stars.hdf5", snap_df; overwrite=true)
+
+    lguys.write_fits(params["output_file"] * "_density.fits", df_nu)
+    lguys.write_fits(params["output_file"] * "_energy.fits", df_E)
+end
+
+
+"""
+loads in the parameterfile and will 
+automatically populate the centres file and output files
+"""
+function load_params(paramname)
+    params = TOML.parsefile(paramname); 
+
+    if "output_file" ∉ keys(params)
+            params["output_file"] = splitext(paramname)[1]
+    end
+    
+    if "mock_file" ∉ keys(params)
+            params["mock_file"] = splitext(paramname)[1] * "_mock_stars.fits"
+    end
+    
+    params
 end
 
 
@@ -93,8 +114,9 @@ function sample_fs(f_dm, f_s, ψ, params)
     )
 end
 
+
 function normalize_probabilities(ps)
-	print(sum(ps .< 0), " negative probabilities")
+	@info sum(ps .< 0) " negative probabilities"
 	ps[ps .< 0] .= 0
 	ps[isnan.(ps)] .= 0
 	ps ./= sum(ps)
@@ -102,29 +124,9 @@ function normalize_probabilities(ps)
     return ps
 end
 
-
-function sort_and_collect(idx_all, idx, ps)
-    idx_excluded = setdiff(idx_all, idx)
-
-    idx_all_sorted = vcat(idx, idx_excluded)
-	ps_all = vcat(ps, zeros(length(idx_excluded)))
-
-	_sort = sortperm(idx_all_sorted)
-	idx_all_sorted = idx_all_sorted[_sort]
-	ps_all = ps_all[_sort]
-
-    @assert idx_all_sorted == sort(snap_og.index) "index does not match snapshot"
-    @assert maximum(idx_all_sorted) == length(idx_all) "index does not match length"
-    @assert 0 == sum(ps_all[idx_excluded]) "excluded particles have non-zero probability"
-    @assert sum(ps_all) == 1" probability sum is not 1"
-
-    return idx_all_sorted, ps_all
-end
-
-
 function load_snap(params)
     snapname = params["snapshot"]
-	println("loading snap ", snapname)
+	@info "loading snap $snapname"
 	snap_og = lguys.Snapshot(snapname)
 
 	cen = lguys.calc_centre(lguys.StaticState, snap_og)
@@ -132,29 +134,27 @@ function load_snap(params)
 	snap_og.x_cen = cen.position
 	snap_og.v_cen = cen.velocity
 
-	println(cen)
+    @info "adopting centre $(snap_og.x_cen) $(snap_og.v_cen)"
 	
 	snap_og
-
 end
 
 
-function filter_and_sort(snap_og)
-	snap = sort_snapshot(snap_og)
+function snap_to_df(snap, params)
+    snap_df = DataFrame(
+        index = snap.index,
+        radii = lguys.calc_r(snap),
+        phi = calc_phi(snap),
+        probability = 0.0,
+       )
 
-	Φs = calc_phi(snap)
-	ϵs = calc_eps(snap, Φs)
+    snap_df[!, :eps] = calc_eps(snap, snap_df.phi)
+    filt = make_filter(snap_df, params)
+    snap_df[!, :filter] = filt
 
-	radii = lguys.calc_r(snap)
+    sort!(snap_df, :radii)
 
-	filt_snap = make_filter(ϵs, radii, params)
-	snap = snap[filt_snap]
-end
-
-
-function sort_snapshot(snap_i)
-	radii = lguys.calc_r(snap_i)
-	return snap_i[sortperm(radii)]
+    return snap_df
 end
 
 
@@ -172,10 +172,13 @@ function calc_eps(snap, Φs)
 end
 
 
-function make_filter(ϵs, radii, params)
+function make_filter(snap_df, params)
+    ϵs = snap_df.eps
+    radii = snap_df.radii
+
 	filt = ϵs .> 0
-	if "R_t" in keys(params["profile_kwargs"])
-		filt .&= radii .< params["profile_kwargs"]["R_t"]
+    if "R_t" in keys(first(params["profile"])[2])
+        filt .&= radii .< first(params["profile"])[2]["R_t"]
 	end
 	return filt
 end
@@ -202,9 +205,9 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
 		r_e = 10 .^ LinRange(log10.(r_min), log10.(r_max), Nr+1)
 	elseif params["bin_method"] == "equal_number"
 		Nr = params["num_radial_bins"]
-		r_e = percentile(radii, LinRange(0, 100, Nr+1))
+		r_e = quantile(radii, LinRange(0, 1, Nr+1))
 	elseif params["bin_method"] == "both"
-		r_e = 10 .^ Arya.bins_min_width_equal_number(log10.(radii);
+		r_e = 10 .^ DensityEstimators.bins_min_width_equal_number(log10.(radii);
 		dx_min=params["dr_min"], N_per_bin_min=params["N_per_bin_min"], )
 	else
 		error("bin method unknown")
@@ -232,7 +235,7 @@ function print_missing(radii, r_e, profile)
 
 
     r_h = lguys.get_r_h(profile)
-    println(" $(sum(radii .< r_h)) stars within (3D) half-light radius")
+    @info " $(sum(radii .< r_h)) stars within (3D) half-light radius"
 
     ρ_s(r) = lguys.calc_ρ.(profile, r)
 	M_s_tot = 4π * quadgk(r-> r^2 * ρ_s(r), r_min, r_max)[1]
@@ -240,34 +243,12 @@ function print_missing(radii, r_e, profile)
 
 	N_s_out = 1 - M_s(r_e[end])
 	N_s_in = M_s(r_e[1])
-	println("missing $N_s_out stars outside")
-	println("missing $N_s_in stars inside")
+	@info "missing $N_s_out stars outside last bin"
+	@info "missing $N_s_in stars inside first bin"
 end
 
-
-"""
-Writes the stars to an hdf5 file
-"""
-function write_stars()
-	outname = params["output_file"]
-	if isfile(outname)
-		if overwrite
-			rm(outname)
-		else
-			println("file already exists")
-			return
-		end
-	end
-
-
-	h5write(outname, "/index", idx_all)
-	h5write(outname, "/probabilities", ps_all)
-	println("probabilities written to $outname")
-end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
 end
-
-
