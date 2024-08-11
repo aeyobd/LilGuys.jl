@@ -26,9 +26,9 @@ distribution function of a snapshot.
         "input"
             help="Input file"
             required=true
-        "-v", "--verbose"
-            help="verbose"
-            action="store_true"
+        # "-v", "--verbose"
+        #     help="verbose"
+        #     action="store_true"
     end
 
     args = parse_args(s)
@@ -55,7 +55,7 @@ function main()
     _, nu_dm = lguys.calc_ρ_hist(radii, r_e)
     nu_dm ./= length(radii)
     nu_s = max.(lguys.calc_ρ.(profile, r), 0)
-    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s)
+    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_e)/2)
 
     # distribution functions
     ψ = lguys.lerp(radii, -snap_df.phi[filt]).(r)
@@ -99,30 +99,6 @@ function load_params(paramname)
 end
 
 
-function sample_fs(f_dm, f_s, ψ, params)
-    E = make_energy_bins(ψ, params)
-    f_dm_e = f_dm.(E)
-    f_s_e = f_s.(E)
-    probs = f_s_e ./ f_dm_e
-    probs ./= sum(probs .* lguys.gradient(E)) # pdf, dN/dE
-
-    return DataFrame(
-        E=E,
-        f_dm_e=f_dm_e,
-        f_s_e=f_s_e,
-        probs=probs
-    )
-end
-
-
-function normalize_probabilities(ps)
-	@info sum(ps .< 0) " negative probabilities"
-	ps[ps .< 0] .= 0
-	ps[isnan.(ps)] .= 0
-	ps ./= sum(ps)
-
-    return ps
-end
 
 function load_snap(params)
     snapname = params["snapshot"]
@@ -222,6 +198,32 @@ function make_energy_bins(ψ, params)
 	E_max = ψ[1]
 	E_min = ψ[end]
 	E = LinRange(E_min, E_max, params["num_energy_bins"] + 1)
+end
+
+
+function sample_fs(f_dm, f_s, ψ, params)
+    E = make_energy_bins(ψ, params)
+    f_dm_e = f_dm.(E)
+    f_s_e = f_s.(E)
+    probs = f_s_e ./ f_dm_e
+    probs ./= sum(probs .* lguys.gradient(E)) # pdf, dN/dE
+
+    return DataFrame(
+        E=E,
+        f_dm_e=f_dm_e,
+        f_s_e=f_s_e,
+        probs=probs
+    )
+end
+
+
+function normalize_probabilities(ps)
+	@info sum(ps .< 0) " negative probabilities"
+	ps[ps .< 0] .= 0
+	ps[isnan.(ps)] .= 0
+	ps ./= sum(ps)
+
+    return ps
 end
 
 
