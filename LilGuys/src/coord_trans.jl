@@ -326,7 +326,7 @@ function _coordinate_R(frame::GalactocentricFrame)
     α = deg2rad(frame.ra)
     δ = deg2rad(frame.dec)
 
-    return Rx_mat(η) * Ry_mat(δ) * Rz_mat(-α)
+    return Rx_mat(-η) * Ry_mat(δ) * Rz_mat(-α)
 end
 
 
@@ -336,7 +336,7 @@ function _coordinate_R_inv(frame::GalactocentricFrame)
     α = deg2rad(frame.ra)
     δ = deg2rad(frame.dec)
 
-    return Rz_mat(α) * Ry_mat(-δ) * Rx_mat(-η)
+    return Rz_mat(α) * Ry_mat(-δ) * Rx_mat(η)
 end
 
 
