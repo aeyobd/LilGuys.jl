@@ -76,7 +76,7 @@ function unit_vector(ra::Vector{F}, dec::Vector{F}) where F
     x = cosd.(dec) .* cosd.(ra)
     y = cosd.(dec) .* sind.(ra)
     z = sind.(dec)
-    return [x y z]
+    return [x y z]'
 end
 
 

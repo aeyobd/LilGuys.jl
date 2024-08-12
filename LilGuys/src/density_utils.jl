@@ -4,7 +4,7 @@ import LinearAlgebra: diag, dot, norm, normalize
 
 using Measurements
 import DensityEstimators: histogram
-import StatsBase: weights, mean
+import StatsBase: weights, mean, StatsBase
 import TOML
 
 
@@ -44,6 +44,7 @@ An observed 2D density profile
     Gamma_max::Vector{F}
     Gamma_max_err::Vector{F}
 end
+
 
 function Base.print(io::IO, prof::ObsProfile)
     TOML.print(io, struct_to_dict(prof))
@@ -159,16 +160,7 @@ function calc_properties(rs;
 end
 
 
-
-
-
-
-
-
 # Density methods
-
-
-# Σ = h.values ./ (2π * log(10) * r .^ 2) # is equivalent because of derivative of log r
 """
     calc_Σ(log_r_bin, mass_per_annulus)
 
@@ -178,6 +170,7 @@ function calc_Σ(log_r_bin, mass_per_annulus)
     r = 10 .^ log_r_bin
     As = π * diff(r .^ 2)
 
+    # Σ = h.values ./ (2π * log(10) * r .^ 2) # is equivalent because of derivative of log r
     Σ = mass_per_annulus ./ As 
 	return Σ 
 end
@@ -217,9 +210,6 @@ function calc_Γ_max(Σ, Σ_m)
 end
 
 
-
-
-# RELLL
 
 
 """
@@ -339,25 +329,36 @@ function calc_r_max(ra, dec, args...;
     x, y = to_tangent(ra, dec, ra0, dec0)
     x_p, y_p = shear_points_to_ellipse(x, y, args...)
     
-    hull = convex_hull(x_p, y_p)
-    r_max = min_distance_to_polygon(hull...)
+    if isdefined(LilGuys, :convex_hull)
+        hull = convex_hull(x_p, y_p)
+        r_max = min_distance_to_polygon(hull...)
+    else
+        @warn "r_ell: Convex hull not defined. Using max radius. Load Polyhedra to enable convex hull."
+        r_max = maximum(@. sqrt(x_p^2 + y_p^2))
+    end
+
+    return r_max
 end
 
 
 
-"""
-    r_ell_max(xi, eta, ell, PA)
+function min_distance_to_polygon(x, y)
+    min_dist = Inf
+    N = length(x)
+    for i in 1:N
+        a = [x[i], y[i]]
+        j = mod1(i + 1, N)
+        b = [x[j], y[j]]
 
-returns the maximum radius of an ellipse within the convex boundary defined by the points.
+        dist = distance_to_segment(a, b)
 
-Not implemented
-"""
-function r_ell_max(xi, eta, ell, PA)
-    error("not implemented")
+        min_dist = min(min_dist, dist)
+    end
+
+    return min_dist
 end
 
-
-
+    
 """
     distance_to_segment(a, b, p)
 
@@ -397,28 +398,24 @@ function distance_to_segment(a, b, p=zeros(2))
 end
 
 
-function min_distance_to_polygon(x, y)
-    min_dist = Inf
-    N = length(x)
-    for i in 1:N
-        a = [x[i], y[i]]
-        j = mod1(i + 1, N)
-        b = [x[j], y[j]]
 
-        dist = distance_to_segment(a, b)
-
-        min_dist = min(min_dist, dist)
+function spherical_mean(ra, dec, weights=nothing)
+    if length(ra) != length(dec)
+        throw(DimensionMismatch("ra and dec must have the same length."))
     end
 
-    return min_dist
-end
+    pos = unit_vector(ra, dec)
+    if weights === nothing
+        mean_pos = centroid(pos)
+    else
+        mean_pos = centroid(pos, weights)
+    end
 
-    
-
-
-
-function mean_centre(ra, dec, mass)
-	return mean(ra, weights(mass)), mean(dec, weights(mass))
+    ra0, dec0, r= cartesian_to_sky(mean_pos...)
+    if r == 0
+        throw(DomainError("Mean position is at the origin."))
+    end
+    return ra0, dec0
 end
 
 
@@ -431,7 +428,7 @@ function calc_centre2D(ra, dec, centre_method, weights=nothing)
         weights = ones(length(ra))
     end
 	if centre_method == "mean"
-		ra0, dec0 = mean_centre(ra, dec, weights)
+		ra0, dec0 = spherical_mean(ra, dec, weights)
     else
         error("centre method not implemented: $centre_method")
 	end
