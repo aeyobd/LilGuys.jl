@@ -44,7 +44,7 @@ include("density_utils.jl")
 
 include("centres/Centres.jl")
 
-#include("agama_interface.jl")
+include("agama_interface.jl")
 
 
 function __init__()
