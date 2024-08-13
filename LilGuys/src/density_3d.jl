@@ -385,7 +385,52 @@ function get_M_h(output::Output, radius; idxs=(1:10:length(output)))
 end
 
 
+"""
+    to_gaia(snap; params...)
 
+Converts a snapshot to a Gaia-like DataFrame.
+"""
+function to_gaia(snap::Snapshot; p_min=1e-20, filt_bound=false, add_centre=true, kwargs...)
+    add_weights = !(snap.weights isa ConstVector)
+
+    if !add_weights
+        filt = trues(length(snap))
+    else
+        filt = snap.weights .>= p_min * maximum(snap.weights)
+    end
+
+    if filt_bound
+        filt .&= get_bound(snap)
+    end
+
+    @info "Converting $(sum(filt)) particles to Gaia-like DataFrame"
+
+    observations = to_sky(snap[filt]; kwargs...)
+    obs_cen = phase_to_sky(snap.x_cen, snap.v_cen; kwargs...)
+
+    df = to_frame(observations)
+    df[!, :index] = snap.index[filt]
+
+
+    if add_weights
+        df[!, :weights] = snap.weights[filt]
+    end
+
+    if add_centre
+        df_cen = to_frame([obs_cen])
+        df_cen[!, :index] = [0]
+        if add_weights
+            df_cen[!, :weights] = [0]
+        end
+        df = vcat(df_cen, df)
+    end
+
+    df[!, :xi], df[!, :eta] = to_tangent(df.ra, df.dec, obs_cen.ra, obs_cen.dec)
+
+    df[!, :r_ell] = 60*calc_r_ell(df.xi, df.eta, 0, 0)
+
+    return df
+end
 
 
 """
@@ -405,54 +450,40 @@ add_centre : Bool
     If true, adds the centre of the snapshot as an observation
 """
 function to_sky(snap::Snapshot; 
-        invert_velocity::Bool=false, verbose::Bool=false,
-        SkyFrame = ICRS, add_centre=false
+        verbose::Bool=false,
+        SkyFrame=ICRS,
+        kwargs...
     )
-    observations = SkyFrame[]
+    observations = Vector{SkyFrame}(undef, length(snap))
 
     for i in 1:length(snap)
         if verbose
             print("converting $(i)/($(length(snap))\r")
         end
 
-        pos = snap.positions[:, i] * R2KPC
-        vel = snap.velocities[:, i] * V2KMS
-        if invert_velocity
-            vel *=-1
-        end
-        gc = Galactocentric(pos, vel)
-        obs = transform(SkyFrame, gc)
-        push!(observations, obs)
+        pos = snap.positions[:, i]
+        vel = snap.velocities[:, i]
+        obs = phase_to_sky(pos, vel; SkyFrame, kwargs...)
+        observations[i] = obs
     end
 
 
-    df = to_frame(observations)
+    return observations
+end
 
-    df[!, :index] = snap.index
 
-    add_weights = !(snap.weights isa ConstVector)
-    if add_weights
-        df[!, :weights] = snap.weights
+
+"""
+Converts a phase space position and velocity (i.e. simulation point) to a sky observation.
+"""
+function phase_to_sky(pos::Vector{F}, vel::Vector{F}; invert_velocity=false, SkyFrame=ICRS)
+    if invert_velocity
+        vel *=-1
     end
 
-    if add_centre
-        pos = snap.x_cen * R2KPC
-        vel = snap.v_cen * V2KMS
-        if invert_velocity
-            vel *=-1
-        end
-        gc = Galactocentric(pos, vel)
-        obs = transform(SkyFrame, gc)
-        df1 = to_frame([obs])
-        df1[!, :index] = [0]
-        if add_weights
-            df1[!, :weights] = [0]
-        end
-
-        df = vcat(df1, df)
-    end
-
-    return df
+    gc = Galactocentric(pos*R2KPC, vel*V2KMS)
+    obs = transform(SkyFrame, gc)
+    return obs
 end
 
 
@@ -465,7 +496,13 @@ function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
     cols = propertynames(obs[1])
     df = DataFrame()
     for col in cols
-        df[!, Symbol(col)] = getproperty.(obs, col)
+        val = getproperty.(obs, col)
+        
+        if val[1] isa Union{Real, String}
+            df[!, Symbol(col)] = val
+        else
+            @info "Skipping column $col"
+        end 
     end
 
     return df
