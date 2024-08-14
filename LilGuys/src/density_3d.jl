@@ -117,7 +117,9 @@ function ObsProfile3D(filename::String)
     return ObsProfile3D(;t...)
 end
 
-
+"""
+    calc_profile(snap)
+"""
 function calc_profile(snap::Snapshot;
         bins=100,
         filt_bound=true,
@@ -250,7 +252,6 @@ end
 
 
 
-
 """ 
 	calc_v_rad(snap)
 
@@ -366,6 +367,11 @@ end
 
 
 
+"""
+    calc_M_h(output, radius; idxs=(1:10:length(output)))
+
+Calculates the number of particles within a given radius for a set of snapshots.
+"""
 function get_M_h(output::Output, radius; idxs=(1:10:length(output)))
 	N = length(idxs)
 	M = Vector{Float64}(undef, N)
@@ -389,6 +395,16 @@ end
     to_gaia(snap; params...)
 
 Converts a snapshot to a Gaia-like DataFrame.
+
+
+# Arguments
+- `p_min::Float=1e-20`: Minimum probability (relative to maximum) for stars to be included
+- `filt_bound::Bool=false`: If true, only bound particles are included
+- `add_centre::Bool=true`: If true, adds the centre of the snapshot as the first observation (with zero weight)
+## Arguments for `to_sky`
+- `SkyFrame::CoordinateFrame=ICRS`: The frame to convert the observations to
+- `invert_velocity::Bool=false`: If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
+
 """
 function to_gaia(snap::Snapshot; p_min=1e-20, filt_bound=false, add_centre=true, kwargs...)
     add_weights = !(snap.weights isa ConstVector)
@@ -438,16 +454,11 @@ end
 
 Returns a list of observations based on snapshot particles. 
 
-Parameters
-----------
-invert_velocity : Bool
-    If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
-verbose : Bool
-    If true, prints the progress of the conversion
-SkyFrame : CoordinateFrame
-    The frame to convert the observations to
-add_centre : Bool
-    If true, adds the centre of the snapshot as an observation
+# Arguments
+- `verbose::Bool=false`: If true, prints the progress
+- `SkyFrame::CoordinateFrame=ICRS`: The frame to convert the observations to
+- `invert_velocity::Bool=false`: If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
+- `kwargs...`: Additional arguments for `phase_to_sky`
 """
 function to_sky(snap::Snapshot; 
         verbose::Bool=false,
@@ -474,7 +485,12 @@ end
 
 
 """
+    phase_to_sky(pos, vel; invert_velocity=false, SkyFrame=ICRS)
 Converts a phase space position and velocity (i.e. simulation point) to a sky observation.
+
+# Arguments
+- `invert_velocity::Bool=false`: If true, the velocity is inverted. Useful for when time is backward(e.g. orbital analysis)
+- `SkyFrame::CoordinateFrame=ICRS`: The frame to convert the observations to
 """
 function phase_to_sky(pos::Vector{F}, vel::Vector{F}; invert_velocity=false, SkyFrame=ICRS)
     if invert_velocity
