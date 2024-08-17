@@ -167,7 +167,7 @@ end
 Calculate the surface density given the radii `log_r_bin` and the mass per annuli `mass_per_annulus`.
 """
 function calc_Σ(log_r_bin, mass_per_annulus)
-    r = 10 .^ log_r_bin
+    r = 10. .^ log_r_bin
     As = π * diff(r .^ 2)
 
     # Σ = h.values ./ (2π * log(10) * r .^ 2) # is equivalent because of derivative of log r

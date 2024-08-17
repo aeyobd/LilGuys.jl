@@ -17,16 +17,21 @@ function AgamaPotential(; kwargs...)
     ptr = @ccall _agama.agama_createPotential(args::Cstring)::Ptr{Cvoid}
 
     if ptr == C_NULL
-        raise_agama_error()
+        throw_agama_error()
     end
 
-    # need preserve to avoid segfault
-    return @GC.preserve AgamaPotential(ptr)
+    return AgamaPotential(ptr)
+end
+
+
+function Base.finalize(pot::AgamaPotential)
+    @info "Finalizing potential"
+    @ccall _agama.agama_deletePotential(pot._ptr::Ptr{Cvoid})::Cvoid
 end
 
 
 
-function raise_agama_error()
+function throw_agama_error()
     message = @ccall _agama.agama_getError()::Cstring
     message = unsafe_string(message)
     error("Agama error: $message")
@@ -34,32 +39,47 @@ end
 
 
 """
-    get_Φ(pot, pos, time)
+    calc_Φ(pot, pos, time)
 
 Compute the potential at a given position and time.
 """
-function get_Φ(pot::AgamaPotential, pos::Vector{Float64}, time::Float64)
+function calc_Φ(pot::AgamaPotential, pos::Vector{Float64}, time::Float64)
+    if length(pos) != 3
+        throw(ArgumentError("Position must be a 3-element vector"))
+    end
+    if pot._ptr == C_NULL
+        throw(ArgumentError("Potential has been finalized"))
+    end
+
+
     deriv = zeros(3)
     deriv2 = zeros(3)
 
-    result = @ccall _agama.agama_evalPotential(pot._ptr::Ptr{Cvoid}, pos::Ptr{Cdouble}, time::Cdouble, deriv::Ptr{Cdouble}, deriv2::Ptr{Cdouble})::Cdouble
+    result = GC.@preserve pot deriv deriv2 @ccall _agama.agama_evalPotential(pot._ptr::Ptr{Cvoid}, pos::Ptr{Cdouble}, time::Cdouble, deriv::Ptr{Cdouble}, deriv2::Ptr{Cdouble})::Cdouble
 
     return result
 end
 
 
 """
-    get_ρ(pot, pos[, time])
+    calc_ρ(pot, pos[, time])
 
 Compute the density at a given position and time.
 """
-function get_ρ(pot::AgamaPotential, pos::Vector{Float64}, time::Float64=0.)
+function calc_ρ(pot::AgamaPotential, pos::Vector{Float64}, time::Float64=0.)
+    if length(pos) != 3
+        throw(ArgumentError("Position must be a 3-element vector"))
+    end
+    if pot._ptr == C_NULL
+        throw(ArgumentError("Potential has been finalized"))
+    end
+
     result = @ccall _agama.agama_evalDensity(pot._ptr::Ptr{Cvoid}, pos::Ptr{Cdouble}, time::Cdouble)::Cdouble
 
     return result
 end
 
-function get_R_circ(pot::AgamaPotential, E::Float64)
+function calc_R_circ(pot::AgamaPotential, E::Float64)
     result = @ccall _agama.agama_R_circ(pot._ptr::Ptr{Cvoid}, E::Cdouble)::Cdouble
 
     return result
@@ -73,7 +93,7 @@ function R_from_Lz(pot::AgamaPotential, Lz::Float64)
 end
 
 
-function get_R_max(pot::AgamaPotential, E::Float64)
+function calc_R_max(pot::AgamaPotential, E::Float64)
     result = @ccall _agama.agama_Rmax(pot._ptr::Ptr{Cvoid})::Cdouble
 
     return result

@@ -35,7 +35,7 @@ end
 
 @testset "NFW potential" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
-    @test lguys.calc_Φ(nfw, 0) === -Inf
+    @test lguys.calc_Φ(nfw, 0) == -1
 
 end
 
