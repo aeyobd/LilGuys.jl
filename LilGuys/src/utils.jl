@@ -245,4 +245,32 @@ end
 
 
 
+"""
+    sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
 
+Randomly draws N samples from a Density profile given by the finction f.
+"""
+function sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
+    if log_r == nothing
+        log_r = LinRange(-5, 5, 1000)
+    end
+
+    r = exp10.(log_r)
+    Σ = f.(r)
+
+    if any(Σ .< 0)
+        throw(ArgumentError("Σ must be positive"))
+    end
+    if any(.! isfinite.(Σ))
+        throw(ArgumentError("Σ must be finite"))
+    end
+
+
+    M = cumsum(Σ .* π .* r .* gradient(r))
+    M = M ./ M[end]
+
+    l = lerp([0; M], [0; r])
+
+    probs = rand(N)
+    return l.(probs)
+end

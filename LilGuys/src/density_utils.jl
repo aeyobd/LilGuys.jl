@@ -21,9 +21,10 @@ F = Float64
 An observed 2D density profile
 """
 @kwdef mutable struct ObsProfile
+    r_units::String
+
     log_r::Vector{F}
     log_r_bins::Vector{F}
-    r_units::String
     counts::Vector{F}
 
     mass_in_annulus::Vector{F}
@@ -211,66 +212,7 @@ end
 
 
 
-
-"""
-    calc_r_ell(x, y, a, [b, ]PA)
-
-computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
-If using sky coordinates, x and y should be tangent coordinates.
-
-Note that the position angle is the astronomy definition, i.e. measured from the North to the East (clockwise) in xi / eta.
-"""
-function calc_r_ell(x, y, args...)
-    x_p, y_p = shear_points_to_ellipse(x, y, args...)
-
-	r_sq = @. (x_p)^2 + (y_p)^2
-	return sqrt.(r_sq)
-end
-
-
-
-"""
-Transforms x and y into the sheared rotated frame of the ellipse.
-Position angle is measured from y axis in the direction of positive x.
-"""
-function shear_points_to_ellipse(x, y, a, b, PA)
-    θ = @. deg2rad(PA - 90)
-	x_p = @. x * cos(θ) + -y * sin(θ)
-	y_p = @. x * sin(θ) + y * cos(θ)
-    # scale
-    x_p ./= a
-    y_p ./= b
-
-    return x_p, y_p
-end
-
-function shear_points_to_ellipse(x, y, ell, PA)
-    aspect = ellipticity_to_aspect(ell)
-    b = sqrt(aspect)
-    a = 1/b
-    return shear_points_to_ellipse(x, y, a, b, PA)
-end
-
-"""
-    calc_r_ell(x, y, ell, PA)
-
-Calculates the elliptical radius 
-"""
-function calc_r_ell(x, y, ell, PA)
-    aspect = ellipticity_to_aspect(ell)
-    b = sqrt(aspect)
-    a = 1/b
-    return calc_r_ell(x, y, a, b, PA)
-end
-
-
-
-function calc_r_ell_sky(ra, dec, ell, PA; kwargs...)
-    aspect = ellipticity_to_aspect(ell)
-    b = sqrt(aspect)
-    a = 1/b
-    return calc_r_ell_sky(ra, dec, a, b, PA; kwargs...)
-end
+# Utility functions
 
 
 """
@@ -308,33 +250,96 @@ function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
     return r_ell
 end
 
+function calc_r_ell_sky(ra, dec, ell, PA; kwargs...)
+    aspect = ellipticity_to_aspect(ell)
+    b = sqrt(aspect)
+    a = 1/b
+    return calc_r_ell_sky(ra, dec, a, b, PA; kwargs...)
+end
 
 function calc_r_ell_sky(ra, dec; kwargs...)
     return calc_r_ell_sky(ra, dec, 0, 0; kwargs...)
 end
 
 
+"""
+    calc_r_ell(x, y, a, [b, ]PA)
+
+computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
+If using sky coordinates, x and y should be tangent coordinates.
+
+Note that the position angle is the astronomy definition, i.e. measured from the North to the East (clockwise) in xi / eta.
+"""
+function calc_r_ell(x, y, args...)
+    x_p, y_p = shear_points_to_ellipse(x, y, args...)
+
+	r_sq = @. (x_p)^2 + (y_p)^2
+	return sqrt.(r_sq)
+end
+
+
+
+"""
+    shear_points_to_ellipse(x, y, a, b, PA)
+
+Transforms x and y into the sheared rotated frame of the ellipse.
+Position angle is measured from y axis in the direction of positive x.
+"""
+function shear_points_to_ellipse(x, y, a, b, PA)
+    if a <= 0 || b <= 0
+        throw(DomainError("a and b must be positive. Got a = $a, b = $b."))
+    end
+
+    θ = @. deg2rad(PA - 90)
+	x_p = @. x * cos(θ) + -y * sin(θ)
+	y_p = @. x * sin(θ) + y * cos(θ)
+    # scale
+    x_p = x_p ./ a
+    y_p = y_p ./ b
+
+    return x_p, y_p
+end
+
+function shear_points_to_ellipse(x, y, ell, PA)
+    aspect = ellipticity_to_aspect(ell)
+    b = sqrt(aspect)
+    a = 1/b
+    return shear_points_to_ellipse(x, y, a, b, PA)
+end
+
+
+
+"""
+    calc_r_max(ra, dec, args...; centre="mean", weights=nothing)
+
+
+"""
 function calc_r_max(ra, dec, args...; 
         centre="mean",
-        units="arcmin",
         weights=nothing
     )
 
-    if centre isa Tuple
-        ra0, dec0 = centre
-    else
-        ra0, dec0 = calc_centre2D(ra, dec, centre, weights)
-    end
+    ra0, dec0 = calc_centre2D(ra, dec, centre, weights)
 
     x, y = to_tangent(ra, dec, ra0, dec0)
     x_p, y_p = shear_points_to_ellipse(x, y, args...)
+
+    if length(args) == 3
+        a, b, _ = args
+        aspect = b/a
+        if aspect < 1
+            aspect = 1/aspect
+        end
+    else
+        aspect = ellipticity_to_aspect(args[1])
+    end
     
     if isdefined(LilGuys, :convex_hull)
         hull = convex_hull(x_p, y_p)
         r_max = min_distance_to_polygon(hull...)
     else
         @warn "r_ell: Convex hull not defined. Using max radius. Load Polyhedra to enable convex hull."
-        r_max = maximum(@. sqrt(x_p^2 + y_p^2))
+        r_max = maximum(@. sqrt(x^2 + y^2)) ./ sqrt(aspect)
     end
 
     return r_max
@@ -424,11 +429,10 @@ end
 Calculates the 2d centre givin data.
 """
 function calc_centre2D(ra, dec, centre_method, weights=nothing)
-    if weights === nothing
-        weights = ones(length(ra))
-    end
 	if centre_method == "mean"
 		ra0, dec0 = spherical_mean(ra, dec, weights)
+    elseif centre_method isa Tuple
+        ra0, dec0 = centre_method
     else
         error("centre method not implemented: $centre_method")
 	end

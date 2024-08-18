@@ -280,3 +280,32 @@ end
 
 
 
+@testset "sample_Σ" begin
+    @testset "uniform" begin
+        low = 0.1
+        high = 1
+
+        f(x) = low < x < high ? 1/x : 0
+
+        N = 1000
+
+        r = lguys.sample_Σ(f, N)
+        @test minimum(r) ≈ low atol=0.03
+        @test maximum(r) ≈ high atol=0.03
+        @test lguys.mean(r) ≈ (low + high) / 2 atol=0.02
+        @test lguys.std(r) ≈ (high - low) / sqrt(12) atol=0.05
+    end
+
+
+    @testset "constant" begin
+        f(x) = 1
+        N = 1000
+        log_r = log10.(LinRange(0, 1, N))
+        r = lguys.sample_Σ(f, N, log_r=log_r)
+        @test minimum(r) ≈ 0 atol=0.03
+        @test maximum(r) ≈ 1 atol=0.03
+        @test lguys.mean(r) ≈ 2/3 atol=0.03
+        @test lguys.std(r) ≈ 1/4 atol=0.03
+    end
+
+end
