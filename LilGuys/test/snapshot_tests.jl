@@ -1,4 +1,5 @@
 
+tdir = mktempdir()
 
 function assert_equal(a::Snapshot, b::Snapshot)
     for attr in fieldnames(Snapshot)
@@ -19,7 +20,7 @@ end
     Φ_ext = -rand(N)
     m = lguys.ConstVector(0.1, N)
     h=rand()
-    filename = "test.hdf5"
+    filename = joinpath(tdir, "test.hdf5")
     header = lguys.make_default_header(N, m[1])
 
     snap = Snapshot(masses=m, positions=pos, velocities=vel,
@@ -41,7 +42,7 @@ end
 
 
 function load_snap()
-    return Snapshot("test.hdf5")
+    return Snapshot(joinpath(tdir, "test.hdf5"))
 end
 
 
@@ -79,7 +80,7 @@ end
 
 # Test for getting and setting header attributes in an HDF5 file
 @testset "HDF5 Header Get/Set" begin
-    testfile = "test_header.h5"
+    testfile = joinpath(tdir, "test_header.hdf5")
     N = 100
     m = 1.0
 
@@ -99,7 +100,7 @@ end
 
 # Test for getting and setting vectors in an HDF5 file
 @testset "HDF5 Vector Get/Set" begin
-    testfile = "test_vector.h5"
+    testfile = joinpath(tdir, "test_vector.hdf5")
     vector_key = "Velocity"
     vector_val = [1.0, 2.0, 3.0]
 

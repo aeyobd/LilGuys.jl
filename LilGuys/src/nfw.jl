@@ -12,10 +12,11 @@ A Navarro-Frenk-White profile. The density profile is given by
 
 where M_s is the total mass, and r_s is the scale radius.
 The profile may be specified in terms of 
-- M_s, r_s. The scale mass and scale radius
-- M200, c. The 
+- M_s, r_s
+- M200, c
 - M200, r_s
 - v_circ_max, r_circ_max
+where v_circ_max is the maximum circular velocity, and r_circ_max is the radius at which it occurs; M200 is the mass within the virial radius, and c is the concentration parameter. 
 """
 struct NFW <: AbstractProfile
     M_s::Float64
@@ -23,37 +24,61 @@ struct NFW <: AbstractProfile
     c::Union{Nothing, Float64}
 end
 
-function NFW(; M_s=nothing, r_s=nothing, c=nothing, M200=nothing, R200=nothing,
-    v_circ_max=nothing, r_circ_max=nothing)
+function NFW(; c=nothing, kwargs...)
+    arg_names = Set(keys(kwargs))
+    valid_kwargs = [:M_s, :r_s, :M200, :v_circ_max, :r_circ_max]
 
-    if (M200 !== nothing) 
-        R200 = calc_R200(M200)
-        if r_s !== nothing
-            c = r_s / R200
-        elseif c !== nothing
-            r_s = R200 / c
+    for arg in arg_names
+        if !(arg ∈ valid_kwargs)
+            throw(ArgumentError("Invalid keyword argument, $arg"))
         end
-        M_s = M200 / A_NFW(c)
     end
 
-
-    if (v_circ_max !== nothing) && (r_circ_max !== nothing)
-        M_s = v_circ_max^2 * r_circ_max / G / A_NFW(α_nfw)
-        r_s = r_circ_max / α_nfw
+    if arg_names == Set([:M_s, :r_s])
+        M_s, r_s = kwargs[:M_s], kwargs[:r_s]
+    elseif (arg_names == Set([:M200]) ) && (c !== nothing)
+        M200 = kwargs[:M200]
+        M_s, r_s = _NFW_from_M200_c(M200, c)
+    elseif arg_names == Set([:M200, :r_s])
+        M200, r_s = kwargs[:M200], kwargs[:r_s]
+        M_s, r_s = _NFW_from_M200_r_s(M200, r_s; c=c)
+        c = calc_R200(M200) / r_s
+    elseif arg_names == Set([:v_circ_max, :r_circ_max])
+        v_circ_max, r_circ_max = kwargs[:v_circ_max], kwargs[:r_circ_max]
+        M_s, r_s = _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
+    else
+        throw(ArgumentError("Invalid keyword argument combination: $arg_names"))
     end
 
-    if (M_s === nothing) || (r_s === nothing)
-        error("Either M_s and r_s must be given, or M200 and R200, or v_circ_max and r_circ_max")
-    end
-
-
-    if c == nothing
+    if c === nothing
         c = calc_c(NFW(M_s, r_s, nothing))
     end
+
     return NFW(M_s, r_s, c)
 end
 
 
+function _NFW_from_M200_c(M200, c)
+    R200 = calc_R200(M200)
+    r_s = R200 / c
+    M_s = M200 / A_NFW(c)
+    return M_s, r_s
+end
+
+function _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
+    M_s = v_circ_max^2 * r_circ_max / G / A_NFW(α_nfw)
+    r_s = r_circ_max / α_nfw
+    return M_s, r_s
+end
+
+
+function _NFW_from_M200_r_s(M200, r_s; c=nothing)
+    if c === nothing
+        c = calc_R200(M200) / r_s
+    end
+    M_s = M200 / A_NFW(c)
+    return M_s, r_s
+end
 
 
 
@@ -115,10 +140,12 @@ function calc_Φ(profile::NFW, r::Real)
     Φ_0 = -G * profile.M_s / profile.r_s
     x = r / profile.r_s
 
-    if r < 0
+    if (r < 0 )
         throw(DomainError(r, "r must be positive"))
     elseif x == 0 
-        return Φ_0
+        return Φ_0 # limiting case
+    elseif x === Inf
+        return 0.
     end
 
     return Φ_0 * log1p(x) / x
@@ -144,7 +171,7 @@ NFW concentration parameter = r_s / r_200
 """
 function calc_c(profile::NFW; tol=1e-3)
     f(c) = 200ρ_crit - calc_ρ_mean(profile, c * profile.r_s)
-    c = find_zero(f, 10)
+    c = find_zero(f, [0.1, 1000])
 
     if abs(f(c)) > tol
         error("failed to solve for c")
@@ -223,7 +250,10 @@ module Ludlow
 
 
     """
-    Calculates the approximate concentration of a halo given the initial mass and redshift using the n-body fit from @ludlow2016
+        c_ludlow(M, z)
+
+        Calculates the approximate concentration of a halo given the initial
+        mass (M200) and redshift using the n-body fit from @ludlow2016
     """
     function c_ludlow(M, z)
         x = ν(M * M2MSUN, z)/ν_0(z)
@@ -236,7 +266,10 @@ module Ludlow
     """
         solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000])
 
-    Solves for the mass and concentration of a halo given the maximum circular velocity. Calls Roots.find_zero to solve for the mass on the given interval and can apply a multiplicative factor `δlogc` to the concentration parameter.
+    Solves for the mass and concentration of a halo given the maximum circular
+    velocity. Calls Roots.find_zero to solve for the mass on the given interval
+    and can apply a multiplicative factor `δlogc` to the concentration
+    parameter.
 
     See also [`c_ludlow`](@ref), [`solve_rmax`](@ref)
     """
@@ -252,10 +285,13 @@ module Ludlow
     """
     solve_rm(Vcmax, δlogc=0; kwargs...)
 
-    Solves for the radius of maximum circular velocity given the maximum circular velocity
+    Solves for the radius of maximum circular velocity given the maximum
+    circular velocity in code units and an optional offset to the concentration mass
+    relation, `δlogc`. Calls `solve_M200_c` to solve for the mass and
+    concentration of the halo, passing along kwargs.
     """
-    function solve_rmax(Vcmax, δlogc=0; kwargs...)
-        M200, c = solve_M200_c(Vcmax, δlogc; kwargs...)
+    function solve_rmax(v_circ_max, δlogc=0; kwargs...)
+        M200, c = solve_M200_c(v_circ_max, δlogc; kwargs...)
         return calc_r_circ_max(NFW(M200=M200, c=c))
     end
 

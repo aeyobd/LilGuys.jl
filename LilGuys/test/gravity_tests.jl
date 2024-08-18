@@ -89,7 +89,7 @@ end
         end
     end
 
-    @test Φs ≈ Φ_exp
+    @test Φs ≈ Φ_exp rtol=1e-10
 end
 
 
@@ -160,7 +160,7 @@ end
     radii = lguys.calc_r(snap)
     actual = [interp(r) for r in radii]
 
-    @test phis ≈ actual
+    @test phis ≈ actual rtol = 1e-10
 end
 
 

@@ -1,3 +1,5 @@
+tdir = mktempdir()
+
 @testset "write_fits & load_fits" begin
 
     @testset "simple" begin
@@ -9,10 +11,10 @@
         df[!, Symbol("nasty test")] = [true, false, true]
         
         # write to fits
-        lguys.write_fits("test.fits", df)
+        lguys.write_fits(joinpath(tdir, "test.fits"), df)
 
         # read from fits
-        df2 = lguys.load_fits("test.fits")
+        df2 = lguys.load_fits(joinpath(tdir, "test.fits"))
 
 
         # check if the two dataframes are equal
@@ -26,7 +28,7 @@
             α = [1,2]
         )
 
-        @test_throws ArgumentError lguys.write_fits("test.fits", df)
+        @test_throws ArgumentError lguys.write_fits(joinpath(tdir, "test.fits"), df)
     end
 
 
@@ -42,7 +44,7 @@ end
         )
         df[!, Symbol("nasty test")] = [true, false, true]
         
-        filename = "test.hdf5"
+        filename = joinpath(tdir, "test.hdf5")
 
         # write to fits
         lguys.write_hdf5_table(filename, df, overwrite=true)
