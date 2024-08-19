@@ -8,6 +8,58 @@ test_profiles = [
 
 import TOML
 
+
+@testset "Exp2D Σ" begin
+    M = 1
+    r_s = 1
+    profile = lguys.Exp2D(M, r_s)
+
+    @test lguys.calc_Σ(profile, 0) ≈ 1 / 2π * M / r_s^2
+    @test lguys.calc_Σ(profile, r_s) ≈ exp(-1) / 2π * M / r_s^2
+    @test lguys.calc_Σ(profile, 2r_s) ≈ exp(-2) / 2π * M / r_s^2
+    @test lguys.calc_Σ(profile, Inf) ≈ 0
+end
+
+
+@testset "Exp3D ρ" begin
+    M = 1
+    r_s = 1
+
+    profile = lguys.Exp3D(M, r_s)
+    
+    ρ0 = 1 / 4π * M / r_s^3
+    @test lguys.calc_ρ(profile, 0) ≈ ρ0 broken=true
+
+end
+
+
+@testset "log cusp 2D Σ" begin
+    M = 1
+    R_s = 1
+
+    profile = lguys.LogCusp2D(M, R_s)
+
+    @test lguys.calc_Σ(profile, 0) ≈ Inf
+    @test lguys.calc_Σ(profile, R_s) ≈ 0 broken=true
+end
+
+
+@testset "King" begin
+    M = 1
+    r_s = 1
+    r_t = 2
+    profile = lguys.KingProfile(1, 1, r_t)
+
+    @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2 / 2π
+
+    @test lguys.calc_Σ(profile, r_t) ≈ 0
+    @test lguys.calc_Σ(profile, 1.2*r_t) ≈ 0
+    @test lguys.calc_Σ(profile, Inf) ≈ 0
+
+    @test lguys.calc_M_2D(profile, r_t) ≈ profile.M rtol=1e-10 broken=true
+
+end
+
 @testset "total mass" begin
     for profile in test_profiles
         @test lguys.calc_M(profile, 100.0) ≈ profile.M
@@ -33,11 +85,25 @@ end
         eps = 1e-6
         Σ(R) = lguys.quadgk(r -> integrand(r, R), R*(1+eps), Inf)[1]
 
-        @test lguys.calc_Σ.([profile], x) ≈ Σ.(x) rtol=1e-3
+        @test lguys.calc_Σ.(profile, x) ≈ Σ.(x) rtol=1e-3
     end
 end
 
 
+@testset "calc_R_h" begin
+    for profile in test_profiles
+        R_h = lguys.calc_R_h(profile)
+        @test lguys.calc_M_2D(profile, R_h) ./ profile.M ≈ 0.5 rtol=1e-3
+    end
+end
+
+
+@testset "calc_r_h" begin
+    for profile in test_profiles
+        r_h = lguys.calc_r_h(profile)
+        @test lguys.calc_M(profile, r_h) ./ profile.M ≈ 0.5 rtol=1e-3
+    end
+end
 
 @testset "load profile" begin
 
@@ -50,7 +116,7 @@ end
         @test prof.R_s == 2.0
         @test prof.M == 1.5
 
-        filename = "test_profile.json"
+        filename = "test_profile.toml"
         open(filename, "w") do io
             TOML.print(io, d)
         end
@@ -68,7 +134,7 @@ end
         @test prof.R_s == 0.1
         @test prof.M == 1.2
 
-        filename = "test_profile.json"
+        filename = "test_profile.toml"
         open(filename, "w") do io
             TOML.print(io, d)
         end

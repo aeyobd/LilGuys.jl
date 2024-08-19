@@ -181,8 +181,8 @@ function calc_c(profile::NFW; tol=1e-3)
 end
 
 
-function calc_c(M200::Real, R200::Real)
-    return R200 / calc_R200(M200)
+function calc_c(M200::Real, r_s::Real)
+    return calc_R200(M200) / r_s
 end
 
 

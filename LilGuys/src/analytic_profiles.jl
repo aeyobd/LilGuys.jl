@@ -6,6 +6,7 @@ import Base: @kwdef
 import SpecialFunctions: besselk
 import ForwardDiff: derivative
 import TOML
+import Roots: find_zero
 
 
 abstract type AbstractProfile end
@@ -15,7 +16,6 @@ Base.Broadcast.broadcastable(p::AbstractProfile) = Ref(p)
 
 const RECOGNIZED_PROFILES = (
     :Plummer,
-    :Sersic,
     :Exp2D,
     :Exp3D,
     :LogCusp2D,
@@ -117,13 +117,6 @@ function calc_v_circ end
 end
 
 
-@kwdef struct Sersic <: AbstractProfile
-    n::Float64 = 1
-    M::Float64 = 1
-    r_s::Float64 = 1
-end
-
-
 
 """
     Exp2D(M, R_s)
@@ -173,7 +166,7 @@ end
 A King profile. The density profile is given by
 
 ```math
-ρ(R) = ρ_0 * [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
+\rho(R) = \rho_0 * [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
 ```
 
 where M is the (approximate) total mass, `R_s` is the core radius, and `R_t` is
@@ -191,11 +184,11 @@ function get_Σ_s(profile::Exp2D)
     return profile.M / (2π * profile.R_s^2)
 end
 
-function get_R_h(profile::Exp2D)
+function calc_R_h(profile::Exp2D)
     return 1.67835 * profile.R_s
 end
 
-function get_r_h(profile::Exp2D)
+function calc_r_h(profile::Exp2D)
     r_h_over_r_s = 2.2235172865036716
     return r_h_over_r_s * profile.R_s
 end
@@ -274,7 +267,6 @@ function calc_Σ(profile::LogCusp2D, r::Real)
 end
 
 
-
 function calc_Σ(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0
@@ -287,27 +279,6 @@ function calc_Σ(profile::KingProfile, r::Real)
         (1 + x^2)^(-1/2) 
         - (1 + x_t^2)^(-1/2)
        )^2
-end
-
-
-function calc_ρ(profile::KingProfile, r::Real)
-    if r > profile.R_t
-        return 0
-    end
-    M, Rs, Rt = profile.M, profile.R_s, profile.R_t
-    Σ_s = M / (2π * Rs^2)
-
-    ρ = -1/2 * (
-            π*sqrt(Rs^2 + r^2)*Rs^4*sqrt((Rs^2 + Rt^2)/Rs^2) 
-            - 4*Rs^5
-            - 4*Rs^3*r^2
-       )/(Rs^2 * (
-            Rs^4*sqrt((Rs^2 + Rt^2)/Rs^2) 
-            + 2*Rs^2*r^2*sqrt((Rs^2 + Rt^2)/Rs^2)
-            + r^4*sqrt((Rs^2 + Rt^2)/Rs^2)
-           ))
-
-    return (-1/π * Σ_s)* ρ
 end
 
 
@@ -340,3 +311,11 @@ function calc_ρ_from_Σ(profile::AbstractProfile, r::Real)
     return -1/π * quadgk(integrand, r, Inf)[1]
 end
 
+
+function calc_r_h(profile::AbstractProfile)
+    return find_zero(r -> calc_M(profile, r) / profile.M - 1/2, 1)
+end
+
+function calc_R_h(profile::AbstractProfile)
+    return find_zero(R -> calc_M_2D(profile, R) / profile.M - 1/2, 1)
+end
