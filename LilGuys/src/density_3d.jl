@@ -406,7 +406,11 @@ Converts a snapshot to a Gaia-like DataFrame.
 - `invert_velocity::Bool=false`: If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
 
 """
-function to_gaia(snap::Snapshot; p_min=1e-20, filt_bound=false, add_centre=true, kwargs...)
+function to_gaia(snap::Snapshot; 
+        p_min=1e-20, filt_bound=false, add_centre=true, 
+        set_to_distance=nothing,
+        kwargs...)
+
     add_weights = !(snap.weights isa ConstVector)
 
     if !add_weights
@@ -415,11 +419,31 @@ function to_gaia(snap::Snapshot; p_min=1e-20, filt_bound=false, add_centre=true,
         filt = snap.weights .>= p_min * maximum(snap.weights)
     end
 
+    @info "excluded stellar mass: $(sum(snap.weights[.!filt]) / sum(snap.weights))"
+
     if filt_bound
+        filt_b = get_bound(snap)
+        @info "unbound stellar mass: $(sum(snap.weights[.!filt_b]) / sum(snap.weights))"
         filt .&= get_bound(snap)
     end
 
     @info "Converting $(sum(filt)) particles to Gaia-like DataFrame"
+
+    if set_to_distance != nothing
+        @assert !(snap.x_cen[1] == snap.x_cen[2] == snap.x_cen[3] == 0) "Snapshot is not centred"
+
+        f = GalactocentricFrame()
+        sun_vec = [f.d, f.z_sun, 0]
+        r_vec = snap.x_cen .- sun_vec
+        vec_final = r_vec ./ norm(r_vec) * set_to_distance .+ sun_vec
+        vec_shift = vec_final .- snap.x_cen
+        snap.x_cen .+= vec_shift
+        snap.positions .+= vec_shift
+
+        offset = calc_r(snap.x_cen, sun_vec) - set_to_distance
+        println(vec_final, r_vec, sun_vec)
+        @assert abs(offset) < 1e-3 "Offset is too large: $offset"
+    end
 
     observations = to_sky(snap[filt]; kwargs...)
     obs_cen = phase_to_sky(snap.x_cen, snap.v_cen; kwargs...)

@@ -4,13 +4,14 @@
 import QuadGK: quadgk
 
 
-"""
-    calc_fϵ(ρ, ψ, r)
+struct DistributionFunction{F} 
+    ρ::Vector{F}
+    ψ::Vector{F}
+    d2ρ_dψ2::Function
+end
 
-given functions ρ and ψ for some given radii (ascending), compute the
-distribution function f(ϵ) using the Eddington inversion formula.
-"""
-function calc_fϵ(ρ::AbstractVector, ψ::AbstractVector, r::AbstractVector)
+
+function DistributionFunction(ρ::AbstractVector{F}, ψ::AbstractVector{F}, r::AbstractVector{F}) where F <: Real
     if !issorted(r) | !issorted(-ψ)
         throw(ArgumentError("arrays must be sorted"))
     end
@@ -23,36 +24,27 @@ function calc_fϵ(ρ::AbstractVector, ψ::AbstractVector, r::AbstractVector)
     d2ρ_dψ2 = @. ψ1^-2 * ρ2 - ψ1^-3 * ρ1 * ψ2
     d2_interp = lerp(reverse(ψ), reverse(d2ρ_dψ2))
 
-    return calc_fϵ_from_∂(d2_interp)
+    return DistributionFunction{F}(ρ, ψ, d2_interp)
 end
 
 
-"""
-    calc_fϵ_from_∂(d2ν_dψ2)
+function (df::DistributionFunction)(ϵ)
+    if ϵ > df.ψ[1]
+        throw(DomainError("ϵ must be less than the maximum value of ψ"))
+    elseif ϵ < df.ψ[end]
+        throw(DomainError("ϵ must be greater than the minimum value of ψ"))
+    end
 
-given (interpolated) function d2ν_dψ2(ψ), compute f(ϵ) from the Eddington inversion formula.
-"""
-function calc_fϵ_from_∂(d2ν_dψ2::Function)
-    f_integrand(ϵ, ψ) = 1/√8π^2 * d2ν_dψ2(ψ) /√(ϵ - ψ)
-    return ϵ -> quadgk(ψ->f_integrand(ϵ, ψ), 0, ϵ)[1]
+    f_integrand(ψ) = 1/(√8*π^2) * df.d2ρ_dψ2(ψ) /√(ϵ - ψ)
+    f, e = quadgk(f_integrand, 0, ϵ)
+
+    if e > 1e-6
+        @info "integral error $e"
+    end
+
+    return f
 end
 
-
-"""
-    warn_missed_regions(ρ, r_bins)
-
-Utility function to print out the fraction of the mass that is outside binned range. Works for a callable ρ
-"""
-function warn_missed_regions(ρ::Function, r_bins::AbstractVector)
-    M_integrand = r -> 4π * r^2  * ρ(r)
-    M(r) = quadgk(M_integrand, 0, r)[1]
-    M_tot = M(Inf)
-    
-    # print out excluded particles due to binning
-    fin = M(r_bins[1])
-    fout = M_tot - M(r_bins[end])
-    println("fraction ρ inside bins $fin, fraction outside $fout")
-end
 
 
 """
@@ -86,8 +78,7 @@ end
 
 
 function calc_radial_Φ(snap::Snapshot)
-    radii = calc_r(snap) 
-    return calc_radial_Φ(radii, snap.masses)
+    return calc_radial_Φ(snap.positions, snap.masses)
 end
 
 

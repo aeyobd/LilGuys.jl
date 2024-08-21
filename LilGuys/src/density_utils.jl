@@ -103,7 +103,13 @@ function calc_properties(rs;
         weights = ones(length(rs))
     end
 
+    if any(rs .< 0)
+        throw(DomainError("Radii must be positive."))
+    end
 
+    if length(rs) < 2
+        throw(ArgumentError("Radii must have at least 2 elements."))
+    end
     h = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
     log_r_bin = h.bins
     log_r = midpoints(log_r_bin)

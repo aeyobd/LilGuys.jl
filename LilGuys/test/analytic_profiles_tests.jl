@@ -179,6 +179,13 @@ end
                     kwargs["R_t"] = 10rand()
                 end
 
+                if profile == :NFW
+                    kwargs = Dict()
+                    kwargs["M_s"] = 10^randn()
+                    kwargs["r_s"] = 10rand()
+                    kwargs["c"] = 10rand()
+                end
+
                 d = Dict("profile" => Dict(string(profile) => kwargs))
                 prof = lguys.load_profile(d)
 

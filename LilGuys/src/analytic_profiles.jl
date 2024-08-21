@@ -19,7 +19,8 @@ const RECOGNIZED_PROFILES = (
     :Exp2D,
     :Exp3D,
     :LogCusp2D,
-    :KingProfile
+    :KingProfile,
+    :NFW,
 )
 
 

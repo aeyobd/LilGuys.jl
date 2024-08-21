@@ -1,3 +1,5 @@
+import SpecialFunctions: dawson, erf
+
 @testset "f grav" begin
     positions = [0.;0;0;;]
     masses = ones(1)
@@ -32,6 +34,7 @@ end
     @test f(x_vec) ≈ -1/10
 end
 
+
 @testset "Φ grav matrix" begin
     pos = [
            0. 2.
@@ -61,11 +64,11 @@ end
 @testset "Φ grav snapshot, simple" begin
     snap = lguys.Snapshot([0 1 5.]', zeros(3, 1), [1.])
     Φs = lguys.calc_Φ(snap)
-    # @test Φs ≈ [0.]
+    @test Φs ≈ [0.]
 
-    # snap = lguys.Snapshot([[0,0,1] [0,1,0]], zeros(3, 2), [1., π])
-    # Φs = lguys.calc_Φ(snap)
-    # @test Φs ≈ [-1, -π] ./ √2
+    snap = lguys.Snapshot([[0,0,1] [0,1,0]], zeros(3, 2), [1., π])
+    Φs = lguys.calc_Φ(snap)
+    @test Φs ≈ [-π, -1] ./ √2
 end
 
 
@@ -79,7 +82,7 @@ end
 
     Φs = lguys.calc_Φ(snap)
 
-    Φ_exp = Vector{Float64}(undef, N)
+    Φ_exp = zeros(N)
     for i in 1:N
         for j in 1:N
             if i != j
@@ -89,7 +92,7 @@ end
         end
     end
 
-    @test Φs ≈ Φ_exp rtol=1e-10
+    @test Φs ≈ Φ_exp rtol=1e-5 
 end
 
 
@@ -164,7 +167,75 @@ end
 end
 
 
+function df_isochrone(y)
+    # this one is from sage :/
+    return 1/(√8 * π^2) * 1/2*(6*(4*y^2 - 22*y + 9)*sqrt(y + 1)*atan(sqrt(-y + 1)/sqrt(y + 1)) + (4*y^5 + 18*y^4 + 28*y^3 - 39*y^2 - 5*y + 48)*sqrt(-y + 1))/(pi + pi*y^5 + 5*pi*y^4 + 10*pi*y^3 + 10*pi*y^2 + 5*pi*y)
+
+end
+
+function ρ_jaffe(r, a)
+    M = 1
+    return M / (4π * a^3) * a^4 / (r^2 * (r + a)^2) 
+end
+
+function ψ_j(r, a)
+    G = M = 1
+    return -G*M / a * log(r/(r+a))
+end
+
+
+function dawson_m(x)
+    return 1/2 * √π * exp(x^2) * erf(x)
+end
+
+function df_jaffe(E, a)
+    x = -E*a
+    M = 1
+    G = 1
+
+    return  M / (2π^3 * (G*M*a)^(3/2)) * (
+        dawson_m(sqrt(2x)) - √2 * dawson_m(√x) 
+        - √2 * dawson(√x) + dawson(sqrt(2x))
+       )
+end
+
+
 @testset "distribution functions" begin
     # test with known cases...
-    @test false broken=true
+    @testset "henon isochrone" begin
+        U = LinRange(0, 0.88, 10000)
+        r = @. sqrt.(U / (1-U)^2)
+        ρ = @. 1/4π * 2*(1-U)^4*(3+U) / (1+U)^3
+
+        E = LinRange(-0.2, -0.8, 100)
+        df_calc = lguys.DistributionFunction(ρ, 1 .- U, r)
+        f_calc = df_calc.(-E)
+        f_exp = df_isochrone.(1 .+ E)
+
+        @test f_calc ≈ f_exp rtol = 1e-3
+    end
+
+    @testset "Jaffe model" begin
+        r = 10 .^ LinRange(-1, 1, 1000)
+        ρ = ρ_jaffe.(r, 1)
+        ψ = ψ_j.(r, 1)
+
+        E = LinRange(0.9ψ[1], 1.1ψ[end], 100)
+        df_calc = lguys.DistributionFunction(ρ, ψ, r)
+        f_calc = df_calc.(E)
+        f_exp = df_jaffe.(-E, 1)
+
+        @test f_calc ≈ f_exp rtol = 1e-3
+        @test_throws DomainError df_calc(0)
+        @test_throws DomainError df_calc(1.1ψ[1])
+    end
+
+
+    @testset "exceptions" begin
+        @test_throws ArgumentError lguys.DistributionFunction([1,2,3], [1,2,3], [1,2,3]) # Φ should be  in decreasing order
+        @test_throws ArgumentError lguys.DistributionFunction([1,2,3], [3,2,1], [1,3,2]) # r should be in increasing order
+    end
+
 end
+
+

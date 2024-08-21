@@ -150,17 +150,17 @@ function Base.show(io::IO, coord::SkyCoord)
     print(io, "$(typeof(coord)) at ")
     @printf io "(%4.2f, %4.2f) deg" coord.ra coord.dec
     if coord.distance !== NaN
-        @printf ", "
+        @printf io ", "
         @printf io "d = %4.2f kpc" coord.distance
     end
     if coord.pmra !== NaN && coord.pmdec !== NaN
-        @printf ", "
+        @printf io ", "
         @printf io "μ = (%4.2f, %4.2f) mas/yr" coord.pmra coord.pmdec
     end
 
     if coord.radial_velocity !== NaN
-        @printf ", "
-        @printf io "v_r = %4.2f km/s" coord.radial_velocity
+        @printf io ", "
+        @printf io "v_los = %4.2f km/s" coord.radial_velocity
     end
 
     return io
