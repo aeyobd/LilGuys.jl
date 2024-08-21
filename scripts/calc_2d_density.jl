@@ -115,11 +115,14 @@ function main()
     @info "calculating profile"
     r_ell = LilGuys.calc_r_ell_sky(sample.ra, sample.dec,
         args["ellipticity"], args["PA"], centre=(ra0, dec0))
+    println(length(sample.ra))
 
-    r_ell_max = LilGuys.calc_r_max(sample.ra, sample.dec, 
+    r_ell_max = 60 * LilGuys.calc_r_max(sample.ra, sample.dec, 
         args["ellipticity"], args["PA"], centre=(ra0, dec0))
 
+    @info "r_ell_max: $(r_ell_max)"
     filt = r_ell .< r_ell_max
+    filt .&= .!isnan.(r_ell)
 
     bins =  DensityEstimators.bins_min_width_equal_number(log10.(r_ell[filt]), 
         N_per_bin_min=args["N-min"], dx_min=args["dlogr-min"])

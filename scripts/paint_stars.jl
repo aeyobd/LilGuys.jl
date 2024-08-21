@@ -26,9 +26,12 @@ distribution function of a snapshot.
         "input"
             help="Input file"
             required=true
-        # "-v", "--verbose"
-        #     help="verbose"
-        #     action="store_true"
+        "--analytic", "-a"
+            help="Use analytic approximation to dark matter halo"
+            action="store_true"
+        "--halo", "-H"
+            help="Name to halo profile parameters"
+            action="store_true"
     end
 
     args = parse_args(s)
@@ -44,23 +47,26 @@ function main()
     snap = load_snap(params)
     snap_df = snap_to_df(snap, params)
 
+    if params["analytic"]
+        @info "using analytic approximation to dark matter halo"
+    end
     # radii bins
-    filt = snap_df.filter
-    radii = snap_df.radii[filt]
-    r_e = make_radius_bins(radii, params)
-    r = lguys.midpoints(r_e)
-    print_missing(radii, r_e, profile)
+    radii = snap_df.radii[snap_df.filter]
+    ϕ = snap_df.phi[snap_df.filter]
+    r_bins = make_radius_bins(radii, params)
+    r_bin_mids = lguys.midpoints(r_bins)
+    print_missing(radii, r_bins, profile)
 
     # density
-    _, nu_dm = lguys.calc_ρ_hist(radii, r_e)
+    _, nu_dm = lguys.calc_ρ_hist(radii, r_bins)
     nu_dm ./= length(radii)
-    nu_s = max.(lguys.calc_ρ.(profile, r), 0)
-    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_e)/2)
+    nu_s = max.(lguys.calc_ρ.(profile, r_bin_mids), 0)
+    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_bins)/2)
 
     # distribution functions
-    ψ = lguys.lerp(radii, -snap_df.phi[filt]).(r)
-    f_dm = lguys.calc_fϵ(nu_dm, ψ, r)
-	f_s = lguys.calc_fϵ(nu_s, ψ, r)
+    ψ = lguys.lerp(radii, -ϕ).(r_bin_mids)
+    f_dm = lguys.calc_fϵ(nu_dm, ψ, r_bin_mids)
+	f_s = lguys.calc_fϵ(nu_s, ψ, r_bin_mids)
 
     df_E = sample_fs(f_dm, f_s, ψ, params)
 
@@ -78,6 +84,8 @@ function main()
     lguys.write_fits(params["output_file"] * "_density.fits", df_nu)
     lguys.write_fits(params["output_file"] * "_energy.fits", df_E)
 end
+
+
 
 
 """
@@ -116,7 +124,7 @@ function load_snap(params)
 end
 
 
-function snap_to_df(snap, params)
+function snap_to_df(snap::Snapshot, params)
     snap_df = DataFrame(
         index = snap.index,
         radii = lguys.calc_r(snap),
@@ -134,14 +142,14 @@ function snap_to_df(snap, params)
 end
 
 
-function calc_phi(snap)
+function calc_phi(snap::Snapshot)
 	radii = lguys.calc_r(snap)
 	Φs = lguys.calc_radial_discrete_Φ(radii, snap.masses)
 	return Φs
 end
 
 
-function calc_eps(snap, Φs)
+function calc_eps(snap::Snapshot, Φs)
 	ke = lguys.calc_K_spec(snap)
 	ϵs = @. -Φs - ke
 	return ϵs
@@ -178,18 +186,18 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
 	if params["bin_method"] == "equal_width"
 		Nr = params["num_radial_bins"]
 
-		r_e = 10 .^ LinRange(log10.(r_min), log10.(r_max), Nr+1)
+		r_bins = 10 .^ LinRange(log10.(r_min), log10.(r_max), Nr+1)
 	elseif params["bin_method"] == "equal_number"
 		Nr = params["num_radial_bins"]
-		r_e = quantile(radii, LinRange(0, 1, Nr+1))
+		r_bins = quantile(radii, LinRange(0, 1, Nr+1))
 	elseif params["bin_method"] == "both"
-		r_e = 10 .^ DensityEstimators.bins_min_width_equal_number(log10.(radii);
+		r_bins = 10 .^ DensityEstimators.bins_min_width_equal_number(log10.(radii);
 		dx_min=params["dr_min"], N_per_bin_min=params["N_per_bin_min"], )
 	else
 		error("bin method unknown")
 	end
 
-	return r_e
+	return r_bins
 	
 end
 
@@ -218,7 +226,8 @@ end
 
 
 function normalize_probabilities(ps)
-	@info sum(ps .< 0) " negative probabilities"
+    N_neg = sum(ps .< 0)
+	@info "$N_neg negative probabilities"
 	ps[ps .< 0] .= 0
 	ps[isnan.(ps)] .= 0
 	ps ./= sum(ps)
@@ -230,21 +239,21 @@ end
 """
 Given the stellar mass function M_s, returns total missing stars
 """
-function print_missing(radii, r_e, profile)
+function print_missing(radii, r_bins, profile)
     # TODO: better determination of these numbers, QuadGK throws a fit if too large a range
     r_min = 1e-5
     r_max = 1000
 
 
-    r_h = lguys.get_r_h(profile)
+    r_h = lguys.calc_r_h(profile)
     @info " $(sum(radii .< r_h)) stars within (3D) half-light radius"
 
     ρ_s(r) = lguys.calc_ρ.(profile, r)
 	M_s_tot = 4π * quadgk(r-> r^2 * ρ_s(r), r_min, r_max)[1]
 	M_s(r) = 4π * quadgk(r-> r^2 * ρ_s(r) / M_s_tot, r_min, r)[1]
 
-	N_s_out = 1 - M_s(r_e[end])
-	N_s_in = M_s(r_e[1])
+	N_s_out = 1 - M_s(r_bins[end])
+	N_s_in = M_s(r_bins[1])
 	@info "missing $N_s_out stars outside last bin"
 	@info "missing $N_s_in stars inside first bin"
 end

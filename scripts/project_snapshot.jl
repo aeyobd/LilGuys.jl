@@ -32,6 +32,8 @@ function get_args()
         "-f", "--frame"
         help="frame in which to project on sky. May be ICRS, GSR"
             default="GSR"
+        "-d", "--distance"
+            help="distance at which to set snapshot from sun before projecting onto sky"
     end
 
     args = parse_args(s)
@@ -47,6 +49,10 @@ function get_kwargs(args)
     frame = getproperty(LilGuys, frame)
 
     kwargs[:SkyFrame] = frame
+
+    if args["distance"] !== nothing
+        kwargs[:set_to_distance] = parse(Float64, args["distance"])
+    end
     return kwargs
 end
 
@@ -60,9 +66,10 @@ function main()
 
     @assert issorted(stars.index) "stars.index must be sorted"
     @info "Reading snapshot"
-    out = Output(args["input"], weights=stars.probabilities)
+    out = Output(args["input"], weights=stars.probability)
     snap = out[args["index"]]
 
+    println("snap xcen", snap.x_cen)
     @info "Projecting snapshot onto sky"
     df = LilGuys.to_gaia(snap; kwargs...)
 

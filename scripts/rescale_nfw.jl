@@ -43,16 +43,9 @@ function main()
 
     snap = Snapshot(args["input"])
 
-    params = TOML.parsefile(args["params"])["profile"]
-
-    if args["params-in"] !== nothing
-        params_in = TOML.parsefile(args["params-in"])["profile"]
-    else
-        params_in = Dict("M_s" => 1.0, "r_s" => 1.0)
-    end
-
-    prof_in = LilGuys.NFW(; LilGuys.dict_to_tuple(params_in)...)
-    prof_out = LilGuys.NFW(; LilGuys.dict_to_tuple(params)...)
+    prof_in = LilGuys.load_profile(args["params-in"])
+    params = TOML.parsefile(args["params"])
+    prof_out = LilGuys.load_profile(params)
 
     m_scale = prof_out.M_s / prof_in.M_s
     r_scale = prof_out.r_s / prof_in.r_s
