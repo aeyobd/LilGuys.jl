@@ -29,10 +29,8 @@ end
 
 
 function (df::DistributionFunction)(ϵ)
-    if ϵ > df.ψ[1]
-        throw(DomainError("ϵ must be less than the maximum value of ψ"))
-    elseif ϵ < df.ψ[end]
-        throw(DomainError("ϵ must be greater than the minimum value of ψ"))
+    if df.ψ[1] < ϵ || ϵ < df.ψ[end]
+        throw(DomainError("ϵ must be between the minimum and maximum value of ψ: $(df.ψ[1]) < ϵ < $(df.ψ[end]); got $ϵ"))
     end
 
     f_integrand(ψ) = 1/(√8*π^2) * df.d2ρ_dψ2(ψ) /√(ϵ - ψ)

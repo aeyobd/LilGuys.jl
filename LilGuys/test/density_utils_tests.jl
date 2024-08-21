@@ -51,11 +51,14 @@ end
 
 
     @testset "read/write" begin
-        open("test.toml", "w") do f
+        dir = mktempdir()
+
+        filename = joinpath(dir, "test.toml")
+        open(filename, "w") do f
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.ObsProfile("test.toml")
+        obs2 = LilGuys.ObsProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)

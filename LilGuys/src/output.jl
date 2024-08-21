@@ -206,6 +206,13 @@ function extract(out::Output, symbol::Symbol, idx=(:))
 end
 
 
+"""
+    extract_vector(out::Output, symbol::Symbol, idx=(:))
+
+Extracts a vector from the output at the given index.
+If the index is array-like, then the returned vector is a 3xNpxNt array.
+Otherwise the returned vector is a 3xNt array.
+"""
 function extract_vector(out::Output, symbol::Symbol, idx=(:))
     if idx == (:)
         idx = 1:length(out[1].index)
@@ -226,7 +233,12 @@ end
 
 
 
+"""
+    peris_apos(out::Output; verbose::Bool=false)
 
+Calculate the pericentre and apocentre of the system.
+Returns the particle index and the peris and apos of each particle.
+"""
 function peris_apos(out::Output; verbose::Bool=false)
     r0 = calc_r(out[1].positions)
     peris = apos = r0
@@ -234,13 +246,13 @@ function peris_apos(out::Output; verbose::Bool=false)
     idx0 = sort(out[1].index)
 
     if verbose
-        println("begining peri apo calculation")
+        @info "begining peri apo calculation"
     end
 
     N = length(out)
     for i in 2:N
         if verbose && i % 100 == 0
-            print("$(i)/$(N)\r")
+            @info "processing snapshot $(i)/$(N)"
         end
         
         snap = out[i]
@@ -253,7 +265,7 @@ function peris_apos(out::Output; verbose::Bool=false)
     end
     
     if verbose
-        println("completed peri apo calculation")
+        @info "completed peri apo calculation"
     end
     return idx0, peris, apos  
 end

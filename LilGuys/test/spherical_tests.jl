@@ -156,7 +156,6 @@ end
         dec = [0, 0, 0, 0]
 
         ra_p, dec_p = lguys.rotate_sky(ra, dec, lguys.Rz_mat(π/2))
-        println(size(ra_p))
 
         @test mod.(ra_p, 360) ≈ [90, 180, 270, 0]
         @test mod.(dec_p, 360) ≈ [0, 0, 0, 0]

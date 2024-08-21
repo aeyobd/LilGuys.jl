@@ -3,7 +3,7 @@ include("setup.jl")
 
 tests = ["units", "utils", 
          "io",
-         "snapshot", 
+         "snapshot", "output",
          "spherical", "coordinates", "coord_trans",
          "density_utils",
          "nfw",

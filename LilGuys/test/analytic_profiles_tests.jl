@@ -6,6 +6,8 @@ test_profiles = [
     lguys.LogCusp2D(1, 1),
 ]
 
+dir = mktempdir()
+
 import TOML
 
 
@@ -116,7 +118,7 @@ end
         @test prof.R_s == 2.0
         @test prof.M == 1.5
 
-        filename = "test_profile.toml"
+        filename = joinpath(dir, "test_profile.toml")
         open(filename, "w") do io
             TOML.print(io, d)
         end
@@ -134,7 +136,6 @@ end
         @test prof.R_s == 0.1
         @test prof.M == 1.2
 
-        filename = "test_profile.toml"
         open(filename, "w") do io
             TOML.print(io, d)
         end
