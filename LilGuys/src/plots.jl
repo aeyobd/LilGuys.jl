@@ -86,17 +86,6 @@ end
 
 
 
-function xy_axis(directionx=1, directiony=2; kwargs...)
-    fig = Figure()
-
-    xlabel,ylabel = ["x", "y", "z"][[directionx, directiony]]
-
-    ax = Axis(fig[1,1], aspect=DataAspect(), 
-        xlabel = "$xlabel / kpc", ylabel="$ylabel / kpc"
-    )
-
-    return fig, ax
-end
 
 
 """
@@ -123,14 +112,6 @@ function projected_density!(snap; bins=200, r_max=10, centre=true, xdirection=1,
     return p
 end
 
-
-
-
-function rho_axis(gs; kwargs...)
-    ax = Axis(gs; 
-        xlabel=log_r_label, ylabel=log_rho_label, kwargs...)
-    return ax
-end
 
 
 
@@ -206,6 +187,34 @@ function vx_hist_fit!(snap; stars=true,
 
 
     return p
+end
+
+
+# axis constructors
+
+function cmd_axis(gs::Makie.GridPosition, kwargs...)
+    ax = Axis(gs; xlabel="Bp-Rp", ylabel="G", 
+        yreversed=true, kwargs...)
+    return ax
+end
+
+function xy_axis(directionx=1, directiony=2; kwargs...)
+    fig = Figure()
+
+    xlabel,ylabel = ["x", "y", "z"][[directionx, directiony]]
+
+    ax = Axis(fig[1,1], aspect=DataAspect(), 
+        xlabel = "$xlabel / kpc", ylabel="$ylabel / kpc"
+    )
+
+    return fig, ax
+end
+
+
+function rho_axis(gs; kwargs...)
+    ax = Axis(gs; 
+        xlabel=log_r_label, ylabel=log_rho_label, kwargs...)
+    return ax
 end
 
 

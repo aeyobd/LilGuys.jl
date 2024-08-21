@@ -445,3 +445,29 @@ function calc_centre2D(ra, dec, centre_method, weights=nothing)
 
 	return ra0, dec0
 end
+
+
+
+"""
+    to_orbit_coords(ra, dec, ra0, dec0, PA) 
+
+Given the position angle of an orbit vector at (ra0, dec0) calculates a rotated
+sky frame centred on RA, DEC and with the x-axis aligned with the orbit.
+The orbital position angle can be found in the orbit properties file from
+analyze_orbit.jl notebook.
+"""
+function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
+	# want to rotate to dec, ra of centre, then rotate 
+	α = deg2rad(ra0)
+	δ = deg2rad(dec0)
+	ϖ = deg2rad(90 - PA)
+	Rmat = Rx_mat(ϖ) * Ry_mat(δ) * Rz_mat(-α) 
+
+	coords = unit_vector(ra, dec)
+	coords =  Rmat * coords
+	ra, dec, _ = cartesian_to_sky(coords[1, :], coords[2, :], coords[3, :])
+
+	ra .-= 360 * (ra .> 180)
+
+	ra, dec
+end
