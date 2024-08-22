@@ -4,6 +4,7 @@ test_profiles = [
     lguys.Exp3D(1.3, 0.7124),
     lguys.Exp3D(1, 1),
     lguys.LogCusp2D(1, 1),
+    lguys.KingProfile(M=0.52, R_s=1.123, R_t=2π),
 ]
 
 dir = mktempdir()
@@ -50,9 +51,9 @@ end
     M = 1
     r_s = 1
     r_t = 2
-    profile = lguys.KingProfile(1, 1, r_t)
+    profile = lguys.KingProfile(k=1, R_s=1, R_t=r_t)
 
-    @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2 / 2π
+    @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2
 
     @test lguys.calc_Σ(profile, r_t) ≈ 0
     @test lguys.calc_Σ(profile, 1.2*r_t) ≈ 0
@@ -64,7 +65,11 @@ end
 
 @testset "total mass" begin
     for profile in test_profiles
-        @test lguys.calc_M(profile, 100.0) ≈ profile.M
+        if profile isa lguys.KingProfile
+            @test lguys.calc_M_2D(profile, 100.0) ≈ 0.52
+        else
+            @test lguys.calc_M(profile, 100.0) ≈ profile.M
+        end
     end
 end
 
@@ -88,6 +93,17 @@ end
         Σ(R) = lguys.quadgk(r -> integrand(r, R), R*(1+eps), Inf)[1]
 
         @test lguys.calc_Σ.(profile, x) ≈ Σ.(x) rtol=1e-3
+    end
+end
+
+
+@testset "2d to 3d density" begin
+    x = [0, 0.015, 0.23, 0.95, 1.254, 2.53, 3.0, 5., 100]
+    for profile in test_profiles
+        ρ1 = LilGuys.calc_ρ.(profile, x)
+        ρ2 = LilGuys.calc_ρ_from_Σ.(profile, x)
+
+        @test ρ1 ≈ ρ2 rtol=1e-5
     end
 end
 

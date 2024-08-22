@@ -174,10 +174,34 @@ where M is the (approximate) total mass, `R_s` is the core radius, and `R_t` is
 the tidal radius. 
 
 """
-@kwdef struct KingProfile <: AbstractProfile
-    M::Float64 = 1
-    R_s::Float64 = 1
+struct KingProfile <: AbstractProfile
+    k::Float64
+    R_s::Float64
     R_t::Float64 
+end
+
+function KingProfile(;kwargs...)
+    kwargs = Dict{Symbol, Any}(kwargs)
+
+    if :R_s ∉ keys(kwargs)
+        kwargs[:R_s] = 1
+    end
+
+    if :R_t ∉ keys(kwargs)
+        throw(ArgumentError("R_t must be specified"))
+    end
+
+    if :M ∈ keys(kwargs)
+        k = get_king_k(kwargs[:M], kwargs[:R_s], kwargs[:R_t])
+        pop!(kwargs, :M)
+        kwargs[:k] = k
+    elseif :k ∈ keys(kwargs)
+        k = kwargs[:k]
+    else
+        k = 1
+    end
+
+    return KingProfile(kwargs[:k], kwargs[:R_s], kwargs[:R_t])
 end
 
 
@@ -239,7 +263,7 @@ function calc_Σ(profile::Exp3D, r::Real)
     return Σ0 * x * besselk(1, x)
 end
 
-function M(profile::Exp3D, r::Real)
+function calc_M(profile::Exp3D, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
     return -4π * M *(x^2 + 2*x + 2)*exp(-x)
@@ -272,14 +296,59 @@ function calc_Σ(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0
     end
-    M, r_s, r_t = profile.M, profile.R_s, profile.R_t
-    Σ_s = M / (2π * r_s^2)
+    r_s, r_t = profile.R_s, profile.R_t
+    k = profile.k
     x = r / r_s
     x_t = r_t / r_s
-    return Σ_s * (
+    return k * (
         (1 + x^2)^(-1/2) 
         - (1 + x_t^2)^(-1/2)
        )^2
+end
+
+
+
+function calc_ρ(profile::KingProfile, r::Real)
+    if r > profile.R_t
+        return 0
+    end
+
+    r_s, r_t = profile.R_s, profile.R_t
+    k = profile.k
+    # equation 27 in King 1962
+    x = sqrt( (1+(r/r_s)^2)/(1+(r_t/r_s)^2) )
+    K = k / (π*r_s * (1 + (r_t/r_s)^2)^(3/2))
+
+    return K / x^2 * ( acos(x)/x - √(1-x^2) )
+end
+
+
+function get_king_k(M, r_s, r_t)
+    x_t = r_t / r_s
+
+
+    M1 = π*r_s^2 * (
+            log(1+x_t) - 4*( √(1+x_t) - 1)/√(1+x_t) + x_t/(1+x_t)
+       )
+
+    return M / M1
+end
+
+
+function calc_M_2D(profile::KingProfile, R::Real)
+    r_s, r_t = profile.R_s, profile.R_t
+
+    k = profile.k
+    x = R / r_s
+    x_t = r_t / r_s
+
+    if x > x_t
+        x = x_t
+    end
+
+    return π*r_s^2*k * (
+        log(1+x) - 4*( √(1+x) - 1)/√(1+x_t) + x/(1+x_t)
+       )
 end
 
 
@@ -289,6 +358,10 @@ end
 
 
 function calc_M_2D(profile::AbstractProfile, R::Real)
+    return calc_M_2D_from_Σ(profile, R)
+end
+
+function calc_M_2D_from_Σ(profile::AbstractProfile, R::Real)
     return quadgk(R -> 2π * R * calc_Σ(profile, R), 0, R)[1]
 end
 

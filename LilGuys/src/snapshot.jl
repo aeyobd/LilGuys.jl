@@ -60,7 +60,7 @@ A snapshot of a gadget simulation. Units are all code units.
     v_cen::Vector{F} = zeros(F, 3)
 
     """The (stellar) weights of the particles"""
-    weights::Union{Vector, ConstVector} = ConstVector(1.0, 0)
+    weights::Union{Vector, ConstVector} = ConstVector(1.0, length(index))
 
     """The radii of the particles, stored on first calculation"""
     _radii::OptVector = nothing
@@ -166,11 +166,12 @@ function Base.getindex(snap::Snapshot, idx)
     kwargs[:h] = snap.h
     kwargs[:x_cen] = snap.x_cen
     kwargs[:v_cen] = snap.v_cen
-    for sym in fieldnames(Snapshot)
+    kwargs[:header] = snap.header
+    kwargs[:filename] = snap.filename
+
+    for sym in [:positions, :velocities, :masses, :index, :accelerations, :Φs, :Φs_ext, :weights]
         if getproperty(snap, sym) === nothing
             continue
-        elseif !isa(idx, Int) && sym ∈ [:header, :filename]
-            kwargs[sym] = getproperty(snap, sym)
         elseif sym ∈ snap_matricies
             kwargs[sym] = getproperty(snap, sym)[:, idx]
         elseif sym ∈ snap_vectors
