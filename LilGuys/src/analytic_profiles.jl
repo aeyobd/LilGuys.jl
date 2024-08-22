@@ -153,6 +153,9 @@ end
     LogCusp2D(M, R_s)
 
 A logarithmic cusp profile in 2D. The density profile is given by
+```math
+\rho(r) = 
+```
 """
 @kwdef struct LogCusp2D <: AbstractProfile
     M::Float64 = 1
@@ -162,16 +165,22 @@ end
 
 
 @doc raw"""
-    KingProfile(M, R_s, R_t)
+    KingProfile(; R_t[, R_s, M, k])
 
 A King profile. The density profile is given by
 
 ```math
-\rho(R) = \rho_0 * [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
+\Sigma(R) = k [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
 ```
 
-where M is the (approximate) total mass, `R_s` is the core radius, and `R_t` is
+where `k` is the density scaling, `R_s` is the core radius, and `R_t` is
 the tidal radius. 
+
+# Parameters
+- `R_t::Real`: the tidal radius
+- `R_s::Real=1`: the core radius
+- `M::Real`: the total mass. One of `M` or `k` must be specified
+- `k::Real`: the density scaling. One of `M` or `k` must be specified
 
 """
 struct KingProfile <: AbstractProfile
@@ -192,7 +201,7 @@ function KingProfile(;kwargs...)
     end
 
     if :M ∈ keys(kwargs)
-        k = get_king_k(kwargs[:M], kwargs[:R_s], kwargs[:R_t])
+        k = _get_king_k(kwargs[:M], kwargs[:R_s], kwargs[:R_t])
         pop!(kwargs, :M)
         kwargs[:k] = k
     elseif :k ∈ keys(kwargs)
@@ -266,7 +275,7 @@ end
 function calc_M(profile::Exp3D, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
-    return -4π * M *(x^2 + 2*x + 2)*exp(-x)
+    return M * 1/2 * (2 - (x^2 + 2*x + 2)*exp(-x))
 end
 
 
@@ -280,7 +289,7 @@ end
 
 function get_ρ_s(profile::LogCusp2D)
     M, r_s = profile.M, profile.R_s
-    return M / (4π * r_s^2)
+    return M / (4π * r_s^3)
 end
 
 function calc_Σ(profile::LogCusp2D, r::Real)
@@ -289,6 +298,12 @@ function calc_Σ(profile::LogCusp2D, r::Real)
     Σ_s = ρ_s * 2 * r_s
     x = r / r_s
     return Σ_s * besselk(0, x)
+end
+
+function calc_M(profile::LogCusp2D, r::Real)
+    M, r_s = profile.M, profile.R_s
+    x = r / r_s
+    return M * (1 - exp(-x) - x*exp(-x))
 end
 
 
@@ -323,12 +338,15 @@ function calc_ρ(profile::KingProfile, r::Real)
 end
 
 
-function get_king_k(M, r_s, r_t)
+"""
+Given the total mass, scale radius, and tidal radius of a king profile, 
+returns the scaling constant k.
+"""
+function _get_king_k(M::Real, r_s::Real, r_t::Real)
     x_t = r_t / r_s
 
-
     M1 = π*r_s^2 * (
-            log(1+x_t) - 4*( √(1+x_t) - 1)/√(1+x_t) + x_t/(1+x_t)
+            log(1+x_t^2) - 4*( √(1+x_t^2) - 1)/√(1+x_t^2) + x_t^2/(1+x_t^2)
        )
 
     return M / M1
@@ -347,13 +365,13 @@ function calc_M_2D(profile::KingProfile, R::Real)
     end
 
     return π*r_s^2*k * (
-        log(1+x) - 4*( √(1+x) - 1)/√(1+x_t) + x/(1+x_t)
+        log(1+x^2) - 4*( √(1+x^2) - 1)/√(1+x_t^2) + x^2/(1+x_t^2)
        )
 end
 
 
 function calc_M(profile::AbstractProfile, r::Real)
-    return quadgk(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)[1]
+    return calc_M_from_ρ(profile, r)
 end
 
 
@@ -363,6 +381,10 @@ end
 
 function calc_M_2D_from_Σ(profile::AbstractProfile, R::Real)
     return quadgk(R -> 2π * R * calc_Σ(profile, R), 0, R)[1]
+end
+
+function calc_M_from_ρ(profile::AbstractProfile, r::Real)
+    return quadgk(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)[1]
 end
 
 
@@ -387,9 +409,18 @@ end
 
 
 function calc_r_h(profile::AbstractProfile)
-    return find_zero(r -> calc_M(profile, r) / profile.M - 1/2, 1)
+    return find_zero(r -> calc_M(profile, r) / get_M_tot(profile) - 1/2, 1)
 end
 
 function calc_R_h(profile::AbstractProfile)
-    return find_zero(R -> calc_M_2D(profile, R) / profile.M - 1/2, 1)
+    return find_zero(R -> calc_M_2D(profile, R) / get_M_tot(profile) - 1/2, 1)
+end
+
+
+function get_M_tot(profile::AbstractProfile)
+    if :M in fieldnames(typeof(profile))
+        return profile.M
+    else
+        return calc_M(profile, Inf)
+    end
 end

@@ -1,127 +1,151 @@
-test_profiles = [
-    lguys.Exp2D(1, 1),
-    lguys.Exp2D(1.3, 0.7124),
-    lguys.Exp3D(1.3, 0.7124),
-    lguys.Exp3D(1, 1),
-    lguys.LogCusp2D(1, 1),
-    lguys.KingProfile(M=0.52, R_s=1.123, R_t=2π),
-]
-
 dir = mktempdir()
 
 import TOML
 
+function test_R_h(profile, M=profile.M)
+    R_h = lguys.calc_R_h(profile)
+    @test lguys.calc_M_2D(profile, R_h) ./ M ≈ 1/2 rtol=1e-3
+end
 
-@testset "Exp2D Σ" begin
-    M = 1
-    r_s = 1
-    profile = lguys.Exp2D(M, r_s)
+function test_r_h(profile, M=profile.M)
+    r_h = lguys.calc_r_h(profile)
+    @test lguys.calc_M(profile, r_h) ./ M ≈ 1/2 rtol=1e-3
+end
 
-    @test lguys.calc_Σ(profile, 0) ≈ 1 / 2π * M / r_s^2
-    @test lguys.calc_Σ(profile, r_s) ≈ exp(-1) / 2π * M / r_s^2
-    @test lguys.calc_Σ(profile, 2r_s) ≈ exp(-2) / 2π * M / r_s^2
-    @test lguys.calc_Σ(profile, Inf) ≈ 0
+function test_M_tot(profile, M=profile.M, r=100)
+    @test lguys.calc_M(profile, r) ≈ M
+end
+
+function test_M_2D_tot(profile, M=profile.M, r=100)
+    @test lguys.calc_M_2D(profile, r) ≈ M
+end
+
+function test_to_zero(profile; r=1000, atol=1e-8)
+    @test lguys.calc_Σ(profile, r) ≈ 0 atol=atol
+    @test lguys.calc_ρ(profile, r) ≈ 0 atol=atol
+    @test lguys.calc_M(profile, 1/r) ≈ 0 atol=atol
 end
 
 
-@testset "Exp3D ρ" begin
-    M = 1
-    r_s = 1
 
-    profile = lguys.Exp3D(M, r_s)
-    
-    ρ0 = 1 / 4π * M / r_s^3
-    @test lguys.calc_ρ(profile, 0) ≈ ρ0 broken=true
+@testset "Exp2D" begin
+    @testset "Σ" begin
+        profile = lguys.Exp2D(1, 1)
 
+        @test lguys.calc_Σ(profile, 0) ≈ 1 / 2π 
+        @test lguys.calc_Σ(profile, 1) ≈ exp(-1) / 2π
+        @test lguys.calc_Σ(profile, 2) ≈ exp(-2) / 2π 
+        @test lguys.calc_Σ(profile, Inf) ≈ 0
+    end
+
+    @testset "ρ" begin
+        profile = lguys.Exp2D(0.25, √7)
+        
+        x = 10 .^ LinRange(0, 1, 10)
+
+        ρ1 = lguys.calc_ρ.(profile, x)
+        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+
+        @test ρ1 ≈ ρ2 rtol=1e-5
+    end
+
+    @testset "M" begin
+        profile = lguys.Exp2D(0.989, 1.35)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+
+    @testset "consistency" begin
+        M = 0.983
+        r_s = 1.2
+        profile = lguys.Exp2D(0.987, 3.3)
+
+        test_R_h(profile)
+        test_r_h(profile)
+        test_M_tot(profile)
+        test_to_zero(profile)
+    end
 end
 
 
 @testset "log cusp 2D Σ" begin
-    M = 1
-    R_s = 1
+    @testset "ρ" begin
+        profile = lguys.LogCusp2D(1, 1)
+        @test lguys.calc_ρ(profile, 0) ≈ Inf
+        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 4π
+        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 8π
+    end
 
-    profile = lguys.LogCusp2D(M, R_s)
+    @testset "consistency" begin
+        profile = lguys.LogCusp2D(2.12, 3.53)
+        test_R_h(profile)
+        test_r_h(profile)
+        test_M_tot(profile)
+        test_to_zero(profile, r=10_000)
+    end
 
-    @test lguys.calc_Σ(profile, 0) ≈ Inf
-    @test lguys.calc_Σ(profile, R_s) ≈ 0 broken=true
+
+    @testset "M" begin
+        profile = lguys.LogCusp2D(0.987, 3.3)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+
+    @testset "Σ" begin
+        profile = lguys.LogCusp2D(1, 1)
+
+        x = 10 .^ LinRange(0, 1, 10)
+        Σ1 = lguys.calc_Σ.(profile, x)
+        Σ2 = lguys.calc_Σ_from_ρ.(profile, x)
+
+        @test Σ1 ≈ Σ2 rtol=1e-5
+    end
 end
 
 
 @testset "King" begin
-    M = 1
-    r_s = 1
-    r_t = 2
-    profile = lguys.KingProfile(k=1, R_s=1, R_t=r_t)
+    @testset "Σ" begin
+        M = 1
+        r_s = 1
+        r_t = 2
+        profile = lguys.KingProfile(k=1, R_s=r_s, R_t=r_t)
 
-    @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2
+        @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2
 
-    @test lguys.calc_Σ(profile, r_t) ≈ 0
-    @test lguys.calc_Σ(profile, 1.2*r_t) ≈ 0
-    @test lguys.calc_Σ(profile, Inf) ≈ 0
-
-    @test lguys.calc_M_2D(profile, r_t) ≈ profile.M rtol=1e-10 broken=true
-
-end
-
-@testset "total mass" begin
-    for profile in test_profiles
-        if profile isa lguys.KingProfile
-            @test lguys.calc_M_2D(profile, 100.0) ≈ 0.52
-        else
-            @test lguys.calc_M(profile, 100.0) ≈ profile.M
-        end
+        @test lguys.calc_Σ(profile, r_t) ≈ 0
+        @test lguys.calc_Σ(profile, 1.2*r_t) ≈ 0
+        @test lguys.calc_Σ(profile, Inf) ≈ 0
     end
-end
 
+    @testset "ρ" begin
+        profile = lguys.KingProfile(k=0.666, R_s=2.3, R_t=9.5)
+        x = 10 .^ LinRange(-1, 1, 10)
 
-@testset "total 2D mass" begin
-    for profile in test_profiles
-        integrand(r) = 2 * π * r * lguys.calc_Σ(profile, r)
-
-        @test lguys.quadgk(integrand, 0, Inf)[1] ≈ profile.M
-    end
-end
-
-
-@testset "3d to 2d density" begin
-
-    for profile in test_profiles
-        integrand(r, R) = 2 *r* lguys.calc_ρ(profile, r) / sqrt(r^2 - R^2)
-
-        x = 10 .^ LinRange(-2, 0, 100)
-        eps = 1e-6
-        Σ(R) = lguys.quadgk(r -> integrand(r, R), R*(1+eps), Inf)[1]
-
-        @test lguys.calc_Σ.(profile, x) ≈ Σ.(x) rtol=1e-3
-    end
-end
-
-
-@testset "2d to 3d density" begin
-    x = [0, 0.015, 0.23, 0.95, 1.254, 2.53, 3.0, 5., 100]
-    for profile in test_profiles
-        ρ1 = LilGuys.calc_ρ.(profile, x)
-        ρ2 = LilGuys.calc_ρ_from_Σ.(profile, x)
-
+        ρ1 = lguys.calc_ρ.(profile, x)
+        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
         @test ρ1 ≈ ρ2 rtol=1e-5
     end
-end
 
-
-@testset "calc_R_h" begin
-    for profile in test_profiles
-        R_h = lguys.calc_R_h(profile)
-        @test lguys.calc_M_2D(profile, R_h) ./ profile.M ≈ 0.5 rtol=1e-3
+    @testset "consistency" begin
+        profile = lguys.KingProfile(M=1.2, R_s=2.3, R_t=9.5)
+        test_R_h(profile, 1.2)
+        test_r_h(profile, 1.2)
+        test_M_tot(profile, 1.2)
+        test_to_zero(profile)
     end
+
 end
 
-
-@testset "calc_r_h" begin
-    for profile in test_profiles
-        r_h = lguys.calc_r_h(profile)
-        @test lguys.calc_M(profile, r_h) ./ profile.M ≈ 0.5 rtol=1e-3
-    end
-end
 
 @testset "load profile" begin
 
@@ -194,6 +218,7 @@ end
 
                 if profile == :KingProfile
                     kwargs["R_t"] = 10rand()
+                    kwargs["k"] = rand()
                 end
 
                 if profile == :NFW

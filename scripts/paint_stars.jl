@@ -29,9 +29,6 @@ distribution function of a snapshot.
         "--analytic", "-a"
             help="Use analytic approximation to dark matter halo"
             action="store_true"
-        "--halo", "-H"
-            help="Name to halo profile parameters"
-            action="store_true"
     end
 
     args = parse_args(s)
@@ -47,12 +44,8 @@ function main()
     snap = load_snap(params)
     snap_df = snap_to_df(snap, params)
 
-    if params["analytic"]
-        @info "using analytic approximation to dark matter halo"
-    end
     # radii bins
     radii = snap_df.radii[snap_df.filter]
-    ϕ = snap_df.phi[snap_df.filter]
     r_bins = make_radius_bins(radii, params)
     r_bin_mids = lguys.midpoints(r_bins)
     print_missing(radii, r_bins, profile)
@@ -61,20 +54,21 @@ function main()
     _, nu_dm = lguys.calc_ρ_hist(radii, r_bins)
     nu_dm ./= length(radii)
     nu_s = max.(lguys.calc_ρ.(profile, r_bin_mids), 0)
-    df_nu = DataFrame(r=r, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_bins)/2)
+    df_nu = DataFrame(r=r_bin_mids, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_bins)/2)
 
     # distribution functions
+    ϕ = snap_df.phi[snap_df.filter]
     ψ = lguys.lerp(radii, -ϕ).(r_bin_mids)
-    f_dm = lguys.calc_fϵ(nu_dm, ψ, r_bin_mids)
-	f_s = lguys.calc_fϵ(nu_s, ψ, r_bin_mids)
+    f_dm = lguys.DistributionFunction(nu_dm, ψ, r_bin_mids)
+	f_s = lguys.DistributionFunction(nu_s, ψ, r_bin_mids)
 
     df_E = sample_fs(f_dm, f_s, ψ, params)
 
     # probabilities
     calc_prob = lguys.lerp(df_E.E, df_E.probs)
-    prob = calc_prob.(snap_df.eps[filt])
+    prob = calc_prob.(snap_df.eps[snap_df.filter])
     prob = normalize_probabilities(prob)
-    snap_df[filt, :probability] = prob
+    snap_df[snap_df.filter, :probability] = prob
 
     # write outputs
     @info "writing outputs"
@@ -84,8 +78,6 @@ function main()
     lguys.write_fits(params["output_file"] * "_density.fits", df_nu)
     lguys.write_fits(params["output_file"] * "_energy.fits", df_E)
 end
-
-
 
 
 """
@@ -124,7 +116,7 @@ function load_snap(params)
 end
 
 
-function snap_to_df(snap::Snapshot, params)
+function snap_to_df(snap, params)
     snap_df = DataFrame(
         index = snap.index,
         radii = lguys.calc_r(snap),
@@ -142,14 +134,14 @@ function snap_to_df(snap::Snapshot, params)
 end
 
 
-function calc_phi(snap::Snapshot)
+function calc_phi(snap::lguys.Snapshot)
 	radii = lguys.calc_r(snap)
 	Φs = lguys.calc_radial_discrete_Φ(radii, snap.masses)
 	return Φs
 end
 
 
-function calc_eps(snap::Snapshot, Φs)
+function calc_eps(snap, Φs)
 	ke = lguys.calc_K_spec(snap)
 	ϵs = @. -Φs - ke
 	return ϵs
