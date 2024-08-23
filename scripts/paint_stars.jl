@@ -27,13 +27,20 @@ distribution function of a snapshot.
             help="Input file"
             required=true
         "--analytic", "-a"
-            help="Use analytic approximation to dark matter halo"
-            action="store_true"
+            help="Pass the name of a profile.toml file to use an analytic density/potential profile instead of the snapshot."
+            
     end
 
     args = parse_args(s)
 
     params = load_params(args["input"])
+
+    if args["analytic"] != nothing
+        params["halo"] = lguys.load_profile(args["analytic"])
+    elseif "analytic" ∈ keys(params)
+        params["halo"] = lguys.load_profile(params["analytic"])
+    end
+
     return params
 end
 
@@ -49,16 +56,29 @@ function main()
     r_bins = make_radius_bins(radii, params)
     r_bin_mids = lguys.midpoints(r_bins)
     print_missing(radii, r_bins, profile)
+    if length(r_bins) < 10
+        @warn "only $(length(r_bins)) bins"
+    end
 
     # density
-    _, nu_dm = lguys.calc_ρ_hist(radii, r_bins)
-    nu_dm ./= length(radii)
+    if "halo" ∈ keys(params)
+        halo = params["halo"]
+        @info "using analytic profile"
+
+        nu_dm = lguys.calc_ρ.(halo, r_bin_mids)
+        ψ = -lguys.calc_Φ.(halo, r_bin_mids)
+        snap_df[:, :phi] = lguys.calc_Φ.(halo, snap_df.radii)
+    else
+        _, nu_dm = lguys.calc_ρ_hist(radii, r_bins)
+        nu_dm ./= length(radii)
+        ϕ = snap_df.phi[snap_df.filter]
+        ψ = lguys.lerp(radii, -ϕ).(r_bin_mids)
+    end
+
     nu_s = max.(lguys.calc_ρ.(profile, r_bin_mids), 0)
     df_nu = DataFrame(r=r_bin_mids, nu_dm=nu_dm, nu_s=nu_s, dr=diff(r_bins)/2)
 
     # distribution functions
-    ϕ = snap_df.phi[snap_df.filter]
-    ψ = lguys.lerp(radii, -ϕ).(r_bin_mids)
     f_dm = lguys.DistributionFunction(nu_dm, ψ, r_bin_mids)
 	f_s = lguys.DistributionFunction(nu_s, ψ, r_bin_mids)
 
@@ -67,6 +87,7 @@ function main()
     # probabilities
     calc_prob = lguys.lerp(df_E.E, df_E.probs)
     prob = calc_prob.(snap_df.eps[snap_df.filter])
+    prob[snap_df.eps[snap_df.filter] .< df_E.E[1]] .= 0 # for king profile, stars not bound to inner core can't have probs
     prob = normalize_probabilities(prob)
     snap_df[snap_df.filter, :probability] = prob
 
@@ -150,12 +171,7 @@ end
 
 function make_filter(snap_df, params)
     ϵs = snap_df.eps
-    radii = snap_df.radii
-
 	filt = ϵs .> 0
-    if "R_t" in keys(first(params["profile"])[2])
-        filt .&= radii .< first(params["profile"])[2]["R_t"]
-	end
 	return filt
 end
 
@@ -173,12 +189,20 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
 	end
 	
 	r_min = radii[1]
-	r_max = radii[end]
+    if keys(params["profile"]) == Set(["KingProfile"])
+        r_max = params["profile"]["KingProfile"]["R_t"]
+        @info "using King profile with truncation radius $r_max"
+    else
+        r_max = radii[end]
+    end
 	
+    filt = r_min .<= radii
+    filt .&= radii .<= r_max
+    radii = radii[filt]
 	if params["bin_method"] == "equal_width"
-		Nr = params["num_radial_bins"]
-
-		r_bins = 10 .^ LinRange(log10.(r_min), log10.(r_max), Nr+1)
+		Nr = params["bin_width"]
+        log_r = log10(r_min):params["bin_width"]:log10(r_max)
+        r_bins = 10 .^ log_r
 	elseif params["bin_method"] == "equal_number"
 		Nr = params["num_radial_bins"]
 		r_bins = quantile(radii, LinRange(0, 1, Nr+1))
@@ -232,17 +256,11 @@ end
 Given the stellar mass function M_s, returns total missing stars
 """
 function print_missing(radii, r_bins, profile)
-    # TODO: better determination of these numbers, QuadGK throws a fit if too large a range
-    r_min = 1e-5
-    r_max = 1000
-
-
     r_h = lguys.calc_r_h(profile)
     @info " $(sum(radii .< r_h)) stars within (3D) half-light radius"
 
-    ρ_s(r) = lguys.calc_ρ.(profile, r)
-	M_s_tot = 4π * quadgk(r-> r^2 * ρ_s(r), r_min, r_max)[1]
-	M_s(r) = 4π * quadgk(r-> r^2 * ρ_s(r) / M_s_tot, r_min, r)[1]
+    M_s_tot = lguys.get_M_tot(profile)
+    M_s(r) = lguys.calc_M(profile, r) / M_s_tot
 
 	N_s_out = 1 - M_s(r_bins[end])
 	N_s_in = M_s(r_bins[1])

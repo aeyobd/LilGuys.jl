@@ -9,8 +9,8 @@ using Arya
 import LinearAlgebra: norm, dot
 
 
-const log_r_label = L"\log\ (r\, /\, \mathrm{kpc})"
-const log_rho_label = L"\log\ (\rho\, /\, \mathrm{M}_\odot\, \mathrm{pc}^{-3})"
+const log_r_label = L"\log\,(r\, /\, \mathrm{kpc})"
+const log_rho_label = L"\log\,(\rho\, /\, 10^{10}\mathrm{M}_\odot\mathrm{pc}^{-3})"
 
 const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
 

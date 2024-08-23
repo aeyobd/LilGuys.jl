@@ -48,14 +48,18 @@ end
 """
 A collection of 3D density profiles.
 """
-struct Profiles3D
+struct Profiles3D <: AbstractVector{ObsProfile3D}
     snapshot_index::Vector{Int}
     profiles::Vector{ObsProfile3D}
 end
 
-function Base.length(profs::Profiles3D)
-    return length(profs.profiles)
+function Base.size(profs::Profiles3D)
+    N =  length(profs.profiles)
+
+    return (N,)
 end
+
+
 
 function Base.getindex(profs::Profiles3D, i::Int)
     return profs.profiles[i]

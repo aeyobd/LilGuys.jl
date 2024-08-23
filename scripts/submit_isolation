@@ -1,0 +1,10 @@
+# Change this file to the system
+# This is a script to run via bash
+
+
+set -x
+rm -r out/*
+
+echo submitting $(pwd)
+nohup mpirun -np 4 $GADGET_PATH/Gadget param.txt > log.out 2>&1 &
+
