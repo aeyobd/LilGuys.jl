@@ -5,9 +5,9 @@
     @test lguys.A_NFW(Inf) === Inf
     @test lguys.A_NFW(0.) == 0 
 
-    @test_throws DomainError lguys.A_NFW(-2) 
-    @test_throws DomainError lguys.A_NFW(-Inf) 
-    @test_throws DomainError lguys.A_NFW(-0.000000001)
+    @test lguys.A_NFW(-2)  === NaN
+    @test lguys.A_NFW(-Inf)  === NaN
+    @test lguys.A_NFW(-1e-10)  === NaN
 end
 
 
@@ -127,6 +127,47 @@ end
     @test lguys.calc_M(halo, R200) ≈ M200
 end
 
+
+
+@testset "TruncNFW" begin
+    @testset "simple" begin
+        halo = lguys.TruncNFW(r_s=1, M_s=1, r_t=2)
+
+        @test lguys.calc_ρ(halo, 0) === Inf
+        @test lguys.calc_ρ(halo, 1) ≈ 1/4π * 1/(2^2) * exp(-1/2)
+        @test lguys.calc_ρ(halo, 2) ≈ 1/4π * 1/(2*3^2) * exp(-2/2)
+    end
+
+
+    @testset "Mtot" begin
+        halo = lguys.TruncNFW(r_s=2.231, M_s=0.952, r_t=6)
+
+        @test lguys.calc_M(halo, 0) ≈ 0
+        @test lguys.calc_M(halo, 1000) ≈ lguys.calc_M_tot(halo)
+        @test lguys.calc_M(halo, 10^4) ≈ lguys.calc_M_tot(halo)
+
+    end
+
+    @testset "M" begin
+        profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+    @testset "Φ" begin
+        profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
+
+        x = 10 .^ LinRange(0, 1, 10)
+        Φ1 = lguys.calc_Φ.(profile, x)
+        Φ2 = lguys.calc_Φ_from_ρ.(profile, x)
+
+        @test Φ1 ≈ Φ2 rtol=1e-5
+    end
+end
 
 @testset "Ludlow" begin
     solve_rmax = LilGuys.Ludlow.solve_rmax

@@ -1,6 +1,3 @@
-import Roots: find_zero
-
-
 @doc raw"""
     NFW(M_s, r_s)
 
@@ -18,7 +15,7 @@ The profile may be specified in terms of
 - v_circ_max, r_circ_max
 where v_circ_max is the maximum circular velocity, and r_circ_max is the radius at which it occurs; M200 is the mass within the virial radius, and c is the concentration parameter. 
 """
-struct NFW <: AbstractProfile
+struct NFW <: SphericalProfile
     M_s::Float64
     r_s::Float64
     c::Union{Nothing, Float64}
@@ -128,7 +125,7 @@ A_NFW(c) = \log(1 + c) - \frac{c}{1 + c}
 """
 function A_NFW(c::Real)
     if c < 0
-        throw(DomainError(c, "c must be positive"))
+        return NaN
     elseif c === Inf
         return Inf
     end
@@ -209,6 +206,73 @@ end
 
 function calc_R200(M200::Real)
     return (3 * M200 / (4π * 200 * ρ_crit))^(1/3)
+end
+
+
+@doc raw"""
+A truncated NFW profile
+
+The density profile is given by
+
+```math
+\rho(r) = \rho_{NFW}(r) \exp(-r/r_t)
+```
+"""
+struct TruncNFW <: SphericalProfile
+    M_s::Float64
+    r_s::Float64
+    r_t::Float64
+    c::Union{Nothing, Float64}
+end 
+
+
+function TruncNFW(; r_t=nothing, trunc=nothing, kwargs...)
+    nfw = NFW(; kwargs...)
+
+    if trunc !== nothing && r_t !== nothing
+        throw(ArgumentError("Cannot specify both trunc and r_t"))
+    elseif trunc !== nothing
+        r_t = trunc * nfw.r_s
+    elseif r_t !== nothing
+        # pass
+    else
+        throw(ArgumentError("Must specify either trunc or r_t"))
+    end
+
+    return TruncNFW(nfw.M_s, nfw.r_s, r_t, nfw.c)
+end
+
+
+function calc_ρ(profile::TruncNFW, r::Real)
+    nfw = NFW(profile.M_s, profile.r_s, profile.c)
+    return calc_ρ(nfw, r) * exp(-(r/profile.r_t))
+end
+
+function calc_M(profile::TruncNFW, r::Real)
+    x = r / profile.r_s
+    t = profile.r_t / profile.r_s
+    B = (1+1/t)*exp(1/t)
+    return profile.M_s * ( B * expinti(-(x+1)/t) + exp(-x/t)/(1+x) - B*expinti(-1/t) - 1 )
+end
+
+
+function calc_M_tot(profile::TruncNFW)
+    t = profile.r_t / profile.r_s
+    A = -(1+1/t)*exp(1/t)*expinti(-1/t) - 1
+
+    return profile.M_s * A
+end
+
+
+function calc_Φ(profile::TruncNFW, r::Real)
+    Φ_in = - G * calc_M(profile, r) / r
+
+    Φ0 = -G * profile.M_s / profile.r_s
+    x = r / profile.r_s
+    t = profile.r_t / profile.r_s
+    Φ_out = Φ0 * (1/(1+x)*exp(-x/t) + expinti(-(1+x)/t)*exp(1/t)/t)
+
+    return Φ_in + Φ_out
 end
 
 

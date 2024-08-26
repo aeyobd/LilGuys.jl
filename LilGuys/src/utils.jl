@@ -1,5 +1,3 @@
-import StatsBase: mean, std, percentile, midpoints
-import SpecialFunctions: erf
 import Base: *
 
 
@@ -274,3 +272,30 @@ function sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
     probs = rand(N)
     return l.(probs)
 end
+
+
+"""
+    @assert_same_size x y
+
+Asserts that x and y are the same size
+"""
+macro assert_same_size(x, y)
+    return quote
+        if size($(esc(x))) != size($(esc(y)))
+            throw(ArgumentError("$(string($(QuoteNode(x)))) and $(string($(QuoteNode(y)))) must have the same size"))
+        end
+    end
+end
+
+
+macro assert_3vector(x)
+    return quote
+        local size_x = size($(esc(x)))
+        if size_x[1] != 3
+            throw(ArgumentError("$(string($(QuoteNode(x)))) must be a 3-vector, got $(size_x)"))
+        end
+    end
+end
+
+
+

@@ -1,7 +1,6 @@
 # This file containes methods to evaluate the gravitational 
 # potential and force
 
-import QuadGK: quadgk
 
 
 struct DistributionFunction{F} 

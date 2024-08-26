@@ -9,13 +9,30 @@ end
 @testset "calc_Σ" begin
     log_r = [-Inf, 0]
     mass = [1]
-    Σ = LilGuys.calc_Σ(log_r, mass)
+    Σ = LilGuys.calc_Σ_from_hist(log_r, mass)
     @test Σ ≈ [1/π]
 
     log_r = [-1, 0, 1, 1.5]
     mass = [1, 2, 0]
-    Σ = LilGuys.calc_Σ(log_r, mass)
+    Σ = LilGuys.calc_Σ_from_hist(log_r, mass)
     @test Σ ≈ [1 / (0.99π), 2 / (99π), 0]
+end
+
+
+@testset "calc_Σ_from_1D_density" begin
+end
+
+@testset "calc_Σ_mean" begin
+    log_r = [-Inf, 0]
+    mass = [1]
+    Σ = LilGuys.calc_Σ_mean_from_hist(log_r, mass)
+    @test Σ ≈ [1/π]
+
+    log_r = [-1, 0, 1, 1.5]
+    mass = [1, 2, 0]
+    mass = cumsum(mass)
+    Σ = LilGuys.calc_Σ_mean_from_hist(log_r, mass)
+    @test Σ ≈ [1 / (π), 3 / (100π), 3 / (1000π)]
 end
 
 

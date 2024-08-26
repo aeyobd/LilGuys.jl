@@ -10,6 +10,7 @@ import Roots: find_zero
 
 
 abstract type AbstractProfile end
+abstract type SphericalProfile <: AbstractProfile end
 
 Base.Broadcast.broadcastable(p::AbstractProfile) = Ref(p)
 
@@ -104,15 +105,8 @@ Calculates the mass enclosed within 3D radius r
 function calc_M end
 
 
-"""
-    calc_v_circ(profile, r)
 
-Calculates the circular velocity at radius r
-"""
-function calc_v_circ end
-
-
-@kwdef struct Plummer <: AbstractProfile
+@kwdef struct Plummer <: SphericalProfile
     M::Float64 = 1
     r_s::Float64 = 1
 end
@@ -128,7 +122,7 @@ An exponential disk profile in 2D. The density profile is given by
 
 where M is the total mass and R_s is the scale radius, and Σ_0 = M / (2π * R_s^2)
 """
-@kwdef struct Exp2D <: AbstractProfile
+@kwdef struct Exp2D <: SphericalProfile
     M::Float64 = 1
     R_s::Float64 = 1
 end
@@ -143,7 +137,7 @@ An exponential disk profile in 3D. The density profile is given by
 
 where M is the total mass and r_s is the scale radius, and ρ_0 = M / (8π * r_s^3)
 """
-@kwdef struct Exp3D <: AbstractProfile
+@kwdef struct Exp3D <: SphericalProfile
     M::Float64 = 1
     r_s::Float64 = 1
 end
@@ -157,7 +151,7 @@ A logarithmic cusp profile in 2D. The density profile is given by
 \rho(r) = 
 ```
 """
-@kwdef struct LogCusp2D <: AbstractProfile
+@kwdef struct LogCusp2D <: SphericalProfile
     M::Float64 = 1
     R_s::Float64 = 1
 end
@@ -183,7 +177,7 @@ the tidal radius.
 - `k::Real`: the density scaling. One of `M` or `k` must be specified
 
 """
-struct KingProfile <: AbstractProfile
+struct KingProfile <: SphericalProfile
     k::Float64
     R_s::Float64
     R_t::Float64 
@@ -370,31 +364,36 @@ function calc_M_2D(profile::KingProfile, R::Real)
 end
 
 
-function calc_M(profile::AbstractProfile, r::Real)
+function calc_M(profile::SphericalProfile, r::Real)
     return calc_M_from_ρ(profile, r)
 end
 
 
-function calc_M_2D(profile::AbstractProfile, R::Real)
+function calc_M_2D(profile::SphericalProfile, R::Real)
     return calc_M_2D_from_Σ(profile, R)
 end
 
-function calc_M_2D_from_Σ(profile::AbstractProfile, R::Real)
+function calc_M_2D_from_Σ(profile::SphericalProfile, R::Real)
     return quadgk(R -> 2π * R * calc_Σ(profile, R), 0, R)[1]
 end
 
-function calc_M_from_ρ(profile::AbstractProfile, r::Real)
+function calc_M_from_ρ(profile::SphericalProfile, r::Real)
     return quadgk(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)[1]
 end
 
 
-function calc_Σ_from_ρ(profile::AbstractProfile, R::Real)
+function calc_Σ_from_ρ(profile::SphericalProfile, R::Real)
     integrand(r) = calc_ρ(profile, r) * r / sqrt(r^2 - R^2)
     return 2*quadgk(integrand, R, Inf)[1]
 end
 
 
-function calc_v_circ(profile::AbstractProfile, r)
+"""
+    calc_v_circ(profile, r)
+
+Calculates the circular velocity at radius r
+"""
+function calc_v_circ(profile::SphericalProfile, r)
     return sqrt(G * calc_M(profile, r) / r)
 end
 
@@ -402,25 +401,43 @@ end
 """
 calculate the 3D density profile of a profile at radius r
 """
-function calc_ρ_from_Σ(profile::AbstractProfile, r::Real)
+function calc_ρ_from_Σ(profile::SphericalProfile, r::Real)
     integrand(R) = derivative(R->calc_Σ(profile, R), R) / sqrt(R^2 - r^2)
     return -1/π * quadgk(integrand, r, Inf)[1]
 end
 
 
-function calc_r_h(profile::AbstractProfile)
+function calc_r_h(profile::SphericalProfile)
     return find_zero(r -> calc_M(profile, r) / get_M_tot(profile) - 1/2, 1)
 end
 
-function calc_R_h(profile::AbstractProfile)
+function calc_R_h(profile::SphericalProfile)
     return find_zero(R -> calc_M_2D(profile, R) / get_M_tot(profile) - 1/2, 1)
 end
 
 
-function get_M_tot(profile::AbstractProfile)
+function get_M_tot(profile::SphericalProfile)
     if :M in fieldnames(typeof(profile))
         return profile.M
     else
         return calc_M(profile, Inf)
     end
 end
+
+
+function calc_Φ_from_ρ(profile::SphericalProfile, r::Real; integrate_M=false)
+    integrand(r) = calc_ρ(profile, r) * r
+
+    if integrate_M
+        M_in = calc_M_from_ρ(profile, r)
+    else
+        M_in = calc_M(profile, r)
+    end
+
+    Φ_in = -G * M_in / r
+
+    Φ_out = -4π * G * quadgk(integrand, r, Inf)[1]
+
+    return Φ_in + Φ_out
+end
+

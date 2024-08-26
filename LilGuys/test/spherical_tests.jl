@@ -1,4 +1,4 @@
-const I = [1 0 0; 0 1 0; 0 0 1]
+eye = [1 0 0; 0 1 0; 0 0 1]
 
 function random_matrix()
     return lguys.Rz_mat(rand() * 2π) * lguys.Ry_mat(rand() * 2π) * lguys.Rx_mat(rand() * 2π)
@@ -166,7 +166,7 @@ end
             ra = rand() * 360
             dec = rand() * 180 .- 90
 
-            @test lguys.angular_distance(lguys.rotate_sky(ra, dec, I)..., ra, dec) ≈ 0 atol=1e-12
+            @test lguys.angular_distance(lguys.rotate_sky(ra, dec, eye)..., ra, dec) ≈ 0 atol=1e-12
         end
     
     end
@@ -281,9 +281,9 @@ end
 @testset "rotation identity" begin
 
     for θ in [-2π, 0, 2π]
-        @test lguys.Rx_mat(θ) ≈ I
-        @test lguys.Ry_mat(θ) ≈ I
-        @test lguys.Rz_mat(θ) ≈ I
+        @test lguys.Rx_mat(θ) ≈ eye
+        @test lguys.Ry_mat(θ) ≈ eye
+        @test lguys.Rz_mat(θ) ≈ eye
     end
 end
 
@@ -296,7 +296,7 @@ end
             H = mat(θ)
             H_inv = mat(-θ)
 
-            @test H * H_inv ≈ I
+            @test H * H_inv ≈ eye
         end
     end
 end

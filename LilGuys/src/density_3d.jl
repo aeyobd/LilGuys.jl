@@ -1,5 +1,3 @@
-import DensityEstimators: histogram
-import StatsBase: percentile
 import TOML
 
 
@@ -22,27 +20,50 @@ All properties are in code units.
 
     """ Maximum circular velocity """
     v_circ_max::F
+    """ Radius of maximum circular velocity"""
     r_circ_max::F
+
+    "Number of bound particles"
     N_bound::Int
 
+    "Log radius of bin middles"
     log_r::Vector{F}
+    "Log radius of bin edges"
     log_r_bins::Vector{F}
+    "Number of particles in each bin"
     counts::Vector{Int}
 
+    "Mass in each shell"
     mass_in_shell::Vector{F}
     mass_in_shell_err::Vector{F}
 
+    "Mass enclosed within each shell (up to exterior bin edge)"
     M_in::Vector{F}
     M_in_err::Vector{F}
 
+    "Mean density in bin"
     rho::Vector{F}
+    "Density error in each shell"
     rho_err::Vector{F}
 
+    "Circular velocity at each bin edge"
     v_circ::Vector{F}
+    "Circular velocity error at each bin edge"
     v_circ_err::Vector{F}
 
+    "Circular crossing time / dynamical time at bin"
     t_circ::Vector{F}
 end
+
+function Base.print(io::IO, prof::ObsProfile3D)
+    TOML.print(io, struct_to_dict(prof))
+end
+
+function ObsProfile3D(filename::String)
+    t = dict_to_tuple(TOML.parsefile(filename))
+    return ObsProfile3D(;t...)
+end
+
 
 
 """
@@ -111,15 +132,6 @@ end
 
 
 
-function Base.print(io::IO, prof::ObsProfile3D)
-    TOML.print(io, struct_to_dict(prof))
-end
-
-
-function ObsProfile3D(filename::String)
-    t = dict_to_tuple(TOML.parsefile(filename))
-    return ObsProfile3D(;t...)
-end
 
 """
     calc_profile(snap)
@@ -206,11 +218,6 @@ end
 
 sorts a snapshot by radius from 0
 """
-function sort_by_r(snap::Snapshot)
-    return snap[sortperm(calc_r(snap))]
-end
-
-
 
 """
     calc_m_hist(r, r_bins[, masses])
@@ -262,19 +269,32 @@ end
 returns the radial velocities relative to the snapshot centre in code units
 """
 function calc_v_rad(snap)
-	x_vec = snap.positions .- snap.x_cen
-	v_vec = snap.velocities .- snap.v_cen
+    return calc_v_rad(snap.positions, snap.velocities, x_cen=snap.x_cen, v_cen=snap.v_cen)
+end
 
-	# normalize
-	x_hat = x_vec ./ calc_r(x_vec)'
+"""
+    calc_v_rad(positions, velocities; x_cen=zeros(3), v_cen=zeros(3))
 
-	# dot product
-	v_rad = sum(x_hat .* v_vec, dims=1)
+Calculates the radial velocities relative to x_cen, v_cen.
+"""
+function calc_v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:Real}; x_cen=zeros(3), v_cen=zeros(3))
 
-	# matrix -> vector
-	v_rad = dropdims(v_rad, dims=1)
-	
-	return v_rad 
+    @assert_same_size positions velocities
+    @assert_3vector positions
+
+    x_vec = positions .- x_cen
+    v_vec = velocities .- v_cen
+
+    # normalize
+    x_hat = x_vec ./ calc_r(x_vec)'
+
+    # dot product
+    v_rad = sum(x_hat .* v_vec, dims=1)
+
+    # matrix -> vector
+    v_rad = dropdims(v_rad, dims=1)
+    
+    return v_rad 
 end
 
 
@@ -307,35 +327,58 @@ end
 Fits the maximum circular velocity of a rotation curve assuming a NFW
 profile. Returns the parameters of the fit and the range of radii used.
 """
-function fit_v_r_circ_max(r, v_circ; percen=80, p0=[6., 30.])
-    filt = v_circ .> percentile(v_circ, percen)
+function fit_v_r_circ_max(r::AbstractArray{<:Real}, v_circ::AbstractArray{<:Real}; percen=90, p0=nothing)
+    if p0 == nothing
+        idx = argmax(v_circ)
+        p0 = [r[idx], v_circ[idx]]
+    end
 
-    local fit, converged
-    try
-        fit = curve_fit(v_circ_max_model, r[filt], v_circ[filt], p0)
-        converged = fit.converged
-    catch ArgumentError
-        converged = false
-        fit = nothing
+    if length(r) != length(v_circ)
+        throw(DimensionMismatch("r and v_circ must have the same length. Got $(length(r)) and $(length(v_circ))"))
+    elseif length(r) < 2
+        throw(ArgumentError("r and v_circ must have at least 2 elements"))
     end
 
 
-    if converged == false
+    filt = v_circ .> percentile(v_circ, percen)
+
+    local fit, converged
+
+    if sum(filt) < 2
+        converged = false
+        fit = nothing
+    else
+        try
+            fit = curve_fit(_v_circ_max_model, r[filt], v_circ[filt], p0)
+            converged = fit.converged
+        catch ArgumentError
+            converged = false
+            fit = nothing
+        end
+    end
+
+
+    if !converged
         @warn "Fit did not converge, using simple maximum."
         idx = argmax(v_circ)
         v_circ_max = v_circ[idx]
         r_circ_max = r[idx]
+        r_min = NaN
+        r_max = NaN
     else
         r_circ_max = fit.param[1]
         v_circ_max = fit.param[2]
+        r_min = minimum(r[filt]) 
+        r_max = maximum(r[filt])
     end
 
     return (; 
         r_circ_max=r_circ_max,
         v_circ_max=v_circ_max,
-        r_min = minimum(r[filt]), 
-        r_max = maximum(r[filt]),
         fit=fit,
+        converged=converged,
+        r_min=r_min,
+        r_max=r_max
        )
 end
 
@@ -362,36 +405,43 @@ v_circ(r) = v_circ_max/β * sqrt( (log(1 + x) - x/(1+x)) / x )
 where x = r / r_circ_max * α_nfw
 and α_nfw, β are the solution so v_circ_max_model(1) = 1.
 """
-function v_circ_max_model(r, param)
-	Rmx,Vmx = param
-	x = r ./ Rmx .* α_nfw
-	inner = @. (nm.log(1+x) - x/(1+x)) / x
-	return @. Vmx / 0.46499096281742197 * nm.sqrt(inner)
+function _v_circ_max_model(r, param)
+	r_circ_max, v_circ_max = param
+
+	x = r ./ r_circ_max .* α_nfw
+    β = 0.46499096281742197
+    return @. v_circ_max / β  * sqrt(A_NFW(x) / x)
 end
 
 
 
 """
-    calc_M_h(output, radius; idxs=(1:10:length(output)))
+    calc_M_in(out, radius; idxs=(1:10:length(output)))
 
-Calculates the number of particles within a given radius for a set of snapshots.
+Calculates the number of bound particles within a given radius for a set of snapshots.
 """
-function get_M_h(output::Output, radius; idxs=(1:10:length(output)))
+function calc_M_in(output::Output, radius::Real; idxs=(1:10:length(output)))
 	N = length(idxs)
 	M = Vector{Float64}(undef, N)
 	
 	for i in eachindex(idxs)
 		snap = output[idxs[i]]
-		ϵ = calc_ϵ(snap)
-		filt = ϵ .> 0
-		
-		rs = calc_r(snap[filt])
-		filt2 = rs .< radius
-
-		M[i] = sum(filt2)
+        M[i] = calc_M_in(snap, radius)
 	end
 
 	return M
+end
+
+
+"""
+    calc_M_in(snap::Snapshot, radius::Real)
+
+Calculates the number of bound particles within a given radius for a snapshot.
+"""
+function calc_M_in(snap::Snapshot, radius::Real)
+    filt = get_bound(snap)
+    rs = calc_r(snap)[filt]
+    return sum(rs .<= radius)
 end
 
 
@@ -513,7 +563,6 @@ end
 
 
 """
-    phase_to_sky(pos, vel; invert_velocity=false, SkyFrame=ICRS)
 Converts a phase space position and velocity (i.e. simulation point) to a sky observation.
 
 # Arguments

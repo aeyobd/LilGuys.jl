@@ -2,16 +2,8 @@ import Base: @kwdef
 
 import LinearAlgebra: diag, dot, norm, normalize
 
-using Measurements
-import DensityEstimators: histogram
-import StatsBase: weights, mean, StatsBase
 import TOML
 
-
-value(x::Measurement) = x.val
-err(x::Measurement) = x.err
-value(x) = x
-err(x) = zero(x)
 
 
 F = Float64
@@ -110,16 +102,14 @@ function calc_properties(rs;
     if length(rs) < 2
         throw(ArgumentError("Radii must have at least 2 elements."))
     end
-    h = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
-    log_r_bin = h.bins
+    log_r_bin, values, err = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
     log_r = midpoints(log_r_bin)
     δ_log_r = diff(log_r_bin) ./ 2
 
-    h.err[isnan.(h.err)] .= 0
+    err[isnan.(err)] .= 0
 
-    mass_per_annulus = h.values .± h.err
-    h_c = histogram(log10.(rs), bins, normalization=:none)
-    counts = h_c.values
+    mass_per_annulus = values .± err
+    _, counts, _ = histogram(log10.(rs), bins, normalization=:none)
 
     if normalization == :mass
         mass_per_annulus = mass_per_annulus ./ sum(mass_per_annulus)
@@ -133,9 +123,9 @@ function calc_properties(rs;
         error("normalization not implemented: $normalization")
     end
 
-    Σ = calc_Σ(log_r_bin, mass_per_annulus)
-    M_in = calc_M_in(log_r_bin, mass_per_annulus)
-    Σ_m = calc_Σ_mean(log_r_bin, M_in)
+    Σ = calc_Σ_from_hist(log_r_bin, mass_per_annulus)
+    M_in = cumsum(mass_per_annulus)
+    Σ_m = calc_Σ_mean_from_hist(log_r_bin, M_in)
     Γ = calc_Γ(log_r, Σ)
     Γ_max = calc_Γ_max(Σ, Σ_m)
 
@@ -148,19 +138,19 @@ function calc_properties(rs;
         log_r_bins = log_r_bin,
         counts = counts,
         M_in = value.(M_in),
-        M_in_err = err.(M_in),
+        M_in_err = uncertainty.(M_in),
         mass_in_annulus = value.(mass_per_annulus),
-        mass_in_annulus_err = err.(mass_per_annulus),
+        mass_in_annulus_err = uncertainty.(mass_per_annulus),
         Sigma = value.(Σ),
-        Sigma_err = err.(Σ),
+        Sigma_err = uncertainty.(Σ),
         Sigma_m = value.(Σ_m),
-        Sigma_m_err = err.(Σ_m),
+        Sigma_m_err = uncertainty.(Σ_m),
         log_Sigma = value.(log_Σ),
-        log_Sigma_err = err.(log_Σ),
+        log_Sigma_err = uncertainty.(log_Σ),
         Gamma = value.(Γ),
-        Gamma_err = err.(Γ),
+        Gamma_err = uncertainty.(Γ),
         Gamma_max = value.(Γ_max),
-        Gamma_max_err = err.(Γ_max)
+        Gamma_max_err = uncertainty.(Γ_max)
     )
 
     return prof
@@ -169,17 +159,30 @@ end
 
 # Density methods
 """
-    calc_Σ(log_r_bin, mass_per_annulus)
+    calc_Σ_from_hist(log_r_bin, mass_per_annulus)
 
 Calculate the surface density given the radii `log_r_bin` and the mass per annuli `mass_per_annulus`.
 """
-function calc_Σ(log_r_bin, mass_per_annulus)
+function calc_Σ_from_hist(log_r_bin, mass_per_annulus)
     r = 10. .^ log_r_bin
     As = π * diff(r .^ 2)
 
-    # Σ = h.values ./ (2π * log(10) * r .^ 2) # is equivalent because of derivative of log r
     Σ = mass_per_annulus ./ As 
 	return Σ 
+end
+
+
+"""
+    calc_Σ_from_1D_density(log_r_bin, density1d)
+
+Calculate the surface density given the radii `log_r_bin` and the 1D density `density1d`.
+"""
+function calc_Σ_from_1D_density(log_r_bin, density1d)
+    r = 10 .^ log_r_bin
+    As = π * diff(r .^ 2)
+
+    Σ = density ./ (2π * log(10) * r .^ 2)
+    return Σ
 end
 
 
@@ -196,12 +199,10 @@ function calc_Γ(log_rs, Σs)
 end
 
 
-function calc_M_in(log_r_bin, mass_per_annulus)
-    M_in = cumsum(mass_per_annulus)
-    return M_in 
-end
-
-function calc_Σ_mean(log_r_bin, M_in)
+"""
+Calculates the mean surface density from the interior mass to each bin
+"""
+function calc_Σ_mean_from_hist(log_r_bin, M_in)
     r = 10 .^ log_r_bin[2:end]
 	Areas = @. π * r^2
 	Σ_bar = M_in ./ Areas
@@ -209,7 +210,9 @@ function calc_Σ_mean(log_r_bin, M_in)
 end
 
 
-
+"""
+Given the surface density Σ and the mean surface density Σ_m, calculates the maximum slope of the density profile.
+""" 
 function calc_Γ_max(Σ, Σ_m)
     Γ_max = @. 2*(1 - Σ / Σ_m)
     Γ_max[value.(Σ) .== 0] .= NaN

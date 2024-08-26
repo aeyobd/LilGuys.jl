@@ -22,6 +22,10 @@ export ICRS, HelioRest, Galactocentric, transform
 
 
 include("units.jl")
+include("interface.jl")
+using .Interface
+
+
 include("utils.jl")
 
 include("coordinates.jl")
