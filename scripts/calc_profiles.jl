@@ -56,7 +56,7 @@ function main()
     end
 
 
-    profs = LilGuys.Profiles3D(snap_idx, profiles)
+    profs = LilGuys.Profiles3D(snap_idx, out.times[snap_idx], profiles)
 
     LilGuys.save(args["output"], profs)
 end

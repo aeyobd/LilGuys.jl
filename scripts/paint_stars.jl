@@ -70,7 +70,8 @@ function main()
         ψ = -lguys.calc_Φ.(halo, r_bin_mids)
         snap_df[:, :phi] = lguys.calc_Φ.(halo, snap_df.radii)
     else
-        _, nu_dm = lguys.calc_ρ_hist(radii, r_bins)
+        bins, hist, _ = lguys.histogram(radii, r_bins)
+        nu_dm = lguys.calc_ρ_from_hist(bins, hist)
         nu_dm ./= length(radii)
         ϕ = snap_df.phi[snap_df.filter]
         ψ = lguys.lerp(radii, -ϕ).(r_bin_mids)
@@ -214,6 +215,7 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
 		error("bin method unknown")
 	end
 
+
 	return r_bins
 	
 end
@@ -245,10 +247,14 @@ end
 function normalize_probabilities(ps)
     N_neg = sum(ps .< 0)
 	@info "$N_neg negative probabilities"
+    N_nan = sum(isnan.(ps))
+    @info "$N_nan NaN probabilities"
 	ps[ps .< 0] .= 0
 	ps[isnan.(ps)] .= 0
 	ps ./= sum(ps)
 
+    @info "sum of probabilities = $(sum(isnan.(ps)))"
+    @info "sum of probabilities = $(sum(ps))"
     return ps
 end
 
@@ -258,6 +264,7 @@ Given the stellar mass function M_s, returns total missing stars
 """
 function print_missing(radii, r_bins, profile)
     r_h = lguys.calc_r_h(profile)
+    @info "r_h = $r_h"
     @info " $(sum(radii .< r_h)) stars within (3D) half-light radius"
 
     M_s_tot = lguys.get_M_tot(profile)

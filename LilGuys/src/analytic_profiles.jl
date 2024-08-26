@@ -22,6 +22,7 @@ const RECOGNIZED_PROFILES = (
     :LogCusp2D,
     :KingProfile,
     :NFW,
+    :TruncNFW,
 )
 
 
@@ -321,13 +322,15 @@ function calc_ρ(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0
     end
+    if r < 0
+        return NaN
+    end
 
     r_s, r_t = profile.R_s, profile.R_t
     k = profile.k
     # equation 27 in King 1962
     x = sqrt( (1+(r/r_s)^2)/(1+(r_t/r_s)^2) )
     K = k / (π*r_s * (1 + (r_t/r_s)^2)^(3/2))
-
     return K / x^2 * ( acos(x)/x - √(1-x^2) )
 end
 
@@ -365,6 +368,10 @@ end
 
 
 function calc_M(profile::SphericalProfile, r::Real)
+    if r < 0
+        return NaN
+    end
+
     return calc_M_from_ρ(profile, r)
 end
 
@@ -406,13 +413,25 @@ function calc_ρ_from_Σ(profile::SphericalProfile, r::Real)
     return -1/π * quadgk(integrand, r, Inf)[1]
 end
 
+"""
+Approximate scale radius
+"""
+function get_r_s(profile::KingProfile)
+    return profile.R_s / sqrt(2)
+end
+
+
 
 function calc_r_h(profile::SphericalProfile)
-    return find_zero(r -> calc_M(profile, r) / get_M_tot(profile) - 1/2, 1)
+    M0 = get_M_tot(profile)
+    r_s = get_r_s(profile)
+    return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
 end
 
 function calc_R_h(profile::SphericalProfile)
-    return find_zero(R -> calc_M_2D(profile, R) / get_M_tot(profile) - 1/2, 1)
+    r_s = get_r_s(profile)
+    M0 = get_M_tot(profile)
+    return find_zero(R -> calc_M_2D(profile, R) / M0 - 1/2, r_s)
 end
 
 

@@ -18,6 +18,9 @@ function get_args()
             required=true
         "output"
             help="Output TOML file"
+        "-s", "--simulation"
+            help="simulation flags"
+            action="store_true"
         "--r_centre"
             help="Centre of the profile"
             default=5
@@ -57,6 +60,12 @@ function get_args()
     end
 
     args = parse_args(s)
+
+
+    if args["simulation"]
+        args["mass-column"] = "weights"
+        args["centre-method"] = "weighted3"
+    end
 
     if args["output"] === nothing
         samplename = args["input"]

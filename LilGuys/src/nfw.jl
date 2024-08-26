@@ -1,3 +1,5 @@
+abstract type GeneralNFW <: SphericalProfile end
+
 @doc raw"""
     NFW(M_s, r_s)
 
@@ -15,7 +17,7 @@ The profile may be specified in terms of
 - v_circ_max, r_circ_max
 where v_circ_max is the maximum circular velocity, and r_circ_max is the radius at which it occurs; M200 is the mass within the virial radius, and c is the concentration parameter. 
 """
-struct NFW <: SphericalProfile
+struct NFW <: GeneralNFW
     M_s::Float64
     r_s::Float64
     c::Union{Nothing, Float64}
@@ -149,7 +151,7 @@ function calc_Φ(profile::NFW, r::Real)
 end
 
 
-function calc_v_circ_max(profile::NFW)
+function calc_v_circ_max(profile::GeneralNFW)
     r_max = calc_r_circ_max(profile)
     M = calc_M(profile, r_max)
 
@@ -157,7 +159,7 @@ function calc_v_circ_max(profile::NFW)
 end
 
 
-function calc_r_circ_max(profile::NFW)
+function calc_r_circ_max(profile::GeneralNFW)
     return α_nfw * profile.r_s
 end
 
@@ -194,12 +196,12 @@ end
 """
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
-function calc_R200(profile::NFW)
+function calc_R200(profile::GeneralNFW)
     return profile.r_s * profile.c
 end
 
 
-function calc_M200(profile::NFW)
+function calc_M200(profile::GeneralNFW)
     return A_NFW(profile.c) * profile.M_s
 end
 
@@ -218,7 +220,7 @@ The density profile is given by
 \rho(r) = \rho_{NFW}(r) \exp(-r/r_t)
 ```
 """
-struct TruncNFW <: SphericalProfile
+struct TruncNFW <: GeneralNFW
     M_s::Float64
     r_s::Float64
     r_t::Float64
@@ -274,6 +276,8 @@ function calc_Φ(profile::TruncNFW, r::Real)
 
     return Φ_in + Φ_out
 end
+
+
 
 
 

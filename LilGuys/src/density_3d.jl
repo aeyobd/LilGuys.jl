@@ -1,4 +1,5 @@
 import TOML
+import LinearAlgebra: ×
 
 
 """
@@ -71,12 +72,12 @@ A collection of 3D density profiles.
 """
 struct Profiles3D <: AbstractVector{ObsProfile3D}
     snapshot_index::Vector{Int}
+    times::Vector{F}
     profiles::Vector{ObsProfile3D}
 end
 
 function Base.size(profs::Profiles3D)
     N =  length(profs.profiles)
-
     return (N,)
 end
 
@@ -87,9 +88,15 @@ function Base.getindex(profs::Profiles3D, i::Int)
 end
 
 
+"""
+    Profiles3D(filename)
+
+Loads a Profiles3D array from the given hdf5 file (ideally saved with `save`).
+"""
 function Profiles3D(filename::String)
     h5open(filename, "r") do f
         snapshot_index = read(f, "snapshot_index")
+        times = read(f, "times")
 
         profiles = ObsProfile3D[]
 
@@ -110,7 +117,7 @@ function Profiles3D(filename::String)
 
             push!(profiles, prof)
         end
-        return Profiles3D(snapshot_index, profiles)
+        return Profiles3D(snapshot_index, times, profiles)
     end
 end
 
@@ -118,6 +125,7 @@ end
 function save(filename::String, profs::Profiles3D)
     h5open(filename, "w") do f
         write(f, "snapshot_index", profs.snapshot_index)
+        write(f, "times", profs.times)
 
         for key in fieldnames(ObsProfile3D)
             data = getfield.(profs.profiles, key)
@@ -134,7 +142,12 @@ end
 
 
 """
-    calc_profile(snap)
+    calc_profile(snap; bins=100, filt_bound=true)
+
+Given a snapshot, computes the density, circular velocity, and energy; 
+returning an ObsProfile3D object.
+
+`bins` may be an integer, array, or function and is passed to `histogram`
 """
 function calc_profile(snap::Snapshot;
         bins=100,
@@ -145,6 +158,7 @@ function calc_profile(snap::Snapshot;
         filt = get_bound(snap)
         snap = snap[filt]
     end
+
     N_bound = length(snap)
 
     K = calc_K_tot(snap)
@@ -159,31 +173,32 @@ function calc_profile(snap::Snapshot;
 
     L = calc_L_tot(snap)
 
-    h = histogram(log10.(calc_r(snap)), bins, weights=snap.masses, normalization=:none)
-    log_r_bins = h.bins
+    log_r_snap = log10.(calc_r(snap))
+
+    bins, hist, err = histogram(log_r_snap, bins, weights=snap.masses)
+    log_r_bins = bins
+    mass_in_shell = hist 
+    mass_in_shell_err  = err
+
+    _, counts, _ = histogram(log_r_snap, bins)
+
     log_r = midpoints(log_r_bins)
+    r_bins = 10 .^ log_r_bins
     r = 10 .^ log_r
+    rel_err = mass_in_shell_err ./ mass_in_shell
 
-
-    counts = histogram(log10.(calc_r(snap)), bins, normalization=:none).values
-
-    mass_in_shell = h.values
-    mass_in_shell_err = h.err
-
-    V = 4π/3 * diff((10 .^ log_r_bins) .^ 3)
-    rho = mass_in_shell ./ V
-    rho_err = mass_in_shell_err ./ V
-
+    rho = calc_ρ_from_hist(r_bins, mass_in_shell)
+    rho_err = rho .* rel_err # TODO: does not include binning error
 
     M_in = cumsum(mass_in_shell)
-    M_in_err = cumsum(counts) .^ -0.5 .* M_in
+    M_in_err = 1 ./ sqrt.(cumsum(counts)) .* M_in
 
     # circular velocity is mass inclusive
-    r_right = 10 .^ log_r_bins[2:end]
+    r_right = r_bins[2:end]
     v_circ = calc_v_circ.(r_right, M_in)
-    v_circ_err = zeros(length(v_circ))
+    v_circ_err = v_circ .* M_in_err ./ M_in
     t_circ = r_right ./ v_circ
-    t_circ_err = zeros(length(t_circ))
+    t_circ_err = t_circ .* rel_err
 
     fit = fit_v_r_circ_max(r, v_circ)
     v_circ_max = fit.v_circ_max
@@ -215,51 +230,18 @@ end
 
 
 """
-
-sorts a snapshot by radius from 0
+    calc_ρ_from_hist(bins, counts)
 """
-
-"""
-    calc_m_hist(r, r_bins[, masses])
-
-Calculates the density profile given a set of particles located at `r` with masses `masses` by binning into `r_bins`.
-"""
-function calc_ρ_hist(r::AbstractVector{T}, bins::AbstractVector; weights=nothing) where T <: Real
-    if weights == nothing
-        weights = ones(length(r))
+function calc_ρ_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{<:Real}) 
+    if length(bins) != length(counts) + 1
+        throw(DimensionMismatch("Bins must be one longer than counts, got sizes $(length(bins)), $(length(counts))"))
     end
 
-    counts = histogram(r, bins, weights=weights, normalization=:none).values
-
-    Vs = 4π/3 * diff(bins .^ 3)
-    return bins, counts ./ Vs
+    volumes = 4π/3 * diff(bins .^ 3)
+    return counts ./ volumes
 end
 
 
-
-function calc_ρ_hist(r::AbstractVector{T}, bins::Int; weights=nothing, equal_width=false) where T <: Real
-    if equal_width
-        x1 = minimum(r)
-        x2 = maximum(r)
-        x = LinRange(x1, x2, bins)
-        bins = 10 .^ x
-    else
-        bins = percentile(r, LinRange(0, 100, bins+1))
-    end
-    return calc_ρ_hist(r, bins; weights=weights)
-end
-
-
-function calc_ρ_hist(r::AbstractVector{T}; weights=nothing) where T <: Real
-    r_bins = round(Int64, 0.1 * sqrt(length(r)))
-    return calc_ρ_hist(r, r_bins, weights=weights)
-end
-
-
-function calc_ρ_hist(snap::Snapshot, bins; weights=snap.masses, x_cen=snap.x_cen)
-    r = calc_r(snap, x_cen)
-    return calc_ρ_hist(r, bins; weights=weights)
-end
 
 
 
@@ -306,16 +288,18 @@ Returns a list of the sorted radii and circular velocity from a snapshot for the
 """
 function calc_v_circ(snap::Snapshot; x_cen=snap.x_cen, filter_bound=true)
     r = calc_r(snap.positions .- x_cen)
-    m = snap.masses[sortperm(r)]
-    r = sort(r)
-    M = cumsum(m)
-
+    m = snap.masses
     if filter_bound
         filt = get_bound(snap)
 
         r = r[filt]
-        M = M[filt]
+        m = m[filt]
     end
+
+    r = sort(r)
+    m = snap.masses[sortperm(r)]
+    M = cumsum(m)
+
     return r, calc_v_circ.(r, M)
 end
 

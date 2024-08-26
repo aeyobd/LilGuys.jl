@@ -1,10 +1,44 @@
 
+using LinearAlgebra: ×
 
 
+@testset "calc_ρ_from_hist" begin
+    @testset "simple cases" begin
+        masses = [1, 0, π]
+        bins = [0, 1, 2, 5]
 
-@testset "calc_ρ_hist" begin
+        ρ = lguys.calc_ρ_from_hist(bins, masses)
+        ρ_exp = [3/4π, 0, 3/4 * 1/117]
 
+        @test ρ ≈ ρ_exp 
+    end
+
+    @testset "errors" begin
+        masses = Int[]
+        bins = [1, 2]
+
+        @test_throws DimensionMismatch lguys.calc_ρ_from_hist(masses, bins)
+
+        masses = [1.0, 2.0]
+        bins = [1, 2]
+
+        @test_throws DimensionMismatch lguys.calc_ρ_from_hist(masses, bins)
+    end
+
+    @testset "mass conservation" begin
+        N = 1000
+        x = randn(N)
+        bins, masses = lguys.histogram(x)
+
+        ρ = lguys.calc_ρ_from_hist(bins, masses)
+        M_per_shell = 4π/3*diff(bins .^ 3) .* ρ
+        M_tot = sum(masses)
+
+        @test M_tot ≈ N rtol=1e-5
+    end
 end
+
+
 
 @testset "calc_v_rad" begin
     @testset "basic" begin
@@ -142,9 +176,50 @@ end
     end
 end
 
+function calc_χ2(x, x_exp, xerr)
+	return sum(
+		@. (x-x_exp)^2 / xerr^2
+	) / length(x)
+end
+
 
 @testset "calc_profile (integration)" begin
+    N = 30_000
+    halo = lguys.TruncNFW(M_s=1, r_s=1, r_t=16)
+    ρ(r) = lguys.calc_ρ(halo, r)
 
+    r = lguys.sample_ρ(ρ, N)
+
+    mass = 0.5 .+ 0.5rand(N)
+    M = sum(mass)
+
+    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+
+    Nb = 20
+    profile = lguys.calc_profile(snap, bins=Nb)
+
+    @test profile.N_bound ≈ N
+    @test profile.M_in[end] ≈ M
+
+    M_tot = lguys.get_M_tot(halo)
+    halo = lguys.TruncNFW(M_s= M ./ M_tot, r_s=1, r_t=16, c=1) # c doesn't matter
+    @test lguys.get_M_tot(halo) ≈ M
+
+    r = 10 .^ profile.log_r_bins[2:end]
+    ρ_exp = lguys.calc_ρ.(halo, r)
+    χ2 = calc_χ2(profile.rho, ρ_exp, profile.rho_err)
+    @test χ2  ≈ 1 rtol = 0.5
+
+    println( (profile.rho .- ρ_exp) ./ profile.rho_err)
+
+    r = 10 .^ profile.log_r_bins[2:end]
+    M_exp = lguys.calc_M.(halo, r)
+    χ2 = calc_χ2(profile.M_in, M_exp, profile.M_in_err)
+    @test χ2  ≈ 1 rtol = 0.5
+
+    v_circ_exp = lguys.calc_v_circ.(halo, r)
+    χ2 = calc_χ2(profile.v_circ, v_circ_exp, profile.v_circ_err)
+    @test χ2  ≈ 1 rtol = 0.5
 
 end
 

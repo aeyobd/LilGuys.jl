@@ -275,6 +275,38 @@ end
 
 
 """
+    sample_ρ(f::Function, N::Integer = 1; log_r=nothing)
+
+Randomly draws N samples from a Density profile given by the finction f.
+"""
+function sample_ρ(f::Function, N::Integer = 1; log_r=nothing)
+    if log_r == nothing
+        log_r = LinRange(-5, 5, 1000)
+    end
+
+    r = exp10.(log_r)
+    ρ = f.(r)
+
+    if any(ρ .< 0)
+        throw(ArgumentError("ρ must be positive"))
+    end
+    if any(.! isfinite.(ρ))
+        throw(ArgumentError("ρ must be finite"))
+    end
+
+
+    dr = gradient(r)
+    M = cumsum(@. ρ * 4π*r^2 * dr)
+    M = M ./ M[end]
+
+    l = lerp([0; M], [0; r])
+
+    probs = rand(N)
+    return l.(probs)
+end
+
+
+"""
     @assert_same_size x y
 
 Asserts that x and y are the same size
