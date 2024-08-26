@@ -58,6 +58,7 @@ function main()
     print_missing(radii, r_bins, profile)
     if length(r_bins) < 10
         @warn "only $(length(r_bins)) bins"
+        @info "radii: $(r_bins)"
     end
 
     # density
@@ -182,7 +183,6 @@ radial bins used in the calculation.
 
 """
 function make_radius_bins(radii::AbstractVector, params::Dict)
-	log_radii = log10.(radii)
 
 	if !issorted(radii)
 		error("radii must be sorted")
@@ -192,6 +192,7 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
     if keys(params["profile"]) == Set(["KingProfile"])
         r_max = params["profile"]["KingProfile"]["R_t"]
         @info "using King profile with truncation radius $r_max"
+        @info "$(sum(radii .< r_max)) particles are within truncation radius"
     else
         r_max = radii[end]
     end
