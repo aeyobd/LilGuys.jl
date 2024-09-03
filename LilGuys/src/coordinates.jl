@@ -70,7 +70,7 @@ const default_gc_frame = GalactocentricFrame()
 """ 
 ICRS frame
 """
-@kwdef struct ICRS <: SkyCoord
+@kwdef struct ICRS{F} <: SkyCoord
     """ Right ascension in degrees """
     ra::F
 
@@ -95,7 +95,7 @@ end
 """ 
 Galactic standard of rest frame. I.E. ICRS minus the solar velocity.
 """
-@kwdef struct GSR <: SkyCoord
+@kwdef struct GSR{F} <: SkyCoord
     """ Right ascension in degrees """
     ra::F
 
@@ -121,7 +121,7 @@ end
 
 
 """ A Galactocentric point """
-@kwdef struct Galactocentric <: AbstractCartesian
+@kwdef struct Galactocentric{F} <: AbstractCartesian
     x::F
     y::F
     z::F
@@ -134,14 +134,14 @@ end
 
 
 
-function Galactocentric(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]; frame::GalactocentricFrame = default_gc_frame) 
+function Galactocentric(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]; frame::GalactocentricFrame = default_gc_frame) where {F<:Real}
     if length(pos) != 3
         error("position must be a 3-vector")
     end
     if length(vel) != 3
         error("velocity must be a 3-vector")
     end
-    return Galactocentric(pos..., vel..., frame)
+    return Galactocentric{F}(pos..., vel..., frame)
 end
 
 
@@ -174,7 +174,7 @@ end
 
 A Cartesian representation of a given skycoord type
 """
-@kwdef struct Cartesian{T<:CoordinateFrame} <: AbstractCartesian
+@kwdef struct Cartesian{T<:CoordinateFrame, F} <: AbstractCartesian where {F<:Real}
     x::F
     y::F
     z::F
@@ -187,14 +187,14 @@ end
 
 
 
-function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where T<:CoordinateFrame
+function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where {T<:CoordinateFrame, F<:Real}
     if length(pos) != 3
         error("position must be a 3-vector")
     end
     if length(vel) != 3
         error("velocity must be a 3-vector")
     end
-    return Cartesian{T}(pos..., vel..., coord)
+    return Cartesian{T, F}(pos..., vel..., coord)
 end
 
 
@@ -220,7 +220,7 @@ end
 
 
 
-function Base.show(io::IO, pp::Cartesian{T}) where T
+function Base.show(io::IO, pp::Cartesian{T}) where {T}
     print(io, "$T point at ")
     @printf io "(%4.2f, %4.2f, %4.2f) kpc, " pp.x pp.y pp.z
 

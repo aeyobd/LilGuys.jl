@@ -18,13 +18,13 @@ end
 Transforms a coordinate of type `obs` to an object of type `T`.
 Note, all kwargs passed to from_icrs implementation.
 """
-function transform(::Type{T}, obs::CoordinateFrame; kwargs...) where T<:CoordinateFrame
+function transform(::Type{T}, obs::CoordinateFrame; kwargs...) where {T<:CoordinateFrame}
     return from_icrs(T, to_icrs(obs); kwargs...)
 end
 
 
 # identity
-function transform(::Type{T}, obs::T) where T
+function transform(::Type{T}, obs::T) where {T}
     return obs
 end
 
@@ -39,12 +39,12 @@ end
 
 
 # automatic cartesian conversion
-function transform(::Type{Cartesian{T}}, obs::T) where T <: CoordinateFrame
+function transform(::Type{Cartesian{T}}, obs::T) where {T<:CoordinateFrame}
     return Cartesian(obs)
 end
 
 # automatic cartesian conversion
-function transform(::Type{T}, obs::Cartesian{T}) where T <: CoordinateFrame
+function transform(::Type{T}, obs::Cartesian{T}) where {T<:CoordinateFrame}
     return to_sky(obs)
 end
 
@@ -76,30 +76,30 @@ end
 # ========= Cartesian =========
 #
 
-function to_icrs(coord::Cartesian{T}; kwargs...) where T<: CoordinateFrame
+function to_icrs(coord::Cartesian{T}; kwargs...) where {T<:CoordinateFrame}
     return to_icrs(to_sky(coord); kwargs...)
 end
 
 
-function from_icrs(::Type{Cartesian{T}}, icrs::ICRS; kwargs...) where T<:CoordinateFrame
+function from_icrs(::Type{Cartesian{T}}, icrs::ICRS; kwargs...) where {T<:CoordinateFrame}
     return Cartesian(from_icrs(T, icrs; kwargs...))
 end
 
 
 
-function Cartesian{T}(sc::T) where T<:SkyCoord
+function Cartesian{T}(sc::T) where {T<:SkyCoord}
     position = sky_to_cartesian(sc.ra, sc.dec, sc.distance)
     velocity = _observation_to_cartesian_velocity(sc)
     return Cartesian{T}(position, velocity, sc)
 end
 
 
-function Cartesian(sc::T) where T<:SkyCoord
+function Cartesian(sc::T) where {T<:SkyCoord}
     return Cartesian{T}(sc)
 end
 
 
-function to_sky(coord::Cartesian{T}; kwargs...) where T <: CoordinateFrame
+function to_sky(coord::Cartesian{T}; kwargs...) where {T<:CoordinateFrame}
     ra, dec, distance = cartesian_to_sky(coord.x, coord.y, coord.z)
     pmra, pmdec, radial_velocity = _cartesian_to_observation_velocity(coord)
 
@@ -159,13 +159,13 @@ end
 # ========= Galactocentric transformations =========
 
 
-function from_icrs(::Type{Galactocentric}, icrs::ICRS; kwargs...)
+function from_icrs(::Type{<:Galactocentric}, icrs::ICRS{F}; kwargs...) where {F<:Real}
     cart = Cartesian(icrs)
     return transform(Galactocentric, cart; kwargs...) 
 end
 
 
-function transform(::Type{Galactocentric}, cart::Cartesian{ICRS}; frame=default_gc_frame)
+function transform(::Type{<:Galactocentric}, cart::Cartesian{<:ICRS}; frame=default_gc_frame)
     x_gc = _heliocen_to_galcen_position(cart, frame)
     v_gc = _heliocen_to_galcen_velocity(cart, frame)
 
@@ -191,16 +191,16 @@ end
 # ========= GSR transformations =========
 
 
-function from_icrs(::Type{GSR}, icrs::ICRS; kwargs...)
+function from_icrs(::Type{<:GSR}, icrs::ICRS{F}; kwargs...) where {F<:Real}
     cart = from_icrs(Cartesian{GSR}, icrs; kwargs...)
     return to_sky(cart)
 end
 
-
-function from_icrs(::Type{Cartesian{GSR}}, icrs::ICRS; kwargs...)
+function from_icrs(::Type{Cartesian{GSR}}, icrs::ICRS{F}; kwargs...) where {F<:Real}
     gc = from_icrs(Galactocentric, icrs)
     return transform(Cartesian{GSR}, gc; kwargs...)
 end
+
 
 
 function transform(::Type{Galactocentric}, cart::Cartesian{GSR}; frame=default_gc_frame)
@@ -239,7 +239,7 @@ end
 
 
 
-function _heliocen_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFrame())
+function _heliocen_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFrame()) where {F<:Real}
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R(frame)
@@ -257,7 +257,7 @@ function _heliocen_to_galcen_position(cart::Cartesian, frame=default_gc_frame)
 end
 
 
-function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
     R_mat = _coordinate_R(frame)
     H_mat = _coordinate_H(frame)
 
@@ -266,23 +266,23 @@ function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
 end
 
 
-function _heliocen_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+function _heliocen_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
     v_gc = _gsr_to_galcen_velocity(v_vec, frame)
     return v_gc .+ frame.v_sun
 end
 
 
-function _gsr_to_galcen_velocity(cart::Cartesian{GSR}, frame=default_gc_frame)
+function _gsr_to_galcen_velocity(cart::Cartesian{<:GSR}, frame=default_gc_frame)
     return _gsr_to_galcen_velocity(velocity_of(cart), frame)
 end
 
-function _heliocen_to_galcen_velocity(cart::Cartesian{ICRS}, frame=default_gc_frame)
+function _heliocen_to_galcen_velocity(cart::Cartesian{<:ICRS}, frame=default_gc_frame)
     return _heliocen_to_galcen_velocity(velocity_of(cart), frame)
 end
 
 
 
-function _galcen_to_heliocen_position(x_vec::Vector{F}, frame=default_gc_frame)
+function _galcen_to_heliocen_position(x_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R_inv(frame)
@@ -299,7 +299,7 @@ function _galcen_to_heliocen_position(galcen::Galactocentric)
 end
 
 
-function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
     R_mat = _coordinate_R_inv(frame)
     H_mat = _coordinate_H_inv(frame)
 
@@ -307,7 +307,7 @@ function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame)
     return v_icrs
 end
 
-function _galcen_to_heliocen_velocity(v_vec::Vector{F}, frame=default_gc_frame)
+function _galcen_to_heliocen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
     return _galcen_to_gsr_velocity(v_vec .- frame.v_sun, frame) 
 end
 
