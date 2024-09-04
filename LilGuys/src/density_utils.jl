@@ -43,8 +43,10 @@ function Base.print(io::IO, prof::ObsProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
-function ObsProfile(filename::String)
-    t = dict_to_tuple(TOML.parsefile(filename))
+function ObsProfile(filename::String; kwargs...)
+    t = TOML.parsefile(filename)
+    t = merge(t, kwargs)
+    t = dict_to_tuple(t)
     return ObsProfile(;t...)
 end
 

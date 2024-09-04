@@ -24,7 +24,7 @@ A type representing a Galactic coordinate frame specification
 """
 @kwdef struct GalactocentricFrame <: CoordinateFrame
     """ distance from sun to centre of galaxy in kpc"""
-    d::F = 8.122 
+    d::F = 8.122  # ± 0.033
     
     """ICRS ra of  galactic centre in degrees"""
     ra::F = 266.4051 
@@ -33,13 +33,13 @@ A type representing a Galactic coordinate frame specification
     dec::F = -28.936175 
 
     """ roll for the galacic frame in degrees """
-    η::F = 58.5986320306 # degrees
+    η::F = 58.5986320306 # degrees, exact?
 
     """ height of the sun above the galactic midplane in kpc"""
-    z_sun::F = 0.0208 
+    z_sun::F = 0.0208 # ± 0.0003
 
     """ solar motion wrt galactic standard of rest in km/s"""
-    v_sun::Vector{F} =  [12.9, 245.6, 7.78]
+    v_sun::Vector{F} =  [12.9, 245.6, 7.78] # ± [3.0, 1.4, 0.08]
 end
 
 
