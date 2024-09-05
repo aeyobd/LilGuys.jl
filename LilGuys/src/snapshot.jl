@@ -63,6 +63,7 @@ A snapshot of a gadget simulation. Units are all code units.
 
     """The radii of the particles, stored on first calculation"""
     _radii::OptVector = nothing
+
 end
 
 
@@ -316,9 +317,11 @@ end
 
 
 """
-returns a snapshot scaled by the given mass and radius (using code units)
+    rescale(snapshot, mass_scale, radius_scale)
+
+Returns a snapshot scaled by the given mass and radius (using code units)
 """
-function rescale(snap::Snapshot, m_scale, r_scale)
+function rescale(snap::Snapshot, m_scale::Real, r_scale::Real)
     v_scale = sqrt(G * m_scale / r_scale)
     a_scale = G*m_scale / r_scale^2 # = v_scale^2 / r_scale
     Φ_scale = G * m_scale / r_scale # = v_scale^2

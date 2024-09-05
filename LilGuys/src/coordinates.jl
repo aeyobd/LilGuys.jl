@@ -1,5 +1,6 @@
 using Printf
 import Base: +, *
+import TOML
 
 
 """An abstract type for a (sky) coordinate frame"""
@@ -16,7 +17,91 @@ abstract type AbstractCartesian <: CoordinateFrame end
 """ A spherical (sky) coordinate representation.
 
 Requires properties ra, dec, distance, pmra, pmdec, radial_velocity"""
-abstract type SkyCoord <: CoordinateFrame end
+abstract type AbstractSkyCoord <: CoordinateFrame end
+
+
+"""
+A type representing a 3D point
+"""
+struct Point3D{F}
+    x::F
+    y::F
+    z::F
+
+    function Point3D(x, y, z)
+        promoted = promote(x, y, z)
+        F = typeof(promoted[1])
+        return new{F}(promoted...)
+    end
+end
+
+
+"""
+A type representing a 6D phase space point
+"""
+struct Point6D{F}
+    x::F
+    y::F
+    z::F
+    v_x::F
+    v_y::F
+    v_z::F
+
+    function Point6D(x, y, z, v_x, v_y, v_z)
+        promoted = promote(x, y, z, v_x, v_y, v_z)
+        F = typeof(promoted[1])
+        return new{F}(promoted...)
+    end
+end
+
+
+function Base.getproperty(pp::AbstractCartesian, name::Symbol)
+    if :coord ∈ fieldnames(typeof(pp)) && name ∈ fieldnames(typeof(getfield(pp, :coord)))
+        return getfield(pp.coord, name)
+    else
+        return getfield(pp, name)
+    end
+end
+
+
+"""
+A type representing a sky coordinate (i.e. point on sphere with optional velocity information)
+"""
+@kwdef struct SkyCoord{F} <: AbstractSkyCoord
+    """ Right ascension in degrees """
+    ra::F
+
+    """ Declination in degrees """
+    dec::F
+
+    """ distance in kpc """
+    distance::F = NaN
+
+    """ proper motion in right ascension in mas/yr times cos(dec)"""
+    pmra::F = NaN
+
+    """ Proper motion in declination in mas/yr """
+    pmdec::F = NaN
+
+    """ Radial velocity in km/s """
+    radial_velocity::F = NaN
+
+
+    function SkyCoord(ra, dec, distance=1, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
+        promoted = promote(ra, dec, distance, pmra, pmdec, radial_velocity)
+        F = typeof(promoted[1])
+        return new{F}(promoted...)
+    end
+end
+
+
+function Base.getproperty(coord::AbstractSkyCoord, name::Symbol)
+    if :coord ∈ fieldnames(typeof(coord)) && name ∈ fieldnames(typeof(getfield(coord, :coord)))
+        return getfield(coord.coord, name)
+    else
+        return getfield(coord, name)
+    end
+end
 
 
 """
@@ -66,28 +151,20 @@ const default_gc_frame = GalactocentricFrame()
 
 
 
-
 """ 
 ICRS frame
 """
-@kwdef struct ICRS{F} <: SkyCoord
-    """ Right ascension in degrees """
-    ra::F
+struct ICRS{F} <: AbstractSkyCoord
+    coord::SkyCoord{F}
 
-    """ Declination in degrees """
-    dec::F
+    function ICRS{F}(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
+        return new{F}(SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity))
+    end
+end
 
-    """ distance in kpc """
-    distance::F = NaN
-
-    """ proper motion in right ascension in mas/yr times cos(dec)"""
-    pmra::F = NaN
-
-    """ Proper motion in declination in mas/yr """
-    pmdec::F = NaN
-
-    """ Radial velocity in km/s """
-    radial_velocity::F = NaN
+function ICRS(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
+    F = typeof(promote(ra, dec, distance, pmra, pmdec, radial_velocity)[1])
+    return ICRS{F}(ra=ra, dec=dec, distance=distance, pmra=pmra, pmdec=pmdec, radial_velocity=radial_velocity)
 end
 
 
@@ -95,58 +172,47 @@ end
 """ 
 Galactic standard of rest frame. I.E. ICRS minus the solar velocity.
 """
-@kwdef struct GSR{F} <: SkyCoord
-    """ Right ascension in degrees """
-    ra::F
+struct GSR{F} <: AbstractSkyCoord
+    coord::SkyCoord{F}
+    frame::GalactocentricFrame
 
-    """ Declination in degrees """
-    dec::F
-
-    """ distance in kpc """
-    distance::F = NaN
-
-    """ proper motion in right ascension in mas/yr times cos(dec)"""
-    pmra::F = NaN
-
-    """ Proper motion in declination in mas/yr """
-    pmdec::F = NaN
-
-    """ Radial velocity in km/s """
-    radial_velocity::F = NaN
-
-    frame::GalactocentricFrame = default_gc_frame
+    function GSR(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN, frame=default_gc_frame)
+        return new{F}(SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity), frame)
+    end
 end
 
 
 
 
 """ A Galactocentric point """
-@kwdef struct Galactocentric{F} <: AbstractCartesian
-    x::F
-    y::F
-    z::F
-    v_x::F
-    v_y::F
-    v_z::F
-    frame::GalactocentricFrame = default_gc_frame
+struct Galactocentric{F} <: AbstractCartesian
+    coord::Point6D{F}
+    frame::GalactocentricFrame
+
+    function Galactocentric(x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, frame=default_gc_frame)
+        return new{F}(Point6D(x, y, z, v_x, v_y, v_z), frame)
+    end
 end
 
 
+function Galactocentric(; x, y, z, v_x, v_y, v_z, frame::GalactocentricFrame = default_gc_frame)
+    return Galactocentric(x, y, z, v_x, v_y, v_z, frame)
+end
 
 
-function Galactocentric(pos::Vector{F}, vel::Vector{F} = [NaN, NaN, NaN]; frame::GalactocentricFrame = default_gc_frame) where {F<:Real}
+function Galactocentric(pos::Vector{<:Real}, vel::Vector{<:Real} = [NaN, NaN, NaN]; frame::GalactocentricFrame = default_gc_frame)
     if length(pos) != 3
         error("position must be a 3-vector")
     end
     if length(vel) != 3
         error("velocity must be a 3-vector")
     end
-    return Galactocentric{F}(pos..., vel..., frame)
+    return Galactocentric(pos..., vel..., frame)
 end
 
 
 
-function Base.show(io::IO, coord::SkyCoord) 
+function Base.show(io::IO, coord::AbstractSkyCoord) 
     print(io, "$(typeof(coord)) at ")
     @printf io "(%4.2f, %4.2f) deg" coord.ra coord.dec
     if coord.distance !== NaN
@@ -174,20 +240,26 @@ end
 
 A Cartesian representation of a given skycoord type
 """
-@kwdef struct Cartesian{T<:CoordinateFrame, F} <: AbstractCartesian where {F<:Real}
-    x::F
-    y::F
-    z::F
-    v_x::F = NaN
-    v_y::F = NaN
-    v_z::F = NaN
+struct Cartesian{T<:CoordinateFrame, F<:Real} <: AbstractCartesian 
+    coord::Point6D{F}
+    skycoord::Union{T, Nothing}
 
-    coord::Union{T, Nothing} = nothing
+    function Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord=nothing) where {T<:CoordinateFrame, F<:Real}
+        return new{T, F}(Point6D(x, y, z, v_x, v_y, v_z), coord)
+    end
+end
+
+function Cartesian{T, F}(; x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, coord=nothing) where {T<:CoordinateFrame, F<:Real}
+    return Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord)
+end
+
+function Cartesian{T}(; x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, coord=nothing) where {T<:CoordinateFrame}
+    F = typeof(promote(x, y, z, v_x, v_y, v_z)[1])
+    return Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord)
 end
 
 
-
-function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where {T<:CoordinateFrame, F<:Real}
+function Cartesian{T, F}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where {T<:CoordinateFrame, F<:Real}
     if length(pos) != 3
         error("position must be a 3-vector")
     end
@@ -195,6 +267,11 @@ function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN
         error("velocity must be a 3-vector")
     end
     return Cartesian{T, F}(pos..., vel..., coord)
+end
+
+
+function Cartesian{T}(pos::AbstractVector{F}, vel::AbstractVector{F} = [NaN, NaN, NaN], coord=nothing) where {T<:CoordinateFrame, F<:Real}
+    return Cartesian{T, F}(pos, vel, coord)
 end
 
 
@@ -265,3 +342,34 @@ end
 
 
 
+function coord_from_file(filename::String)
+    args = TOML.parsefile(filename)
+
+    labels = ["ra", "dec", "pmra", "pmdec", "radial_velocity", "distance"]
+
+    kwargs = Dict{Symbol, Float64}()
+    for label in labels
+        if haskey(args, label)
+            kwargs[Symbol(label)] = args[label]
+        end
+    end
+
+    return ICRS{Float64}(;kwargs...)
+end
+
+function coord_err_from_file(filename::String)
+    args = TOML.parsefile(filename)
+
+    labels = ["ra_err", "dec_err", "pmra_err", "pmdec_err", "radial_velocity_err", "distance_err"]
+
+    kwargs = Dict{Symbol, Float64}()
+
+    for label in labels
+        if haskey(args, label)
+            k = replace(label, "_err" => "")
+            kwargs[Symbol(k)] = args[label]
+        end
+    end
+
+    return ICRS{Float64}(;kwargs...)
+end

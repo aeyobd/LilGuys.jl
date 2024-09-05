@@ -6,7 +6,7 @@ coordinate_systems = [
 
 
 @testset "sky to cartesian" begin
-    icrs = lguys.ICRS(ra=0, dec=0, distance=1,
+    icrs = lguys.ICRS(ra=0., dec=0, distance=1,
                       pmra=0, pmdec=0, radial_velocity=0)
 
     cart = lguys.transform(lguys.Cartesian{lguys.ICRS}, icrs)
@@ -22,7 +22,7 @@ end
 
 @testset "cartesian to sky" begin
 
-    cart = lguys.Cartesian{lguys.ICRS}(x=1, y=0, z=0,
+    cart = lguys.Cartesian{lguys.ICRS, Float64}(x=1., y=0, z=0,
                                       v_x=0, v_y=0, v_z=0)
     icrs = lguys.transform(lguys.ICRS, cart)
 
@@ -48,7 +48,7 @@ end
 
 
 
-    sun = lguys.ICRS(ra = 0, dec=-0, distance=0,
+    sun = lguys.ICRS(ra = 0., dec=-0, distance=0,
                              pmra=0, pmdec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, sun)
     @test lguys.position_of(phase) ≈ [-8.122, 0, 0] rtol=3e-3
@@ -59,7 +59,8 @@ end
 
 
 @testset "galcen to helio: Sag A*" begin 
-    g = lguys.Galactocentric(zeros(3), zeros(3))
+    g = lguys.Galactocentric(x=0., y=0, z=0,
+                             v_x=0, v_y=0, v_z=0)
     obs = lguys.transform(lguys.ICRS, g)
 
     @test obs.ra ≈ 266.4168166 rtol=1e-2
@@ -75,8 +76,8 @@ end
 
 @testset "helio to galcen: inverse" begin
     N = 100
-    obs = [lguys.ICRS(360rand(), -90 + 180rand(), 2*rand(),
-                                10*randn(), 10*randn(), 10*randn())
+    obs = [lguys.ICRS(ra=360rand(), dec=-90 + 180rand(), distance=2*rand(),
+                                pmra=10*randn(), pmdec=10*randn(), radial_velocity=100*randn())
              for _ in 1:N]
 
     obs2 = lguys.transform.(lguys.ICRS, lguys.transform.(lguys.Galactocentric, obs))
@@ -97,7 +98,7 @@ end
 
 @testset "GSR to galcen: Sag A*" begin
     gc = lguys.GSR(ra = 266.4051, dec=-28.936175, distance=8.122,
-                   pmra=0, pmdec=0, radial_velocity=0)
+                   pmra=0., pmdec=0., radial_velocity=0.)
 
     phase = lguys.transform(lguys.Galactocentric, gc)
 
@@ -106,7 +107,7 @@ end
 
 
 
-    static_sun = lguys.GSR(ra = 0, dec=0, distance=0,
+    static_sun = lguys.GSR(ra=0., dec=0, distance=0,
                              pmra=0, pmdec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, static_sun)
 
@@ -163,12 +164,12 @@ function inverse_test(frame1::Type{<:lguys.AbstractCartesian}, frame2)
     p2 = lguys.transform.(frame1, lguys.transform.(frame2, p1))
 
     for field in [:x, :y, :z, :v_x, :v_y, :v_z]
-        @test getfield.(p1, field) ≈ getfield.(p2, field) rtol=1e-2
+        @test getproperty.(p1, field) ≈ getproperty.(p2, field) rtol=1e-2
     end
 
 end
 
-function inverse_test(frame1::Type{<:lguys.SkyCoord}, frame2)
+function inverse_test(frame1::Type{<:lguys.AbstractSkyCoord}, frame2)
     N = 10
 
     p1 = [frame1(ra=360rand(), dec=-90 + 180rand(), distance=100*rand(),
@@ -178,7 +179,7 @@ function inverse_test(frame1::Type{<:lguys.SkyCoord}, frame2)
     p2 = lguys.transform.(frame1, lguys.transform.(frame2, p1))
 
     for field in [:ra, :dec, :distance, :pmra, :pmdec, :radial_velocity]
-        @test getfield.(p1, field) ≈ getfield.(p2, field) rtol=1e-2
+        @test getproperty.(p1, field) ≈ getproperty.(p2, field) rtol=1e-2
     end
 
 end
