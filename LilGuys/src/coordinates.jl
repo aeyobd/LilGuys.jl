@@ -104,6 +104,11 @@ function Base.getproperty(coord::AbstractSkyCoord, name::Symbol)
 end
 
 
+function Base.propertynames(coord::AbstractSkyCoord)
+    return (fieldnames(typeof(coord))..., fieldnames(typeof(coord.coord))...)
+end
+
+
 """
 A type representing a Galactic coordinate frame specification
 """

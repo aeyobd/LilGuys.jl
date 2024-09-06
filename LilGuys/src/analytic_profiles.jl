@@ -420,16 +420,28 @@ function get_r_s(profile::KingProfile)
     return profile.R_s / sqrt(2)
 end
 
+function calc_R_h(profile::KingProfile)
+    r_s = get_r_s(profile)
+    M0 = get_M_tot(profile)
+    return find_zero(R -> calc_M_2D(profile, R) / M0 - 1/2, r_s)
+end
 
 
-function calc_r_h(profile::SphericalProfile)
+function calc_r_h(profile::KingProfile)
     M0 = get_M_tot(profile)
     r_s = get_r_s(profile)
     return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
 end
 
+
+function calc_r_h(profile::SphericalProfile)
+    M0 = get_M_tot(profile)
+    r_s = 1.0
+    return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
+end
+
 function calc_R_h(profile::SphericalProfile)
-    r_s = get_r_s(profile)
+    r_s = 1.0 # initial guess
     M0 = get_M_tot(profile)
     return find_zero(R -> calc_M_2D(profile, R) / M0 - 1/2, r_s)
 end
