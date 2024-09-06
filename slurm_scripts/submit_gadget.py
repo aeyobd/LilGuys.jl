@@ -18,33 +18,27 @@ def main():
 
     set_defaults(args, params)
 
-    exe = os.path.join(os.getenv("GADGET_PATH"), args.executable)
     if args.resubmit == -1:
-        script = create_sbatch_script(args, exe, 1)
+        script = create_sbatch_script(args, 1)
     elif args.resubmit is not None:
-        script = create_sbatch_script(args, exe, f"2 {args.resubmit}")
+        script = create_sbatch_script(args, f"2 {args.resubmit}")
     else:
-        script = create_sbatch_script(args, exe, "")
+        script = create_sbatch_script(args, "")
 
     submit_job(script)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Submit a job to SLURM with default or specified parameters.')
-    parser.add_argument('executable', type=str, 
-                        help='the executable to run  in $GADGET_PATH')
-    parser.add_argument('--ntasks', type=int, default=4, 
-                        help='Number of CPUs per task (default: 4)')
+    parser.add_argument('--nodes', type=int, default=1, 
+                        help='number of nodes')
     parser.add_argument('--mem', type=str, default=None, 
                         help='Memory per job (default: from param.txt)')
     parser.add_argument('--time', type=str, default=None, 
                         help='(wall) time limit (HH:MM:SS) (default: from param.txt)')
+    parser.add_argument('--account', type=str, default=os.getenv("SLURM_ACCOUNT"), )
     parser.add_argument('--name', type=str, default=None, 
                         help='SLURM job name (default: based on directory name)')
-    parser.add_argument('--partition', type=str, default='cosma', 
-                        help='SLURM partition (default: cosma)')
-    parser.add_argument('--account', type=str, default=os.getenv("SLURM_ACCOUNT"), 
-                        help='SLURM account (default: $SLURM_ACCOUNT)')
     parser.add_argument('-p', '--param', type=str, default="param.txt", 
                         help='Gadget parameter file (default: param.txt)')
     parser.add_argument('--resubmit', default=None, type=int, 
@@ -67,23 +61,21 @@ def clean_dir(directory):
     os.makedirs(directory)
 
 
-def create_sbatch_script(args, executable, resubmit):
+def create_sbatch_script(args, resubmit):
     """
     Create a SLURM script for submitting a job.
     """
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
     return f"""#!/bin/bash
-#SBATCH --job-name  {args.name}
-#SBATCH --output    %J.out
-#SBATCH --time      {args.time}
-#SBATCH --ntasks    {args.ntasks}
-#SBATCH --mem       {args.mem}
-#SBATCH --partition {args.partition}
-#SBATCH --account   {args.account}
+#SBATCH --job-name          {args.name}
+#SBATCH --output            %J.out
+#SBATCH --time              {args.time}
+#SBATCH --nodes             {args.nodes}
+#SBATCH --ntasks-per-node   80
 
 source {script_dir}/slurm_header.sh
-mpirun -np $SLURM_NTASKS {executable} param.txt {resubmit}
+bash run.sh
 
 scontrol show job $SLURM_JOB_ID
 """
