@@ -185,27 +185,30 @@ end
 
 @testset "calc_profile (integration)" begin
     N = 30_000
-    halo = lguys.TruncNFW(M_s=1, r_s=1, r_t=16)
+    M_s = 2
+    r_s = 5
+
+    halo = lguys.TruncNFW(M_s=M_s, r_s=r_s, trunc=100)
+    M_0 = lguys.calc_M_tot(halo)
+
     ρ(r) = lguys.calc_ρ(halo, r)
 
-    r = lguys.sample_ρ(ρ, N)
+    r = lguys.sample_ρ(ρ, N, log_r=LinRange(-5, 5, 10_000))
 
-    mass = 0.5 .+ 0.5rand(N)
+    mass = M_0/N  * (1 .+ 0.0randn(N))
     M = sum(mass)
 
     snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
 
-    Nb = 20
+    Nb = 30
     profile = lguys.calc_profile(snap, bins=Nb)
 
     @test profile.N_bound ≈ N
     @test profile.M_in[end] ≈ M
 
-    M_tot = lguys.get_M_tot(halo)
-    halo = lguys.TruncNFW(M_s= M ./ M_tot, r_s=1, r_t=16, c=1) # c doesn't matter
-    @test lguys.get_M_tot(halo) ≈ M
+    @test lguys.get_M_tot(halo) ≈ M rtol=1e-2
 
-    r = 10 .^ profile.log_r_bins[2:end]
+    r = 10 .^ profile.log_r
     ρ_exp = lguys.calc_ρ.(halo, r)
     χ2 = calc_χ2(profile.rho, ρ_exp, profile.rho_err)
     @test χ2  ≈ 1 rtol = 0.5

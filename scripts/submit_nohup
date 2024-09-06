@@ -5,11 +5,6 @@
 set -x
 rm -r out/*
 
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <gadget-executable>"
-    exit 1
-fi
-
 echo submitting $(pwd)
-nohup mpirun -np 4 $GADGET_PATH/$1 param.txt > log.out 2>&1 &
+nohup bash run.sh > nohup.out 2>&1 &
 
