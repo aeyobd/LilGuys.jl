@@ -1,0 +1,15 @@
+# Change this file to the system
+# This is a script to run via bash
+
+
+set -x
+rm -r out/*
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <gadget-executable>"
+    exit 1
+fi
+
+echo submitting $(pwd)
+nohup mpirun -np 4 $GADGET_PATH/$1 param.txt > log.out 2>&1 &
+
