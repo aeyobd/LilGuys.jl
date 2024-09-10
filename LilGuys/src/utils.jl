@@ -281,10 +281,10 @@ Randomly draws N samples from a Density profile given by the finction f.
 """
 function sample_ρ(f::Function, N::Integer = 1; log_r=nothing)
     if log_r == nothing
-        log_r = LinRange(-5, 5, 1000)
+        log_r = LinRange(-5, 5, 10000)
     end
 
-    r = exp10.(log_r)
+    r = 10 .^ log_r
     ρ = f.(r)
 
     if any(ρ .< 0)

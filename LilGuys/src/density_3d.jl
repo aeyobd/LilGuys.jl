@@ -103,7 +103,7 @@ function Profiles3D(filename::String)
         for i in eachindex(snapshot_index)
             df = Dict()
 
-            for key in propertynames(ObsProfile3D)
+            for key in fieldnames(ObsProfile3D)
                 ndims = length(size(read(f, string(key))))
                 if ndims == 1
                     data = f[string(key)][i]
@@ -127,8 +127,8 @@ function save(filename::String, profs::Profiles3D)
         write(f, "snapshot_index", profs.snapshot_index)
         write(f, "times", profs.times)
 
-        for key in propertynames(ObsProfile3D)
-            data = getfield.(profs.profiles, key)
+        for key in fieldnames(ObsProfile3D)
+            data = getproperty.(profs.profiles, key)
             if eltype(data) <: Real
                 write(f, string(key), data)
             elseif eltype(data) <: AbstractVector

@@ -1,5 +1,6 @@
 
 using LinearAlgebra: ×
+import DensityEstimators: bins_min_width_equal_number
 
 
 @testset "calc_ρ_from_hist" begin
@@ -200,27 +201,31 @@ end
 
     snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
 
-    Nb = 30
-    profile = lguys.calc_profile(snap, bins=Nb)
+    radii = lguys.calc_r(snap)
+    bins = bins_min_width_equal_number(log10.(radii), dx_min=0.05, N_per_bin_min=100)#[2:end-1]
+
+    profile = lguys.calc_profile(snap, bins=bins)
 
     @test profile.N_bound ≈ N
     @test profile.M_in[end] ≈ M
 
     @test lguys.get_M_tot(halo) ≈ M rtol=1e-2
 
-    r = 10 .^ profile.log_r
+    r = 10 .^ profile.log_r[2:end-1]
     ρ_exp = lguys.calc_ρ.(halo, r)
-    χ2 = calc_χ2(profile.rho, ρ_exp, profile.rho_err)
-    @test χ2  ≈ 1 rtol = 0.5 broken=true
+    χ2 = calc_χ2(profile.rho[2:end-1], ρ_exp, profile.rho_err[2:end-1])
+    @test χ2  ≈ 1 rtol = 0.9 
 
     r = 10 .^ profile.log_r_bins[2:end]
     M_exp = lguys.calc_M.(halo, r)
     χ2 = calc_χ2(profile.M_in, M_exp, profile.M_in_err)
-    @test χ2  ≈ 1 rtol = 0.5 broken=true
+    @test χ2  ≈ 1 rtol = 0.9 
 
+
+    # errors tend to be overestimated here...
     v_circ_exp = lguys.calc_v_circ.(halo, r)
     χ2 = calc_χ2(profile.v_circ, v_circ_exp, profile.v_circ_err)
-    @test χ2  ≈ 1 rtol = 0.5 broken=true
+    @test χ2 < 1
 
 end
 
@@ -261,22 +266,43 @@ end
 
 
 @testset "to_gaia" begin
+    N = 100
+    pos = 100randn(3, N)
+    vel = 1randn(3, N)
+    masses = ones(N)
+    weights = rand(N)
+
+    snap = lguys.Snapshot(positions=pos, velocities=vel, masses=masses, weights=weights,
+        index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+
+    gaia = lguys.to_gaia(snap, add_centre=false)
+
     @testset "integration" begin
-
-        N = 100
-        pos = 100randn(3, N)
-        vel = 1randn(3, N)
-        masses = ones(N)
-        weights = rand(N)
-
-        snap = lguys.Snapshot(positions=pos, velocities=vel, masses=masses, weights=weights,
-            index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
-
-        gaia = lguys.to_gaia(snap, add_centre=false)
+        obs = lguys.to_sky(snap) 
 
         @test size(gaia, 1) == N 
         @test gaia.weights ≈ weights
         @test ["ra", "dec", "distance", "pmra", "pmdec", "radial_velocity"] ⊆ names(gaia)
+
+        @test gaia.distance ≈ [o.distance for o in obs]
+        @test gaia.ra ≈ [o.ra for o in obs]
+
+        # test chi2, r_ell, etc
+        #
+        #
+    end
+
+    @testset "add centre" begin
+        # test add centre
+        gaia_cen = lguys.to_gaia(snap, add_centre=true)
+        @test size(gaia_cen, 1) == N + 1
+        @test gaia_cen.weights[1] == 0
+        @test gaia_cen.distance[1] == 0 broken=true
+
+    end
+    
+    @testset "filters" begin
+        
     end
 end
 

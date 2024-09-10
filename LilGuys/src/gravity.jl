@@ -10,6 +10,14 @@ struct DistributionFunction{F}
 end
 
 
+"""
+    DistributionFunction(ρ, ψ, r)
+
+Given three vectors for the density, potential and radius,
+creates a distribution function object by taking gradients wrt r.
+Calling the object with a binding energy ϵ returns the distribution function at
+that energy.
+"""
 function DistributionFunction(ρ::AbstractVector{F}, ψ::AbstractVector{F}, r::AbstractVector{F}) where F <: Real
     if !issorted(r) | !issorted(-ψ)
         throw(ArgumentError("arrays must be sorted"))
@@ -27,17 +35,16 @@ function DistributionFunction(ρ::AbstractVector{F}, ψ::AbstractVector{F}, r::A
 end
 
 
+"""
+Returns the distribution function at a given energy ϵ
+"""
 function (df::DistributionFunction)(ϵ)
     if df.ψ[1] < ϵ || ϵ < df.ψ[end]
         throw(DomainError("ϵ must be between the minimum and maximum value of ψ: $(df.ψ[1]) < ϵ < $(df.ψ[end]); got $ϵ"))
     end
 
     f_integrand(ψ) = 1/(√8*π^2) * df.d2ρ_dψ2(ψ) /√(ϵ - ψ)
-    f, e = quadgk(f_integrand, 0, ϵ)
-
-    if e > 1e-6
-        @info "integral error $e"
-    end
+    f = integrate(f_integrand, 0, ϵ)
 
     return f
 end
@@ -48,7 +55,7 @@ end
 given a centered snapshot, returns a interpolated potential a a function 
 of r
 """
-function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
+function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where {T <: Real}
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -68,7 +75,7 @@ function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where 
 end
 
 
-function calc_radial_Φ(positions::Matrix{T}, masses::Vector{T}) where T <: Real
+function calc_radial_Φ(positions::AbstractMatrix{<:Real}, masses::AbstractVector{<:Real}) 
     radii = calc_r(positions)
     return calc_radial_Φ(radii, masses)
 end

@@ -143,8 +143,9 @@ function snap_to_df(snap, params)
     snap_df = DataFrame(
         index = snap.index,
         radii = lguys.calc_r(snap),
-        phi = calc_phi(snap),
         probability = 0.0,
+        mass = snap.masses,
+        phi = snap.Φs,
        )
 
     snap_df[!, :eps] = calc_eps(snap, snap_df.phi)
@@ -152,6 +153,7 @@ function snap_to_df(snap, params)
     snap_df[!, :filter] = filt
 
     sort!(snap_df, :radii)
+    snap_df[!, :phi] = lguys.calc_radial_discrete_Φ(snap_df.radii, snap_df.mass)
 
     return snap_df
 end
@@ -191,7 +193,8 @@ function make_radius_bins(radii::AbstractVector, params::Dict)
 	
 	r_min = radii[1]
     if keys(params["profile"]) == Set(["KingProfile"])
-        r_max = params["profile"]["KingProfile"]["R_t"]
+        prof = lguys.load_profile(params["profile"])
+        r_max = prof.R_t
         @info "using King profile with truncation radius $r_max"
         @info "$(sum(radii .< r_max)) particles are within truncation radius"
     else
@@ -232,8 +235,25 @@ function sample_fs(f_dm, f_s, ψ, params)
     E = make_energy_bins(ψ, params)
     f_dm_e = f_dm.(E)
     f_s_e = f_s.(E)
+
+    if any(f_dm_e .< 0)
+        N_neg = sum(f_dm_e .< 0)
+        @warn "$N_neg/$(length(f_dm_e)) negative f_dm_e, probabilities may be unreliable"
+        E_neg_min = E[findfirst(f_dm_e .< 0)]
+        E_neg_max = E[findlast(f_dm_e .< 0)]
+        @info "negative f_dm_e span $E_neg_min and $E_neg_max"
+    end
+
+
     probs = f_s_e ./ f_dm_e
     probs ./= sum(probs .* lguys.gradient(E)) # pdf, dN/dE
+    probs[probs .< 0] .= 0
+
+    # set extremes to zero
+    E = [0; E;]
+    f_dm_e = [0; f_dm_e; ]
+    f_s_e = [0; f_s_e; ]
+    probs = [0; probs; ]
 
     return DataFrame(
         E=E,
@@ -251,10 +271,13 @@ function normalize_probabilities(ps)
     @info "$N_nan NaN probabilities"
 	ps[ps .< 0] .= 0
 	ps[isnan.(ps)] .= 0
+
+    if sum(ps) == 0
+        error("sum of probabilities is zero")
+    end
+
 	ps ./= sum(ps)
 
-    @info "sum of probabilities = $(sum(isnan.(ps)))"
-    @info "sum of probabilities = $(sum(ps))"
     return ps
 end
 

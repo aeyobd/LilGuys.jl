@@ -1,7 +1,6 @@
 """A series of methods describing common mass profiles"""
 
 
-import QuadGK: quadgk 
 import Base: @kwdef
 import SpecialFunctions: besselk
 import ForwardDiff: derivative
@@ -160,12 +159,12 @@ end
 
 
 @doc raw"""
-    KingProfile(; R_t[, R_s, M, k])
+    KingProfile(; R_t[, R_s, M, k, c])
 
 A King profile. The density profile is given by
 
 ```math
-\Sigma(R) = k [ (1+(R/R_s)^2)^(-1/2) - (1+(R_t/R_s)^2)^(-1/2) ]^2
+\Sigma(R) = k [ (1+(R/R_s)^2)^{-1/2} - (1+(R_t/R_s)^2)^{-1/2} ]^2
 ```
 
 where `k` is the density scaling, `R_s` is the core radius, and `R_t` is
@@ -174,6 +173,7 @@ the tidal radius.
 # Parameters
 - `R_t::Real`: the tidal radius
 - `R_s::Real=1`: the core radius
+- `c::Real`: the concentration (i.e. R_t / R_s). One of `c` or `R_t` must be specified
 - `M::Real`: the total mass. One of `M` or `k` must be specified
 - `k::Real`: the density scaling. One of `M` or `k` must be specified
 
@@ -191,8 +191,13 @@ function KingProfile(;kwargs...)
         kwargs[:R_s] = 1
     end
 
+    if :c ∈ keys(kwargs)
+        kwargs[:R_t] = kwargs[:c] * kwargs[:R_s]
+        pop!(kwargs, :c)
+    end
+
     if :R_t ∉ keys(kwargs)
-        throw(ArgumentError("R_t must be specified"))
+        throw(ArgumentError("R_t or c must be specified"))
     end
 
     if :M ∈ keys(kwargs)
@@ -381,17 +386,17 @@ function calc_M_2D(profile::SphericalProfile, R::Real)
 end
 
 function calc_M_2D_from_Σ(profile::SphericalProfile, R::Real)
-    return quadgk(R -> 2π * R * calc_Σ(profile, R), 0, R)[1]
+    return integrate(R -> 2π * R * calc_Σ(profile, R), 0, R)
 end
 
 function calc_M_from_ρ(profile::SphericalProfile, r::Real)
-    return quadgk(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)[1]
+    return integrate(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)
 end
 
 
 function calc_Σ_from_ρ(profile::SphericalProfile, R::Real)
     integrand(r) = calc_ρ(profile, r) * r / sqrt(r^2 - R^2)
-    return 2*quadgk(integrand, R, Inf)[1]
+    return 2*integrate(integrand, R, Inf)
 end
 
 
@@ -410,7 +415,7 @@ calculate the 3D density profile of a profile at radius r
 """
 function calc_ρ_from_Σ(profile::SphericalProfile, r::Real)
     integrand(R) = derivative(R->calc_Σ(profile, R), R) / sqrt(R^2 - r^2)
-    return -1/π * quadgk(integrand, r, Inf)[1]
+    return -1/π * integrate(integrand, r, Inf)
 end
 
 """
@@ -467,7 +472,7 @@ function calc_Φ_from_ρ(profile::SphericalProfile, r::Real; integrate_M=false)
 
     Φ_in = -G * M_in / r
 
-    Φ_out = -4π * G * quadgk(integrand, r, Inf)[1]
+    Φ_out = -4π * G * integrate(integrand, r, Inf)
 
     return Φ_in + Φ_out
 end

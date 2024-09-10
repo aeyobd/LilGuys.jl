@@ -9,7 +9,7 @@ module Interface
 export mean, std, percentile, midpoints, weights, StatsBase, quantile
 export erf, expinti
 
-export quadgk, curve_fit, find_zero
+export integrate, curve_fit, find_zero
 export ±, uncertainty, value, Measurement
 
 export histogram
