@@ -112,11 +112,29 @@ end
     Snapshot(filename)
 
 Load a snapshot from an HDF5 file.
+The filename may be a snapshot.hdf5 file or can be the path to an output
+with a slash-index to retrieve the ith snapshot from the output (including the
+centre).
 """
 function Snapshot(filename::String)
-    h5open(filename, "r") do h5f
-        return Snapshot(h5f, filename=filename)
+    outidx_pattern = r"/(\d+)$"
+
+    local snap
+
+    if splitext(filename)[2] == ".hdf5"
+        h5open(filename, "r") do h5f
+            snap = Snapshot(h5f, filename=filename)
+        end
+    elseif occursin(outidx_pattern, filename)
+        base_path = replace(filename, outidx_pattern => "")
+        num = parse(Int, match(outidx_pattern, filename).captures[1])
+        out = Output(base_path)
+        snap = out[num]
+    else
+        throw(ArgumentError("filename must be an HDF5 file or an output/index path"))
     end
+
+    return snap
 end
 
 
