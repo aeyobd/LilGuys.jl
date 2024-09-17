@@ -6,7 +6,7 @@
 struct DistributionFunction{F} 
     ρ::Vector{F}
     ψ::Vector{F}
-    d2ρ_dψ2::Function
+    d2ρ_dψ2::LinInterp
 end
 
 

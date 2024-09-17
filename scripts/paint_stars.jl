@@ -40,7 +40,7 @@ distribution function of a snapshot.
     args = parse_args(s)
 
     if args["out"] == nothing
-        args["out"] = splitext(args["distribution_function"])[1]
+        args["out"] = splitext(args["profile"])[1]
     end
 
     return args
@@ -72,7 +72,7 @@ function main()
         prob_e[prob_e .< 0] .= 0
     end
 
-    prob = lguys.lerp(df_df.psi, prob_e)
+    prob = lguys.lerp(ψ, prob_e)
 
     probs = prob.(df_snap.eps)
     probs = normalize_probabilities(probs)
@@ -83,6 +83,11 @@ function main()
     @info "writing outputs"
     sort!(df_snap, :index)
     lguys.write_hdf5_table(args["out"] * "_stars.hdf5", df_snap; overwrite=true)
+
+    df_df[!, :probability] = prob_e
+    df_df[!, :f_s] = f_s_e
+    df_df[!, :rho_s] = ρ
+    lguys.write_hdf5_table(args["out"] * "_df.hdf5", df_df; overwrite=true)
 end
 
 

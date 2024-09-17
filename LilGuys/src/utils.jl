@@ -111,6 +111,41 @@ end
 
 
 
+"""
+Represents a linear interpolator. Construct via `lerp` for now,
+expects `x` to be a sorted list to effieintly returl interpolated values.
+"""
+struct LinInterp{T<:Real}
+    x::Vector{T}
+    y::Vector{T}
+end
+
+
+function (l::LinInterp)(x::Real)
+    xs = l.x
+    ys = l.y
+
+    if !isfinite(x)
+        return NaN
+    end
+    if x < xs[1]
+        return ys[1]
+    elseif x > xs[end]
+        return ys[end]
+    end
+    i = searchsortedfirst(xs, x)
+    if i <= 1
+        return ys[1]
+    elseif i > length(xs)
+        return ys[end] # TODO: test
+    elseif 1 < i <= length(xs)
+        x1, x2 = xs[i-1], xs[i]
+        y1, y2 = ys[i-1], ys[i]
+        return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+    else
+        return NaN # TODO: test
+    end
+end
 
 
 """
@@ -119,32 +154,14 @@ Is truncated and will return the first or last value if x is outside the range.
 """
 function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
     if length(xs) != length(ys)
-        throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))")) # TODO: test
+        throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))")) 
     end
+    ys = copy(ys)
+    xs = copy(xs)
+    ys = ys[sortperm(xs)]
+    xs = sort(xs)
 
-    return function(x::Real)
-        if !isfinite(x)
-            return NaN
-        end
-        if x < xs[1]
-            return ys[1]
-        elseif x > xs[end]
-            return ys[end]
-        end
-        i = searchsortedfirst(xs, x)
-        if i <= 1
-            return ys[1]
-        elseif i > length(xs)
-            return ys[end] # TODO: test
-        elseif 1 < i <= length(xs)
-            x1, x2 = xs[i-1], xs[i]
-            y1, y2 = ys[i-1], ys[i]
-            return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-        else
-            return NaN # TODO: test
-        end
-    end
-
+    return LinInterp(xs, ys)
 end
 
 
