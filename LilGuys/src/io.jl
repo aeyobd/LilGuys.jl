@@ -6,11 +6,11 @@ h5open = HDF5.h5open
 
 
 """
-    load_fits(filename; hdu=2)
+    read_fits(filename; hdu=2)
 
 Load a FITS file and return a DataFrame using the specified HDU.
 """
-function load_fits(filename::String; hdu=2)
+function read_fits(filename::String; hdu=2)
     local df
     FITS(filename, "r") do f
         df = DataFrame(f[hdu])
@@ -57,11 +57,11 @@ end
 
 
 """
-    load_hdf5_table(filename, path="/")
+    read_hdf5_table(filename, path="/")
 
 Load an HDF5 file and return a DataFrame using the specified path.
 """
-function load_hdf5_table(filename::String, path="/")
+function read_hdf5_table(filename::String, path="/")
     df = DataFrame()
 
     h5open(filename, "r") do f
@@ -179,3 +179,53 @@ function set_vector!(h5f::HDF5.File, key::String, val)
 end
 
 
+
+"""
+    write_structs_to_hdf5
+"""
+function write_structs_to_hdf5(filename::String, structs::Vector, labels=nothing)
+    if isfile(filename)
+        rm(filename, force=true)
+    end
+
+    if labels === nothing
+        labels = [string(i) for i in 1:length(structs)]
+    end
+
+    h5open(filename, "w") do f
+        for (label, st) in zip(labels, structs)
+            HDF5.create_group(f, label)
+            for field in fieldnames(typeof(st))
+                val = getfield(st, field)
+                set_vector!(f, label * "/" * String(field), val)
+            end
+        end
+    end
+
+end
+
+
+
+"""
+    read_structs_from_hdf5(filename, T)
+
+Reads a vector of structs from an HDF5 file.
+""" 
+function read_structs_from_hdf5(filename::String, T)
+    structs = T[]
+    labels = String[]
+
+    h5open(filename, "r") do f
+        for k in keys(f)
+            kwargs = Dict{Symbol, Any}()
+            for field in fieldnames(T)
+                kwargs[field] = get_vector(f, k * "/" * String(field))
+            end
+            push!(labels, k)
+
+            push!(structs, T(; kwargs...))
+        end
+    end
+
+    return structs, labels
+end

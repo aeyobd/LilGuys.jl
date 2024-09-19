@@ -5,7 +5,7 @@ module Centres
     export shrinking_spheres
 
     using ..LilGuys
-    import ..centroid, ..centroid_err, ..calc_r, ..F, ..Snapshot, ..Output
+    import ..centroid, ..centroid_err, ..calc_r, ..F, ..Snapshot, ..Output, ..quantile
     import ..calc_radial_discrete_Φ
     import ..calc_E_spec
 

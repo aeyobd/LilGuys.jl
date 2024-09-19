@@ -64,13 +64,13 @@ end
 end
 
 
-@testset "percentile" begin
+@testset "quantile" begin
     # percentile is imported from statsbase
     x = lguys.randu(0, 1, 1000)
 
-    qs = 100 * [0.1, 0.25, 0.5, 0.75, 0.9]
-    p = lguys.percentile(x, qs)
-    @test p ≈ qs/100 atol=0.1
+    qs = [0.1, 0.25, 0.5, 0.75, 0.9]
+    p = lguys.quantile(x, qs)
+    @test p ≈ qs atol=0.1
 end
 
 
@@ -308,4 +308,17 @@ end
         @test lguys.std(r) ≈ 1/4 atol=0.03
     end
 
+end
+
+
+@testset "effective_sample_size" begin
+    N = 33
+    w = fill(0.22, N)
+    @test lguys.effective_sample_size(w) ≈ N
+
+    w = [π; zeros(N-1)]
+    @test lguys.effective_sample_size(w) ≈ 1
+
+    w = [1,2,3]
+    @test lguys.effective_sample_size(w) ≈ 36 / (1 + 2^2 + 3^2)
 end

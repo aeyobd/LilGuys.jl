@@ -1,4 +1,3 @@
-import StatsBase: percentile
 
 Point = Vector{F}
 
@@ -109,15 +108,17 @@ end
 
 
 """
-Computes the COM of particles with a potential below a certain percentile.
+    centre_potential_percen(snap, q)
+
+Computes the COM of particles with a potential below a certain quantile q.
 """
-function centre_potential_percen(snap::Snapshot, percen=5)
+function centre_potential_percen(snap::Snapshot, q=0.05)
     if snap.Φs === nothing
         Φs = calc_radial_discrete_Φ(snap)
     else
         Φs = snap.Φs
     end
-    Φcut = percentile(Φs, percen)
+    Φcut = quantile(Φs, q)
     filt = Φs .< Φcut
     return centre_of_mass(snap[filt])
 end

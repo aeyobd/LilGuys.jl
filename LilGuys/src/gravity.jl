@@ -18,7 +18,8 @@ creates a distribution function object by taking gradients wrt r.
 Calling the object with a binding energy ϵ returns the distribution function at
 that energy.
 """
-function DistributionFunction(ρ::AbstractVector{F}, ψ::AbstractVector{F}, r::AbstractVector{F}) where F <: Real
+function DistributionFunction(ρ::AbstractVector{<:Real}, ψ::AbstractVector{<:Real}, r::AbstractVector{<:Real}; force_positive=false)
+
     if !issorted(r) | !issorted(-ψ)
         throw(ArgumentError("arrays must be sorted"))
     end
@@ -29,8 +30,13 @@ function DistributionFunction(ρ::AbstractVector{F}, ψ::AbstractVector{F}, r::A
     ψ2 = gradient(ψ1, r)
 
     d2ρ_dψ2 = @. ψ1^-2 * ρ2 - ψ1^-3 * ρ1 * ψ2
+
+    if force_positive
+        d2ρ_dψ2 = abs.(d2ρ_dψ2)
+    end
     d2_interp = lerp(reverse(ψ), reverse(d2ρ_dψ2))
 
+    F = Float64 # TODO: make this more general
     return DistributionFunction{F}(ρ, ψ, d2_interp)
 end
 
@@ -139,7 +145,7 @@ end
 
 
 function calc_radial_discrete_Φ(snap::Snapshot)
-    return calc_radial_discrete_Φ(snap.positions, snap.masses)
+    return calc_radial_discrete_Φ(calc_r(snap), snap.masses)
 end
 
 

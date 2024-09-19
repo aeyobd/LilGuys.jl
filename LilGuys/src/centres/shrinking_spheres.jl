@@ -1,5 +1,4 @@
 import Base: @kwdef
-import StatsBase: quantile
 
 
 @kwdef struct _ShrinkingSpheresParams
@@ -75,8 +74,8 @@ Given a snapshot, initialize a shrinking spheres state.
 See also [`shrinking_spheres`](@ref)
 """
 function SS_State(snap::Snapshot; kwargs...)
-    cen = centre_potential_percen(snap, 5.0)
-
+    q0 = 0.05
+    cen = centre_potential_percen(snap, q0)
 
     return SS_State(; centre=cen, filt=trues(size(snap.positions, 2)), kwargs=Dict{Symbol,Any}(kwargs))
 end

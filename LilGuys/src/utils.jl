@@ -156,8 +156,8 @@ function lerp(xs::AbstractVector{T}, ys::AbstractVector{T}) where T<:Real
     if length(xs) != length(ys)
         throw(ArgumentError("xs and ys must have the same length, got $(length(xs)) and $(length(ys))")) 
     end
-    ys = copy(ys)
-    xs = copy(xs)
+    ys = collect(copy(ys))
+    xs = collect(copy(xs))
     ys = ys[sortperm(xs)]
     xs = sort(xs)
 
@@ -257,6 +257,8 @@ function centroid_err(x::AbstractMatrix{T}, weights::AbstractVector) where T<:Re
     err = sqrt(s) / sqrt(N-1)
     return err
 end
+
+
 
 
 

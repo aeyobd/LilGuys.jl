@@ -309,7 +309,7 @@ end
 
 function calc_Σ(profile::KingProfile, r::Real)
     if r > profile.R_t
-        return 0
+        return 0.
     end
     r_s, r_t = profile.R_s, profile.R_t
     k = profile.k
@@ -476,4 +476,5 @@ function calc_Φ_from_ρ(profile::SphericalProfile, r::Real; integrate_M=false)
 
     return Φ_in + Φ_out
 end
+
 

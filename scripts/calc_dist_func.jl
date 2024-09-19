@@ -35,6 +35,9 @@ through eddington inversion.
         "-b", "--bin-method"
             help="binning method"
             default="equal_number"
+        "-p", "--positive"
+            help="force DF to be positive"
+            action="store_true"
     end
 
     args = parse_args(s)
@@ -63,7 +66,7 @@ function main()
     ρ = lguys.calc_ρ_from_hist(bins, hist)
     ψ = lguys.lerp(radii, ψ).(r_bin_mids)
 
-    f = lguys.DistributionFunction(ρ, ψ, r_bin_mids)
+    f = lguys.DistributionFunction(ρ, ψ, r_bin_mids; force_positive=args["positive"])
     f_e = f.(ψ)
 
     df_nu = DataFrame(radii=r_bin_mids, dr=diff(r_bins)/2, rho=ρ, f=f_e, psi=ψ, counts=hist)

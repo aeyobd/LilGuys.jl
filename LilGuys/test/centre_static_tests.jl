@@ -74,7 +74,7 @@ end
 
     snap2.Φs = lguys.calc_radial_discrete_Φ(snap2)
 
-    snap = snap2[snap2.Φs .< lguys.percentile(snap2.Φs, 5)]
+    snap = snap2[snap2.Φs .< lguys.quantile(snap2.Φs, 0.05)]
 
     cen2 = lguys.Centres.centre_of_mass(snap)
 

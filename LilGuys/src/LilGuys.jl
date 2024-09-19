@@ -43,8 +43,9 @@ include("gravity.jl")
 include("analytic_profiles.jl")
 include("nfw.jl")
 
+include("project.jl")
 include("density_3d.jl")
-include("density_utils.jl")
+include("density_2d.jl")
 
 include("centres/Centres.jl")
 

@@ -62,33 +62,25 @@ end
 
 
 """
-    calc_properties(rs, r_units; weights=nothing, bins=20, normalization="mass")
+    calc_properties(rs; r_units="", weights=nothing, bins=nothing, normalization="mass")
 
 Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
 
 
 # Arguments
 - `bins`: Passed to Arya.histogram. Bins in log r for histogram.
-----------
-rs : Vector{F}
-    The radii of the profile.
-r_units : String
-    The units of the radii.
-weights : Vector{F}, optional
-    The weights of the radii.
-bins : optional
-    Bins passed to Arya.histogram.
-normalization : String, optional
-    The normalization of the profile.
+- `weights`: The weights of the radii.
+- `normalization`: The normalization of the profile.
     - :mass: normalizes the profile by the total mass.
     - :central: normalizes the profile by the mass within a central radius, r_centre
     - :none: no normalization.
-
+- `r_centre`: The central radius for normalization if `normalization=:central`.
+- `r_units`: The units of the radii, entirely for self-documentation currently.
 """
 function calc_properties(rs; 
         r_units="", 
         weights=nothing, 
-        bins=20, 
+        bins=nothing, 
         normalization=:mass,
         r_centre=30,
     )
@@ -111,7 +103,9 @@ function calc_properties(rs;
     err[isnan.(err)] .= 0
 
     mass_per_annulus = values .± err
-    _, counts, _ = histogram(log10.(rs), bins, normalization=:none)
+    _, counts, _ = histogram(log10.(rs), log_r_bin, normalization=:none)
+
+    err[counts .== 0] .= 1
 
     if normalization == :mass
         mass_per_annulus = mass_per_annulus ./ sum(mass_per_annulus)
@@ -476,3 +470,6 @@ function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
 
 	ra, dec
 end
+
+
+

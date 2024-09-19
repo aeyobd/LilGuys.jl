@@ -19,6 +19,14 @@ function get_args()
         description="""Paints stars onto a snapshot.
 Based on Rapha's codes which apply Eddingon inversion to determine the 
 distribution function of a snapshot.
+
+The stellar distribution function is evaluated on the same grid as the
+input distribution function (for now). The probability of each star is
+calculated by evaluating the ratio of the stellar distribution function
+to the input distribution function at the energy of the star.
+
+Probabilities are normalized to unity. Negative and NaN probabilities
+are set to zero.
 """,
     )
 
@@ -77,16 +85,16 @@ function main()
     probs = prob.(df_snap.eps)
     probs = normalize_probabilities(probs)
 
-    df_snap[!, :probability] = probs
+    df_snap[!, :probability] = Vector{Float64}(probs)
 
     # write outputs
     @info "writing outputs"
     sort!(df_snap, :index)
     lguys.write_hdf5_table(args["out"] * "_stars.hdf5", df_snap; overwrite=true)
 
-    df_df[!, :probability] = prob_e
-    df_df[!, :f_s] = f_s_e
-    df_df[!, :rho_s] = ρ
+    df_df[!, :probability] = Vector{Float64}(prob_e)
+    df_df[!, :f_s] = Vector{Float64}(f_s_e)
+    df_df[!, :rho_s] = Vector{Float64}(ρ)
     lguys.write_hdf5_table(args["out"] * "_df.hdf5", df_df; overwrite=true)
 end
 

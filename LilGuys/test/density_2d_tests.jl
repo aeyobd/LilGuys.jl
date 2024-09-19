@@ -1,7 +1,8 @@
 function calc_χ2(x, x_exp, xerr)
+    filt = @. isfinite(x) & isfinite(x_exp) & isfinite(xerr)
 	return sum(
-		@. (x-x_exp)^2 / xerr^2
-	) / length(x)
+               @. ((x-x_exp)^2 / xerr^2)[filt]
+        ) / sum(filt)
 end
 
 
@@ -54,6 +55,9 @@ end
     r = 10 .^ obs.log_r
     sigma_exp = M * Σ.(r)
     χ2 = calc_χ2(obs.Sigma, sigma_exp, obs.Sigma_err)
+    println(obs.Sigma)
+    println(sigma_exp)
+    println(obs.Sigma_err)
     @test χ2  ≈ 1 rtol = 0.5
 
     Gamma_exp = -r
@@ -82,7 +86,9 @@ end
             if v isa String
                 @test getproperty(obs2, name) == v
             else    
-                @test v ≈ getproperty(obs2, name)
+                filt = .!isnan.(v)
+                @test v[filt] ≈ getproperty(obs2, name)[filt]
+                @test isnan.(v) == isnan.(getproperty(obs2, name))
             end
         end
     end
