@@ -3,10 +3,11 @@ import LinearAlgebra: ×
 
 
 """
-An simulated 3D density profile. 
+A struct representing a 3-dimensional 
+mass profile (likely of a snapshot).
 All properties are in code units.
 """
-@kwdef struct ObsProfile3D
+@kwdef struct MassProfile3D
     """ Total Energy """
     E::F
 
@@ -56,100 +57,25 @@ All properties are in code units.
     t_circ::Vector{F}
 end
 
-function Base.print(io::IO, prof::ObsProfile3D)
+function Base.print(io::IO, prof::MassProfile3D)
     TOML.print(io, struct_to_dict(prof))
 end
 
-function ObsProfile3D(filename::String)
+function MassProfile3D(filename::String)
     t = dict_to_tuple(TOML.parsefile(filename))
-    return ObsProfile3D(;t...)
-end
-
-
-
-"""
-A collection of 3D density profiles.
-"""
-struct Profiles3D <: AbstractVector{ObsProfile3D}
-    snapshot_index::Vector{Int}
-    times::Vector{F}
-    profiles::Vector{ObsProfile3D}
-end
-
-function Base.size(profs::Profiles3D)
-    N =  length(profs.profiles)
-    return (N,)
-end
-
-
-
-function Base.getindex(profs::Profiles3D, i::Int)
-    return profs.profiles[i]
+    return MassProfile3D(;t...)
 end
 
 
 """
-    Profiles3D(filename)
-
-Loads a Profiles3D array from the given hdf5 file (ideally saved with `save`).
-"""
-function Profiles3D(filename::String)
-    h5open(filename, "r") do f
-        snapshot_index = read(f, "snapshot_index")
-        times = read(f, "times")
-
-        profiles = ObsProfile3D[]
-
-        for i in eachindex(snapshot_index)
-            df = Dict()
-
-            for key in fieldnames(ObsProfile3D)
-                ndims = length(size(read(f, string(key))))
-                if ndims == 1
-                    data = f[string(key)][i]
-                else
-                    data = f[string(key)][:, i]
-                end
-                df[key] = data
-            end
-
-            prof = ObsProfile3D(;df...)
-
-            push!(profiles, prof)
-        end
-        return Profiles3D(snapshot_index, times, profiles)
-    end
-end
-
-
-function save(filename::String, profs::Profiles3D)
-    h5open(filename, "w") do f
-        write(f, "snapshot_index", profs.snapshot_index)
-        write(f, "times", profs.times)
-
-        for key in fieldnames(ObsProfile3D)
-            data = getproperty.(profs.profiles, key)
-            if eltype(data) <: Real
-                write(f, string(key), data)
-            elseif eltype(data) <: AbstractVector
-                write(f, string(key), hcat(data...))
-            end
-        end
-    end
-end
-
-
-
-
-"""
-    calc_profile(snap; bins=100, filt_bound=true)
+    MassProfile3D(snap; bins=100, filt_bound=true)
 
 Given a snapshot, computes the density, circular velocity, and energy; 
-returning an ObsProfile3D object.
+returning an MassProfile3D object.
 
 `bins` may be an integer, array, or function and is passed to `histogram`
 """
-function calc_profile(snap::Snapshot;
+function MassProfile3D(snap::Snapshot;
         bins=nothing,
         filt_bound=true,
     )
@@ -204,7 +130,7 @@ function calc_profile(snap::Snapshot;
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
-    return ObsProfile3D(
+    return MassProfile3D(
         E=E,
         K=K,
         W=W,
@@ -226,6 +152,82 @@ function calc_profile(snap::Snapshot;
         N_bound=N_bound
     )
 end
+
+
+
+# """
+# A collection of 3D density profiles.
+# """
+# struct Profiles3D <: AbstractVector{MassProfile3D}
+#     snapshot_index::Vector{Int}
+#     times::Vector{F}
+#     profiles::Vector{MassProfile}
+# end
+# 
+# function Base.size(profs::Profiles3D)
+#     N =  length(profs.profiles)
+#     return (N,)
+# end
+# 
+# 
+# 
+# function Base.getindex(profs::Profiles3D, i::Int)
+#     return profs.profiles[i]
+# end
+# 
+# 
+# """
+#     Profiles3D(filename)
+# 
+# Loads a Profiles3D array from the given hdf5 file (ideally saved with `save`).
+# """
+# function Profiles3D(filename::String)
+#     h5open(filename, "r") do f
+#         snapshot_index = read(f, "snapshot_index")
+#         times = read(f, "times")
+# 
+#         profiles = ObsProfile3D[]
+# 
+#         for i in eachindex(snapshot_index)
+#             df = Dict()
+# 
+#             for key in fieldnames(ObsProfile3D)
+#                 ndims = length(size(read(f, string(key))))
+#                 if ndims == 1
+#                     data = f[string(key)][i]
+#                 else
+#                     data = f[string(key)][:, i]
+#                 end
+#                 df[key] = data
+#             end
+# 
+#             prof = ObsProfile3D(;df...)
+# 
+#             push!(profiles, prof)
+#         end
+#         return Profiles3D(snapshot_index, times, profiles)
+#     end
+# end
+# 
+# 
+# function save(filename::String, profs::Profiles3D)
+#     h5open(filename, "w") do f
+#         write(f, "snapshot_index", profs.snapshot_index)
+#         write(f, "times", profs.times)
+# 
+#         for key in fieldnames(ObsProfile3D)
+#             data = getproperty.(profs.profiles, key)
+#             if eltype(data) <: Real
+#                 write(f, string(key), data)
+#             elseif eltype(data) <: AbstractVector
+#                 write(f, string(key), hcat(data...))
+#             end
+#         end
+#     end
+# end
+# 
+# 
+
 
 
 

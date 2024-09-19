@@ -12,7 +12,7 @@ F = Float64
 """
 An observed 2D density profile
 """
-@kwdef mutable struct ObsProfile
+@kwdef mutable struct StellarProfile
     r_units::String
 
     log_r::Vector{F}
@@ -39,30 +39,9 @@ An observed 2D density profile
 end
 
 
-function Base.print(io::IO, prof::ObsProfile)
-    TOML.print(io, struct_to_dict(prof))
-end
-
-function ObsProfile(filename::String; kwargs...)
-    t = TOML.parsefile(filename)
-    t = merge(t, kwargs)
-    t = dict_to_tuple(t)
-    return ObsProfile(;t...)
-end
-
 
 """
-    ellipticity_to_aspect(ellipticity)
-
-Converts the ellipticity to the aspect ratio (b/a) of an ellipse.
-"""
-function ellipticity_to_aspect(ellipticity)
-    return 1 - ellipticity
-end
-
-
-"""
-    calc_properties(rs; r_units="", weights=nothing, bins=nothing, normalization="mass")
+    StellarProfile(radii; r_units="", weights=nothing, bins=nothing, normalization="mass")
 
 Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
 
@@ -77,7 +56,7 @@ Calculate the properties of a density profile given the radii `rs` and the units
 - `r_centre`: The central radius for normalization if `normalization=:central`.
 - `r_units`: The units of the radii, entirely for self-documentation currently.
 """
-function calc_properties(rs; 
+function StellarProfile(rs; 
         r_units="", 
         weights=nothing, 
         bins=nothing, 
@@ -100,10 +79,12 @@ function calc_properties(rs;
     log_r = midpoints(log_r_bin)
     δ_log_r = diff(log_r_bin) ./ 2
 
-    err[isnan.(err)] .= 0
 
     mass_per_annulus = values .± err
     _, counts, _ = histogram(log10.(rs), log_r_bin, normalization=:none)
+
+    # approximate error for no particles in bin
+    err[isnan.(err)] .= 1
 
     err[counts .== 0] .= 1
 
@@ -128,7 +109,7 @@ function calc_properties(rs;
 	log_Σ = log10.(Σ)
     log_Σ[Σ .== 0] .= NaN
 
-    prof = ObsProfile(
+    prof = StellarProfile(
         r_units = r_units,
         log_r = value.(log_r),
         log_r_bins = log_r_bin,
@@ -151,6 +132,30 @@ function calc_properties(rs;
 
     return prof
 end
+
+
+
+function Base.print(io::IO, prof::StellarProfile)
+    TOML.print(io, struct_to_dict(prof))
+end
+
+function StellarProfile(filename::String; kwargs...)
+    t = TOML.parsefile(filename)
+    t = merge(t, kwargs)
+    t = dict_to_tuple(t)
+    return StellarProfile(;t...)
+end
+
+
+"""
+    ellipticity_to_aspect(ellipticity)
+
+Converts the ellipticity to the aspect ratio (b/a) of an ellipse.
+"""
+function ellipticity_to_aspect(ellipticity)
+    return 1 - ellipticity
+end
+
 
 
 # Density methods

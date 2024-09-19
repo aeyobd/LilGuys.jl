@@ -177,14 +177,9 @@ end
     end
 end
 
-function calc_χ2(x, x_exp, xerr)
-	return sum(
-		@. (x-x_exp)^2 / xerr^2
-	) / length(x)
-end
 
 
-@testset "calc_profile (integration)" begin
+@testset "MassProfile (integration)" begin
     N = 30_000
     M_s = 2
     r_s = 5
@@ -204,7 +199,7 @@ end
     radii = lguys.calc_r(snap)
     bins = bins_min_width_equal_number(log10.(radii), dx_min=0.05, N_per_bin_min=100)#[2:end-1]
 
-    profile = lguys.calc_profile(snap, bins=bins)
+    profile = lguys.MassProfile3D(snap, bins=bins)
 
     @test profile.N_bound ≈ N
     @test profile.M_in[end] ≈ M
@@ -213,34 +208,17 @@ end
 
     r = 10 .^ profile.log_r[2:end-1]
     ρ_exp = lguys.calc_ρ.(halo, r)
-    χ2 = calc_χ2(profile.rho[2:end-1], ρ_exp, profile.rho_err[2:end-1])
-    @test χ2  ≈ 1 rtol = 0.9 
+    @test_χ2 profile.rho[2:end-1] profile.rho_err[2:end-1] ρ_exp
 
     r = 10 .^ profile.log_r_bins[2:end]
     M_exp = lguys.calc_M.(halo, r)
-    χ2 = calc_χ2(profile.M_in, M_exp, profile.M_in_err)
-    @test χ2  ≈ 1 rtol = 0.9 
-
+    @test_χ2 profile.M_in profile.M_in_err M_exp
 
     # errors tend to be overestimated here...
     v_circ_exp = lguys.calc_v_circ.(halo, r)
-    χ2 = calc_χ2(profile.v_circ, v_circ_exp, profile.v_circ_err)
-    @test χ2 < 1
+    @test_χ2 profile.v_circ profile.v_circ_err v_circ_exp
 
 end
-
-
-@testset "ObsProfile3D" begin
-
-    @testset "constructor" begin
-
-    end
-
-    @testset "integration with NFW" begin
-
-    end
-end
-
 
 
 

@@ -1,10 +1,3 @@
-function calc_χ2(x, x_exp, xerr)
-    filt = @. isfinite(x) & isfinite(x_exp) & isfinite(xerr)
-	return sum(
-               @. ((x-x_exp)^2 / xerr^2)[filt]
-        ) / sum(filt)
-end
-
 
 
 @testset "calc_Σ" begin
@@ -45,7 +38,7 @@ end
     mass = 0.5 .+ 0.5rand(N)
     M = sum(mass)
 
-    obs = LilGuys.calc_properties(r, normalization=:none, weights=mass)
+    obs = LilGuys.StellarProfile(r, normalization=:none, weights=mass)
 
     @test sum(obs.mass_in_annulus) ≈ sum(mass)
     @test obs.M_in[end] ≈ sum(mass)
@@ -54,21 +47,14 @@ end
 
     r = 10 .^ obs.log_r
     sigma_exp = M * Σ.(r)
-    χ2 = calc_χ2(obs.Sigma, sigma_exp, obs.Sigma_err)
-    println(obs.Sigma)
-    println(sigma_exp)
-    println(obs.Sigma_err)
-    @test χ2  ≈ 1 rtol = 0.5
+    @test_χ2 obs.Sigma obs.Sigma_err sigma_exp
 
     Gamma_exp = -r
-    χ2 = calc_χ2(obs.Gamma, Gamma_exp, obs.Gamma_err)
-    @test χ2  ≈ 1 rtol = 0.5
-
+    @test_χ2 obs.Gamma obs.Gamma_err Gamma_exp
 
     r = 10 .^ obs.log_r_bins[2:end]
     M_exp = @. M * (1 - exp(-r) - r*exp(-r))
-    χ2 = calc_χ2(obs.M_in, M_exp, obs.M_in_err)
-    @test χ2  ≈ 1 rtol = 0.7
+    @test_χ2 obs.M_in obs.M_in_err M_exp
 
 
     @testset "read/write" begin
@@ -79,7 +65,7 @@ end
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.ObsProfile(filename)
+        obs2 = LilGuys.StellarProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)
