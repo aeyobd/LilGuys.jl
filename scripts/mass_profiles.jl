@@ -46,25 +46,19 @@ function main()
         out.v_cen .= zeros(size(out.v_cen))
     end
 
-    profiles = LilGuys.ObsProfile3D[]
+    profiles = Pair{String, LilGuys.MassProfile3D}[]
 
     snap_idx = eachindex(out)[1:args["skip"]:end]
     for i in snap_idx
-        println("computing profile for snapshot $i")
-        prof = LilGuys.calc_profile(out[i])
-        push!(profiles, prof)
+        @info "computing profile for snapshot $i"
+        prof = LilGuys.MassProfile3D(out[i])
+        push!(profiles, string(i) => prof)
     end
 
 
-    profs = LilGuys.Profiles3D(snap_idx, out.times[snap_idx], profiles)
-
-    LilGuys.save(args["output"], profs)
+    LilGuys.write_structs_to_hdf5(args["output"], profiles)
 end
 
-
-function collect_vector(profiles, field)
-    hcat((getfield(p, field) for p in profiles)...)
-end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__

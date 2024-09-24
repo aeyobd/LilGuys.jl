@@ -61,6 +61,8 @@ A snapshot of a gadget simulation. Units are all code units.
     """The (stellar) weights of the particles"""
     weights::Union{Vector, ConstVector} = ConstVector(1.0, length(index))
 
+    time::F = NaN
+
     """The radii of the particles, stored on first calculation"""
     _radii::OptVector = nothing
 

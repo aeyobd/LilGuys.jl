@@ -100,6 +100,7 @@ function Base.getindex(out::Output, i::Int)
     snap =  Snapshot(out.h5file[out.index[i]])
     snap.x_cen = out.x_cen[:, i]
     snap.v_cen = out.v_cen[:, i]
+    snap.time = out.times[i]
 
     if !isnothing(out.weights)
         if length(snap.index) !== length(out.weights)

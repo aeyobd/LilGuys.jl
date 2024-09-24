@@ -46,6 +46,7 @@ include("nfw.jl")
 include("project.jl")
 include("density_3d.jl")
 include("density_2d.jl")
+include("density_3d_star.jl")
 
 include("centres/Centres.jl")
 

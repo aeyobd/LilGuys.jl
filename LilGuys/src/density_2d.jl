@@ -36,6 +36,8 @@ An observed 2D density profile
     Gamma_err::Vector{F}
     Gamma_max::Vector{F}
     Gamma_max_err::Vector{F}
+
+    time::Union{Nothing, String} = nothing
 end
 
 

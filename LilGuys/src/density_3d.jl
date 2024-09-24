@@ -55,6 +55,14 @@ All properties are in code units.
 
     "Circular crossing time / dynamical time at bin"
     t_circ::Vector{F}
+
+    "the radius at which q of the total mass is enclosed where q is given in `quantiles`"
+    r_quantile::Vector{F}
+
+    "Quantiles used for M_quantile"
+    quantiles::Vector{F}
+
+    time::Union{Nothing, F} = nothing
 end
 
 function Base.print(io::IO, prof::MassProfile3D)
@@ -78,6 +86,7 @@ returning an MassProfile3D object.
 function MassProfile3D(snap::Snapshot;
         bins=nothing,
         filt_bound=true,
+        quantiles=[0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999]
     )
 
     if filt_bound
@@ -130,6 +139,8 @@ function MassProfile3D(snap::Snapshot;
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
+    r_quantile = quantile(r, quantiles)
+
     return MassProfile3D(
         E=E,
         K=K,
@@ -149,7 +160,10 @@ function MassProfile3D(snap::Snapshot;
         t_circ=t_circ,
         v_circ_max=v_circ_max,
         r_circ_max=r_circ_max,
-        N_bound=N_bound
+        N_bound=N_bound,
+        r_quantile=r_quantile,
+        quantiles=quantiles,
+        time=snap.time,
     )
 end
 

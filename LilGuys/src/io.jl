@@ -183,22 +183,15 @@ end
 """
     write_structs_to_hdf5
 """
-function write_structs_to_hdf5(filename::String, structs::Vector, labels=nothing)
-    if isfile(filename)
+function write_structs_to_hdf5(filename::String, structs::AbstractVector{<:Pair{String, <:Any}}; 
+        overwrite=true)
+    if overwrite && isfile(filename)
         rm(filename, force=true)
     end
 
-    if labels === nothing
-        labels = [string(i) for i in 1:length(structs)]
-    end
-
     h5open(filename, "w") do f
-        for (label, st) in zip(labels, structs)
-            HDF5.create_group(f, label)
-            for field in fieldnames(typeof(st))
-                val = getfield(st, field)
-                set_vector!(f, label * "/" * String(field), val)
-            end
+        for (label, obj) in structs
+            write_struct_to_hdf5(f, obj, group=label)
         end
     end
 
@@ -209,23 +202,78 @@ end
 """
     read_structs_from_hdf5(filename, T)
 
-Reads a vector of structs from an HDF5 file.
+Reads a vector of structs from an HDF5 file. 
+Expects each struct to be stored in a separate group and
+T to be initializable by kwdef by the combination of 
+values stored in each group.
 """ 
 function read_structs_from_hdf5(filename::String, T)
-    structs = T[]
-    labels = String[]
+    structs = Pair{String, T}[]
 
     h5open(filename, "r") do f
         for k in keys(f)
-            kwargs = Dict{Symbol, Any}()
-            for field in fieldnames(T)
-                kwargs[field] = get_vector(f, k * "/" * String(field))
-            end
-            push!(labels, k)
-
-            push!(structs, T(; kwargs...))
+            s = read_struct_from_hdf5(f, T, group=k)
+            push!(structs, k => s)
         end
     end
 
-    return structs, labels
+    return structs
+end
+
+
+"""
+    write_struct_to_hdf5(filename, obj[, group=""])
+
+Writes a struct to an HDF5 file. Each field in the struct is stored
+in the hdf5 file (or group) named after the field in the struct.
+"""
+function write_struct_to_hdf5(filename::String, obj; kwargs...)
+    if isfile(filename)
+        rm(filename, force=true)
+    end
+
+    h5open(filename, "w") do f
+        write_struct_to_hdf5(f, obj; kwargs...)
+    end
+end
+
+
+
+function write_struct_to_hdf5(h5::HDF5.File, obj; group="")
+    if group != "" && group ∉ keys(h5)
+        HDF5.create_group(h5, group)
+    end
+
+    for field in fieldnames(typeof(obj))
+        val = getfield(obj, field)
+        set_vector!(h5, group * "/" * String(field), val)
+    end
+end
+
+
+"""
+    read_struct_from_hdf5(filename, T[, group=""])
+
+Reads a struct from an HDF5 file. Expects the struct to be stored
+in the group `group` and each field in the hdf5 file (or group)
+to be named after the field in the struct.
+The type is then called by `T(; kwargs...)`.
+"""
+function read_struct_from_hdf5(filename::String, T; group="")
+    local st
+    h5open(filename, "r") do f
+        st = read_struct_from_hdf5(f, T, group=group)
+    end
+
+    return st
+end
+
+
+function read_struct_from_hdf5(h5::HDF5.File, T; group="")
+    kwargs = Dict{Symbol, Any}()
+    for field in fieldnames(T)
+        kwargs[field] = get_vector(h5, group * "/" * String(field))
+    end
+
+    return T(; kwargs...)
 end

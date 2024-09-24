@@ -59,8 +59,8 @@ function main()
     args = get_args()
 
     profile = lguys.load_profile(args["profile"])
-    df_snap = lguys.load_hdf5_table(args["energy_file"])
-    df_df = lguys.load_hdf5_table(args["distribution_function"])
+    df_snap = lguys.read_hdf5_table(args["energy_file"])
+    df_df = lguys.read_hdf5_table(args["distribution_function"])
 
     radii = df_df.radii
     ψ = df_df.psi
@@ -80,9 +80,18 @@ function main()
         prob_e[prob_e .< 0] .= 0
     end
 
+    if profile isa lguys.KingProfile
+        ϵ_min = lguys.lerp(radii, ψ)(profile.R_t)
+    else
+        ϵ_min = 0
+    end
+
+    prob_e[ψ .< ϵ_min] .= 0
+
     prob = lguys.lerp(ψ, prob_e)
 
     probs = prob.(df_snap.eps)
+    probs[df_snap.eps .< ϵ_min] .= 0
     probs = normalize_probabilities(probs)
 
     df_snap[!, :probability] = Vector{Float64}(probs)
