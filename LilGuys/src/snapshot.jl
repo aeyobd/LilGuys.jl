@@ -230,9 +230,17 @@ Save a snapshot to an HDF5 file.
 
 Notes: does regenerate the snapshot's header.
 """
-function save(filename::String, snap::Snapshot)
+function save(filename::String, snap::Snapshot; centre=false)
     h5open(filename, "w") do h5f
-        save(h5f, snap)
+        if centre
+            snap1 = deepcopy(snap)
+            snap1.positions .-= snap1.x_cen
+            snap1.velocities .-= snap1.v_cen
+        else
+            snap1 = snap
+        end
+
+        save(h5f, snap1)
     end
 end
 

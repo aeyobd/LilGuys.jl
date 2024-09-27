@@ -91,23 +91,17 @@ end
         s1 = TestStruct(1, 2.0, "a", [1.0, 2.0, 3.0])
         s2 = TestStruct(0, π, "b", [4.0, 5.0, -2.2])
 
-        structs = [s1, s2]
+        structs = ["1"=>s1, "2"=>s2]
 
         filename = joinpath(tdir, "test.hdf5")
         lguys.write_structs_to_hdf5(filename, structs)
 
-        structs2, labels = lguys.read_structs_from_hdf5(filename, TestStruct)
+        structs2 = lguys.read_structs_from_hdf5(filename, TestStruct)
 
-        @test labels == ["1", "2"]
-        struct_approx_equal(s1, structs2[1])
-        struct_approx_equal(s2, structs2[2])
-
-        labels = ["0", "10"]
-        lguys.write_structs_to_hdf5(filename, structs, labels)
-        structs2, labels2 = lguys.read_structs_from_hdf5(filename, TestStruct)
-        struct_approx_equal(s1, structs2[1])
-        @test labels == labels2
-
+        for i in 1:length(structs)
+            struct_approx_equal(structs[i].second, structs2[i].second)
+            @test structs[i].first == structs2[i].first
+        end
 
     end
 

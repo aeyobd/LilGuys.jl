@@ -35,6 +35,16 @@ computes the 3D stellar profiles for each snapshot.
             help="do not use centres"
             action="store_true"
 
+        # histogram kwargs
+        "--bin-method"
+            help="Method to calculate the bins"
+            default="equal_number"
+            arg_type=String
+        "--n-bins"
+            help="number of bins to use"
+            default=nothing
+            arg_type=Union{Int, Nothing}
+
     end
 
     args = parse_args(s)

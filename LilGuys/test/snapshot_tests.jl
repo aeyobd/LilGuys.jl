@@ -4,7 +4,11 @@ tdir = mktempdir()
 function assert_equal(a::Snapshot, b::Snapshot)
     for attr in fieldnames(Snapshot)
         if attr != :h
-            @test getfield(a, attr) == getfield(b, attr)
+            if getfield(a, attr) === NaN
+                @test isnan(getfield(b, attr))
+            else
+                @test getfield(a, attr) == getfield(b, attr)
+            end
         end
     end
 end

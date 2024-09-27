@@ -62,7 +62,7 @@ function main()
     kwargs = get_kwargs(args)
 
     @info "Reading stars"
-    stars = LilGuys.load_hdf5_table(args["stars"])
+    stars = LilGuys.read_hdf5_table(args["stars"])
 
     @assert issorted(stars.index) "stars.index must be sorted"
     @info "Reading snapshot"

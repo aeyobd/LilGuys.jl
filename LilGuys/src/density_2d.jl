@@ -1,6 +1,6 @@
 import Base: @kwdef
 
-import LinearAlgebra: diag, dot, norm, normalize
+import LinearAlgebra: diag, dot, norm, normalize, ⋅, × 
 
 import TOML
 
@@ -37,7 +37,7 @@ An observed 2D density profile
     Gamma_max::Vector{F}
     Gamma_max_err::Vector{F}
 
-    time::Union{Nothing, String} = nothing
+    time::F = NaN
 end
 
 
@@ -135,6 +135,37 @@ function StellarProfile(rs;
     return prof
 end
 
+function StellarProfile(snap::Snapshot;
+        r_units = "kpc",
+        eye_vector=[0, 0, 1],
+        kwargs...
+    )
+
+    if r_units == "kpc"
+        x_vec = normalize([1, 0, 0] × eye_vector)
+        y_vec = normalize(x_vec × eye_vector)
+
+        N = size(snap.positions, 2)
+        ra = [dot(snap.positions[:, i], x_vec) for i in 1:N]
+        dec = [dot(snap.positions[:, i], y_vec) for i in 1:N]
+
+        weights = snap.weights
+        ra0 = snap.x_cen ⋅ x_vec
+        dec0 = snap.x_cen ⋅ y_vec
+    else 
+        projected = to_gaia(snap, add_centre=true)
+        ra = projected.ra
+        dec = projected.dec
+        ra0 = projected.ra[1]
+        dec0 = projected.dec[1]
+        weights = projected.weights
+    end
+
+    xi, eta = to_tangent(ra, dec, ra0, dec0)
+    r = sqrt.(xi .^ 2 + eta .^ 2)
+
+    return StellarProfile(r; r_units=r_units, weights=weights, kwargs...)
+end
 
 
 function Base.print(io::IO, prof::StellarProfile)
@@ -145,6 +176,7 @@ function StellarProfile(filename::String; kwargs...)
     t = TOML.parsefile(filename)
     t = merge(t, kwargs)
     t = dict_to_tuple(t)
+
     return StellarProfile(;t...)
 end
 
@@ -467,7 +499,7 @@ function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
 	α = deg2rad(ra0)
 	δ = deg2rad(dec0)
 	ϖ = deg2rad(90 - PA)
-	Rmat = Rx_mat(ϖ) * Ry_mat(δ) * Rz_mat(-α) 
+	Rmat = Rx_mat(-ϖ) * Ry_mat(δ) * Rz_mat(-α) 
 
 	coords = unit_vector(ra, dec)
 	coords =  Rmat * coords
@@ -480,3 +512,7 @@ end
 
 
 
+function to_orbit_coords(ra::Real, dec::Real, ra0::Real, dec0::Real, PA::Real)
+    ra, dec =  to_orbit_coords([ra], [dec], ra0, dec0, PA)
+    return ra[1], dec[1]
+end

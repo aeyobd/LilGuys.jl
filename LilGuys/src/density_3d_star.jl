@@ -114,9 +114,9 @@ end
 Calculate the average 1D orthoganal velocity dispersion
 """
 function calc_σv_1d(snap)
-    v = get_v(snap)
+    v = calc_v(snap)
     w = snap.weights
-    σ = std(v, w)
+    σ = sqrt( sum(v .^ 2 .* w) / sum(w) )
 
     return σ / √3
 end

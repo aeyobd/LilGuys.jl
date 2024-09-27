@@ -271,8 +271,12 @@ end
 
 function read_struct_from_hdf5(h5::HDF5.File, T; group="")
     kwargs = Dict{Symbol, Any}()
-    for field in fieldnames(T)
-        kwargs[field] = get_vector(h5, group * "/" * String(field))
+    for k in keys(h5[group])
+        if Symbol(k) ∉ fieldnames(T)
+            @warn "Field $k not found in struct $T"
+        end
+        field = Symbol(k)
+        kwargs[field] = get_vector(h5, "$group/$k")
     end
 
     return T(; kwargs...)

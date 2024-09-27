@@ -3,8 +3,8 @@ using ArgParse
 
 using Polyhedra
 using LilGuys
-import DensityEstimators
 
+include("bin_args.jl")
 
 function get_args()
     s = ArgParseSettings(
@@ -24,14 +24,6 @@ function get_args()
         "--r_centre"
             help="Centre of the profile"
             default=5
-        "--N-min"
-            help="Minimum number of stars per bin"
-            default=20
-            arg_type=Int
-        "--dlogr-min"
-            help="Minimum bin width"
-            default=0.05
-            arg_type=Float64
         "--ellipticity"
             help="Ellipticity of the profile"
             default=0
@@ -59,6 +51,7 @@ function get_args()
             arg_type=Float64
     end
 
+    s = add_bin_args(s)
     args = parse_args(s)
 
 
@@ -92,19 +85,53 @@ end
 
 function main()
     args = get_args()
+    bins = bins_from_args(args)
 
     @info "loading sample"
-    sample = LilGuys.load_fits(args["input"])
+    sample = LilGuys.read_fits(args["input"])
 
     if args["mass-column"] === nothing
         weights = ones(size(sample, 1))
     else
         @info "setting weights"
         weights = sample[:, args["mass-column"]]
-        println(maximum(weights))
     end
 
     @info "calculating centre"
+    ra0, dec0 = calc_centre(sample, weights, args)
+    @info "centre: $(ra0) $(dec0)"
+
+    @info "calculating profile"
+    r_ell = LilGuys.calc_r_ell_sky(sample.ra, sample.dec,
+        args["ellipticity"], args["PA"], centre=(ra0, dec0))
+
+    r_ell_max = 60 * LilGuys.calc_r_max(sample.ra, sample.dec, 
+        args["ellipticity"], args["PA"], centre=(ra0, dec0))
+
+    @info "r_ell_max: $(r_ell_max)"
+    filt = r_ell .< r_ell_max
+    filt .&= .!isnan.(r_ell)
+
+
+    profile = LilGuys.StellarProfile(r_ell[filt], 
+        bins=bins, 
+        weights=weights[filt], 
+        normalization=Symbol(args["normalization"]), 
+        r_centre=args["r-centre"]
+    )
+
+
+    @info "writing data"
+    open(args["output"], "w") do f
+		print(f, profile)
+	end
+
+    @info "wrote data to ", abspath(args["output"])
+end
+
+
+
+function calc_centre(sample, weights, args)
     if args["centre-method"] == "mean"
         ra0, dec0 = LilGuys.calc_centre2D(sample.ra, sample.dec, "mean")
     elseif args["centre-method"] == "weighted"
@@ -118,34 +145,7 @@ function main()
         throw(ArgumentError("Invalid centre method $(args["centre-method"])"))
     end
 
-
-    @info "centre: $(ra0) $(dec0)"
-
-    @info "calculating profile"
-    r_ell = LilGuys.calc_r_ell_sky(sample.ra, sample.dec,
-        args["ellipticity"], args["PA"], centre=(ra0, dec0))
-    println(length(sample.ra))
-
-    r_ell_max = 60 * LilGuys.calc_r_max(sample.ra, sample.dec, 
-        args["ellipticity"], args["PA"], centre=(ra0, dec0))
-
-    @info "r_ell_max: $(r_ell_max)"
-    filt = r_ell .< r_ell_max
-    filt .&= .!isnan.(r_ell)
-
-    bins =  DensityEstimators.bins_min_width_equal_number(log10.(r_ell[filt]), 
-        N_per_bin_min=args["N-min"], dx_min=args["dlogr-min"])
-
-    profile = LilGuys.calc_properties(r_ell[filt], bins=bins, weights=weights[filt],
-        normalization=Symbol(args["normalization"]), r_centre=args["r-centre"])
-
-
-    @info "writing data"
-    open(args["output"], "w") do f
-		print(f, profile)
-	end
-
-    @info "wrote data to ", abspath(args["output"])
+    return ra0, dec0
 end
 
 

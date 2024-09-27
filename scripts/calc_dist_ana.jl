@@ -45,7 +45,7 @@ end
 
 function main()
     args = get_args()
-    energy_df = lguys.load_hdf5_table(args["energies"])
+    energy_df = lguys.read_hdf5_table(args["energies"])
 
     prof = lguys.load_profile(args["profile"])
     radii = make_radii_bins(energy_df, args)

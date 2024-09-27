@@ -62,7 +62,7 @@ All properties are in code units.
     "Quantiles used for M_quantile"
     quantiles::Vector{F}
 
-    time::Union{Nothing, F} = nothing
+    time::F = NaN
 end
 
 function Base.print(io::IO, prof::MassProfile3D)

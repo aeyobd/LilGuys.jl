@@ -71,6 +71,12 @@ end
             v = getproperty(obs, name)
             if v isa String
                 @test getproperty(obs2, name) == v
+            elseif v isa Real
+                if isnan(v)
+                    @test isnan(getproperty(obs2, name))
+                else
+                    @test v ≈ getproperty(obs2, name)
+                end
             else    
                 filt = .!isnan.(v)
                 @test v[filt] ≈ getproperty(obs2, name)[filt]
@@ -174,4 +180,80 @@ end
 
 @testset "calc_centre2D" begin
     @test false broken=true
+end
+
+
+@testset "to_orbit_coords" begin
+    @testset "identity" begin
+        N = 1000
+        ra = -180 .+ 360rand(N)
+        dec = 180rand(N) .- 90
+
+        ra2, dec2 = lguys.to_orbit_coords(ra, dec, 0., 0., 90.)
+
+        @test ra2 ≈ ra
+        @test dec2 ≈ dec
+
+        radec = lguys.to_orbit_coords.(ra, dec, ra, dec, 0.)
+        ra3 = first.(radec)
+        dec3 = last.(radec)
+        @test ra3 ≈ zeros(N) atol = 1e-12
+        @test dec3 ≈ zeros(N) atol = 1e-12
+    end
+
+    @testset "direction" begin
+        N = 1000
+        ra = -180 .+ 360rand(N)
+        dec = 160rand(N) .- 80
+
+        # these have to be very small for this to work
+        δ = 0.01 * rand(N)
+        α = 0.01 * rand(N)
+
+        ra1 = ra .+ α
+        dec1 = dec .+ δ
+        α_exp = lguys.angular_distance.(ra, dec, ra1, dec)
+        δ_exp = lguys.angular_distance.(ra, dec, ra, dec1)
+
+        # if the PA is 0, then positive in the new axis should be positive in dec
+        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 0.)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ δ_exp atol=1e-6
+        @test dec2 ≈ zeros(N) atol=1e-5
+
+
+        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 0.)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ zeros(N) atol=1e-5
+        @test dec2 ≈ -α_exp atol=1e-6
+        
+
+        # if PA is 90, then positive in the new axis should be positive in ra
+        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 90.)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ α_exp atol=1e-6
+        @test dec2 ≈ zeros(N) atol=1e-5
+
+        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 90.)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ zeros(N) atol=1e-6
+        @test dec2 ≈ δ_exp atol=1e-5
+
+        # 180 deg
+        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 180)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ -δ_exp atol=1e-6
+        @test dec2 ≈ zeros(N) atol=1e-5
+
+        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 180)
+        ra2 = first.(radec)
+        dec2 = last.(radec)
+        @test ra2 ≈ zeros(N) atol=1e-5
+        @test dec2 ≈ α_exp atol=1e-6
+    end
 end

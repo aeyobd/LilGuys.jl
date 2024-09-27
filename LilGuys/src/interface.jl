@@ -12,7 +12,7 @@ export erf, expinti
 export integrate, curve_fit, find_zero
 export ±, uncertainty, value, Measurement
 
-export histogram, effective_sample_size
+export histogram, effective_sample_size, bins_default, bins_equal_number, bins_both, bins_equal_width
 export DataFrame
 
 # TODO: wrap DataFrame around tables.jl interface and only export `Table` and minimal functions :)
@@ -58,9 +58,14 @@ Compute the histogram of `x` with `bins` bins.
 If `bins` is not provided, it defaults to the rule provided by `default_bins`.
 If `weights` are provided, they are used to weight the histogram.
 """
-function histogram(x, bins=nothing; weights=nothing, normalization=:none)
+function histogram(x, bins=bins_default; 
+        weights=nothing, normalization=:none, kwargs...)
+
     if bins === nothing
-        bins = default_bins(x, weights)
+        bins = bins_default
+    end
+    if bins isa Function
+        bins = bins(x, weights; kwargs...)
         @info "Using default bins of size = $(length(bins))"
     end
 
@@ -74,25 +79,79 @@ end
     default_bins(x, weights=nothing)
 
 Calculates the Freedman-Diaconis rule for bin size.
-Note that the offset is set to be random.
 """
-function default_bins(x, weights)
-    if weights === nothing
-        N = length(x)
-    else
-        N = effective_sample_size(weights)
-    end
-
-    iqr = quantile(x, 0.75) - quantile(x, 0.25)
-    h = 2 * iqr / N^(1/3)
-
-    γ = 0.5
-    x_l = minimum(x) - γ * h 
-    x_u = maximum(x) +  h
-
-    return x_l:h:x_u
+function bins_default(x, weights)
+    return bins_equal_width(x, weights)
 end
 
+
+"""
+    bins_equal_width(x, weights=nothing)
+
+Calculates the bins
+"""
+function bins_equal_width(x, weights::Nothing; bin_width=nothing)
+    filt = isfinite.(x) 
+    N = effective_sample_size(x[filt])
+
+    if bin_width === nothing
+        iqr = quantile(x[filt], 0.75) - quantile(x[filt], 0.25)
+        bin_width = 2 * iqr / N^(1/3)
+    end
+
+    γ = 0.5
+    x_l = minimum(x[filt]) - γ * bin_width 
+    x_u = maximum(x[filt]) +  bin_width
+
+    return x_l:bin_width:x_u
+end
+
+
+function bins_equal_width(x, weights; bin_width=nothing)
+    filt = isfinite.(x) 
+    filt .&= isfinite.(weights)
+    N = effective_sample_size(x[filt], weights[filt])
+
+    if bin_width === nothing
+        iqr = quantile(x[filt], weights[filt], 0.75) - quantile(x[filt], weights[filt], 0.25)
+        bin_width = 2 * iqr / N^(1/3)
+    end
+
+    γ = 0.5
+    x_l = minimum(x[filt]) - γ * bin_width 
+    x_u = maximum(x[filt]) +  bin_width
+
+    return x_l:bin_width:x_u
+end
+
+
+
+"""
+    bins_equal_number(x, weights; num_bins=nothing)
+
+"""
+function bins_equal_number(x, weights; num_per_bin=nothing)
+    N = effective_sample_size(x, weights)
+
+    if num_per_bin === nothing
+        num_per_bin = ceil(Int, 2N^(2/5))
+
+        @info "Using $num_per_bin observations per bins"
+    end
+
+    num_bins = ceil(Int, N / num_per_bin)
+    q = LinRange(0, 1, num_bins + 1)
+
+    if weights === nothing
+        return quantile(x, q)
+    else
+        return quantile(x, weights, q)
+    end
+end
+
+function bins_both(x, weights; num_min=nothing, )
+
+end
 
 """
     mean(x; kwargs...)
@@ -168,5 +227,15 @@ n_{eff} = \frac{ \left( \sum w \right)^2 }{ \sum w^2 }
 function effective_sample_size(weights::AbstractVector{<:Real})
     return sum(weights)^2 / sum(weights .^ 2)
 end
+
+
+function effective_sample_size(data::AbstractVector{<:Real}, weights::Union{Nothing, AbstractVector{<:Real}})
+    if weights === nothing
+        return length(data)
+    else
+        return effective_sample_size(weights)
+    end
+end
+
 
 end
