@@ -43,7 +43,7 @@ function get_args()
             arg_type=String
         "--normalization"
             help="Normalization of the profile"
-            default="central"
+            default="none"
             arg_type=String
         "--r-centre"
             help="Radius past which to normalize"

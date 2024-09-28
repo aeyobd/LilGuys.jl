@@ -139,7 +139,7 @@ function MassProfile3D(snap::Snapshot;
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
-    r_quantile = quantile(r, quantiles)
+    r_quantile = 10 .^ quantile(log_r_snap, quantiles)
 
     return MassProfile3D(
         E=E,
@@ -169,82 +169,6 @@ end
 
 
 
-# """
-# A collection of 3D density profiles.
-# """
-# struct Profiles3D <: AbstractVector{MassProfile3D}
-#     snapshot_index::Vector{Int}
-#     times::Vector{F}
-#     profiles::Vector{MassProfile}
-# end
-# 
-# function Base.size(profs::Profiles3D)
-#     N =  length(profs.profiles)
-#     return (N,)
-# end
-# 
-# 
-# 
-# function Base.getindex(profs::Profiles3D, i::Int)
-#     return profs.profiles[i]
-# end
-# 
-# 
-# """
-#     Profiles3D(filename)
-# 
-# Loads a Profiles3D array from the given hdf5 file (ideally saved with `save`).
-# """
-# function Profiles3D(filename::String)
-#     h5open(filename, "r") do f
-#         snapshot_index = read(f, "snapshot_index")
-#         times = read(f, "times")
-# 
-#         profiles = ObsProfile3D[]
-# 
-#         for i in eachindex(snapshot_index)
-#             df = Dict()
-# 
-#             for key in fieldnames(ObsProfile3D)
-#                 ndims = length(size(read(f, string(key))))
-#                 if ndims == 1
-#                     data = f[string(key)][i]
-#                 else
-#                     data = f[string(key)][:, i]
-#                 end
-#                 df[key] = data
-#             end
-# 
-#             prof = ObsProfile3D(;df...)
-# 
-#             push!(profiles, prof)
-#         end
-#         return Profiles3D(snapshot_index, times, profiles)
-#     end
-# end
-# 
-# 
-# function save(filename::String, profs::Profiles3D)
-#     h5open(filename, "w") do f
-#         write(f, "snapshot_index", profs.snapshot_index)
-#         write(f, "times", profs.times)
-# 
-#         for key in fieldnames(ObsProfile3D)
-#             data = getproperty.(profs.profiles, key)
-#             if eltype(data) <: Real
-#                 write(f, string(key), data)
-#             elseif eltype(data) <: AbstractVector
-#                 write(f, string(key), hcat(data...))
-#             end
-#         end
-#     end
-# end
-# 
-# 
-
-
-
-
 """
     calc_ρ_from_hist(bins, counts)
 """
@@ -256,8 +180,6 @@ function calc_ρ_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{
     volumes = 4π/3 * diff(bins .^ 3)
     return counts ./ volumes
 end
-
-
 
 
 
