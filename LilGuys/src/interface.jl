@@ -43,8 +43,8 @@ A thin wrapper around `quadgk` and prints to @info if the error is > 1e-4.
 """
 function integrate(f, a, b; kwargs...)
     val, err = quadgk(f, a, b; kwargs...)
-    if err > 1e-4
-        @info "Warning: integration error is large: $err"
+    if err / val > 1e-4
+        @info "Warning: relative integration error is large: $(err / val)"
     end
 
     return val

@@ -174,11 +174,11 @@ function transform(::Type{<:Galactocentric}, cart::Cartesian{<:ICRS, <:Real}; fr
     return _icrs_cart_to_galcen(cart, frame)
 end
 
-function _icrs_cart_to_galcen(cart::Cartesian{<:ICRS, <:Real}, frame=default_gc_frame)
+function _icrs_cart_to_galcen(cart::Cartesian{<:ICRS, F}, frame=default_gc_frame) where {F}
     x_gc = _heliocen_to_galcen_position(cart, frame)
     v_gc = _heliocen_to_galcen_velocity(cart, frame)
 
-    return Galactocentric(x_gc, v_gc; frame=frame)
+    return Galactocentric{F}(x_gc..., v_gc...; frame=frame)
 end
 
 function to_icrs(galcen::Galactocentric)::ICRS

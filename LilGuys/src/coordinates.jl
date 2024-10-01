@@ -23,16 +23,14 @@ abstract type AbstractSkyCoord <: CoordinateFrame end
 """
 A type representing a 3D point
 """
-struct Point3D{F}
+struct Point3D{F<:Real}
     x::F
     y::F
     z::F
+end
 
-    function Point3D(x, y, z)
-        promoted = promote(x, y, z)
-        F = typeof(promoted[1])
-        return new{F}(promoted...)
-    end
+function Point3D(x::Real, y::Real, z::Real) 
+    Point3D(promote(x, y, z)...)
 end
 
 
@@ -46,12 +44,10 @@ struct Point6D{F}
     v_x::F
     v_y::F
     v_z::F
+end
 
-    function Point6D(x, y, z, v_x, v_y, v_z)
-        promoted = promote(x, y, z, v_x, v_y, v_z)
-        F = typeof(promoted[1])
-        return new{F}(promoted...)
-    end
+function Point6D(x::Real, y::Real, z::Real, v_x::Real, v_y::Real, v_z::Real) 
+    Point6D(promote(x, y, z, v_x, v_y, v_z)...)
 end
 
 
@@ -67,7 +63,7 @@ end
 """
 A type representing a sky coordinate (i.e. point on sphere with optional velocity information)
 """
-@kwdef struct SkyCoord{F} <: AbstractSkyCoord
+@kwdef struct SkyCoord{F<:Real} <: AbstractSkyCoord
     """ Right ascension in degrees """
     ra::F
 
@@ -87,11 +83,12 @@ A type representing a sky coordinate (i.e. point on sphere with optional velocit
     radial_velocity::F = NaN
 
 
-    function SkyCoord(ra, dec, distance=1, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
-        promoted = promote(ra, dec, distance, pmra, pmdec, radial_velocity)
-        F = typeof(promoted[1])
-        return new{F}(promoted...)
-    end
+end
+
+function SkyCoord(ra::Real, dec::Real, distance::Real=NaN, 
+        pmra::Real=NaN, pmdec::Real=NaN, radial_velocity::Real=NaN)
+    promoted = promote(ra, dec, distance, pmra, pmdec, radial_velocity)
+    return SkyCoord(promoted...)
 end
 
 
@@ -161,15 +158,12 @@ ICRS frame
 """
 struct ICRS{F} <: AbstractSkyCoord
     coord::SkyCoord{F}
-
-    function ICRS{F}(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
-        return new{F}(SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity))
-    end
 end
 
+
 function ICRS(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
-    F = typeof(promote(ra, dec, distance, pmra, pmdec, radial_velocity)[1])
-    return ICRS{F}(ra=ra, dec=dec, distance=distance, pmra=pmra, pmdec=pmdec, radial_velocity=radial_velocity)
+    sc = SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity)
+    return ICRS(sc)
 end
 
 
@@ -180,10 +174,12 @@ Galactic standard of rest frame. I.E. ICRS minus the solar velocity.
 struct GSR{F} <: AbstractSkyCoord
     coord::SkyCoord{F}
     frame::GalactocentricFrame
+end
 
-    function GSR(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN, frame=default_gc_frame)
-        return new{F}(SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity), frame)
-    end
+function GSR(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN, 
+        frame=default_gc_frame)
+    sc = SkyCoord(ra, dec, distance, pmra, pmdec, radial_velocity)
+    return GSR(sc, frame)
 end
 
 
@@ -194,14 +190,28 @@ struct Galactocentric{F} <: AbstractCartesian
     coord::Point6D{F}
     frame::GalactocentricFrame
 
-    function Galactocentric(x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, frame=default_gc_frame)
-        return new{F}(Point6D(x, y, z, v_x, v_y, v_z), frame)
+    function Galactocentric{F}(x::F, y::F, z::F, v_x::F, v_y::F, v_z::F; 
+                               frame::GalactocentricFrame=default_gc_frame) where {F<:Real}
+        return new{F}(Point6D{F}(x, y, z, v_x, v_y, v_z), frame)
     end
 end
 
 
-function Galactocentric(; x, y, z, v_x, v_y, v_z, frame::GalactocentricFrame = default_gc_frame)
-    return Galactocentric(x, y, z, v_x, v_y, v_z, frame)
+
+function Galactocentric(x::F, y::F, z::F, v_x::F, v_y::F, v_z::F; 
+        frame::GalactocentricFrame=default_gc_frame) where {F}
+    return Galactocentric{F}(x, y, z, v_x, v_y, v_z; frame=frame)
+end
+
+function Galactocentric(x, y, z, v_x, v_y, v_z;
+        frame::GalactocentricFrame=default_gc_frame)
+    return Galactocentric(promote(x, y, z, v_x, v_y, v_z)...; frame=frame)
+end
+
+
+function Galactocentric(; x, y, z, v_x, v_y, v_z, 
+        frame::GalactocentricFrame = default_gc_frame)
+    return Galactocentric(x, y, z, v_x, v_y, v_z, frame=frame)
 end
 
 
@@ -212,7 +222,7 @@ function Galactocentric(pos::Vector{<:Real}, vel::Vector{<:Real} = [NaN, NaN, Na
     if length(vel) != 3
         error("velocity must be a 3-vector")
     end
-    return Galactocentric(pos..., vel..., frame)
+    return Galactocentric(pos..., vel..., frame=frame)
 end
 
 
@@ -249,18 +259,24 @@ struct Cartesian{T<:CoordinateFrame, F<:Real} <: AbstractCartesian
     coord::Point6D{F}
     skycoord::Union{T, Nothing}
 
-    function Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord=nothing) where {T<:CoordinateFrame, F<:Real}
-        return new{T, F}(Point6D(x, y, z, v_x, v_y, v_z), coord)
-    end
 end
 
-function Cartesian{T, F}(; x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, coord=nothing) where {T<:CoordinateFrame, F<:Real}
-    return Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord)
+
+function Cartesian{T, F}(x::F, y::F, z::F, v_x::F, v_y::F, v_z::F, coord=nothing) where {F<:Real, T<:CoordinateFrame}
+    c = Point6D{F}(x, y, z, v_x, v_y, v_z)
+
+    return Cartesian{T, F}(c, coord)
 end
+
+
+function Cartesian{T}(x, y, z, v_x, v_y, v_z, coord=nothing) where {T<:CoordinateFrame}
+    F = promote_type(typeof.(x, y, z, v_x, v_y, v_z)...)
+    return Cartesian{T, F}(Point6D{F}(x, y, z, v_x, v_y, v_z), coord)
+end
+
 
 function Cartesian{T}(; x, y, z, v_x=NaN, v_y=NaN, v_z=NaN, coord=nothing) where {T<:CoordinateFrame}
-    F = typeof(promote(x, y, z, v_x, v_y, v_z)[1])
-    return Cartesian{T, F}(x, y, z, v_x, v_y, v_z, coord)
+    return Cartesian{T}(x, y, z, v_x, v_y, v_z, coord)
 end
 
 
@@ -311,8 +327,6 @@ function Base.show(io::IO, pp::Cartesian{T}) where {T}
     end
     return io
 end
-
-
 
 
 
