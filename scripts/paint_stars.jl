@@ -41,7 +41,7 @@ are set to zero.
             help="File containing the profile of the system"
             required=true
         "out"
-            help="Output file"
+            help="Output filename base. Will write _stars.hdf5 and _df.hdf5"
             required=false
     end
 

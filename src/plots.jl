@@ -9,10 +9,14 @@ using Arya
 import LinearAlgebra: norm, dot
 
 
+export hide_grid!
+
 const log_r_label = L"\log\,(r\, /\, \mathrm{kpc})"
 const log_rho_label = L"\log\,(\rho\, /\, 10^{10}\mathrm{M}_\odot\mathrm{pc}^{-3})"
-
 const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
+const xi_arcmin_label = L"\xi\, /\, \mathrm{arcmin}"
+const eta_arcmin_label = L"\eta\, /\, \mathrm{arcmin}"
+
 
 """
 Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
@@ -86,8 +90,6 @@ end
 
 
 
-
-
 """
 Plot the projected 2d density of a snapshot as a heatmap.
 """
@@ -112,54 +114,6 @@ function projected_density!(snap; bins=200, r_max=10, centre=true, xdirection=1,
     return p
 end
 
-
-
-
-"""
-Plot the dark matter density profile of a snapshot.
-"""
-function plot_ρ_dm!(snap; filt_bound=true, bins=200, kwargs...)
-	rs = LilGuys.calc_r(snap)
-    mass = snap.masses
-
-    if filt_bound
-        filt = LilGuys.get_bound(snap)
-        rs = rs[filt]
-        mass = mass[filt]
-	end
-
-    r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=mass)
-	x = log10.(midpoints(r))
-	lines!(x, log10.(ρ); kwargs...)
-end
-
-
-
-function plot_ρ!(prof::LilGuys.AbstractProfile, rrange=(-2, 2); N=1000, kwargs...)
-    log_r = LinRange(rrange[1], rrange[2], N)
-    r = 10 .^ log_r
-    ρ = LilGuys.calc_ρ.(prof, r)
-
-    lines!(log_r, log10.(ρ); kwargs...)
-end
-
-
-function plot_ρ_s!(snap; bins=200, kwargs...)
-	rs = LilGuys.calc_r(snap)
-	ps = snap.weights
-	r, ρ = LilGuys.calc_ρ_hist(rs, bins, weights=ps)
-	x = log10.(midpoints(r))
-	lines!(x, log10.(ρ); kwargs...)
-end
-
-
-"""
-Plot the circular velocity profile of a snapshot.
-"""
-function plot_v_circ!(snap; kwargs...)
-	rc, vc = LilGuys.calc_v_circ(snap)
-	lines!(log10.(rc), V2KMS * vc; kwargs...)
-end
 
 
 function vx_hist_fit!(snap; stars=true, 
@@ -192,32 +146,85 @@ end
 
 # axis constructors
 
+"""
+    cmd_axis(gs; kwargs...)
+
+A gaia CMD axis
+"""
 function cmd_axis(gs::Makie.GridPosition, kwargs...)
-    ax = Axis(gs; xlabel="Bp-Rp", ylabel="G", 
-        yreversed=true, kwargs...)
+    ax = Axis(gs; 
+              xlabel="Bp - Rp (mag)", 
+              ylabel="G (mag)", 
+              yreversed=true, 
+              kwargs...
+        )
+
     return ax
 end
 
-function xy_axis(directionx=1, directiony=2; kwargs...)
-    fig = Figure()
 
-    xlabel,ylabel = ["x", "y", "z"][[directionx, directiony]]
+"""
+    xy_axis(gs; xlabel, ylabel, units, kwargs...)
 
-    ax = Axis(fig[1,1], aspect=DataAspect(), 
-        xlabel = "$xlabel / kpc", ylabel="$ylabel / kpc"
+A generic axis for plotting x-y coordinate (orthoganaly projected) data.
+"""
+function xy_axis(gs; xlabel="x", ylabel="y", units="specify", kwargs...)
+    ax = Axis(gs;
+        aspect=DataAspect(), 
+        xlabel = "$xlabel / $units", 
+        ylabel="$ylabel / $units",
+        kwargs...
     )
 
     return fig, ax
 end
 
 
+
+"""
+    rho_axis(gs; kwargs...)
+
+The axis for plotting the density profile.
+"""
 function rho_axis(gs; kwargs...)
     ax = Axis(gs; 
-        xlabel=log_r_label, ylabel=log_rho_label, kwargs...)
+        xlabel=log_r_label, 
+        ylabel=log_rho_label, 
+        kwargs...
+    )
+
     return ax
 end
 
 
+
+"""
+    xi_eta_axis(gs; kwargs...)
+
+The tangent plane axis 
+"""
+function xi_eta_axis(gs; kwargs...)
+    ax = Axis(gs; 
+        xlabel=xi_arcmin_label, 
+        ylabel=eta_arcmin_label,
+        aspect=DataAspect(), 
+        kwargs...
+    )
+
+    return ax
+end
+
+
+
+"""
+    hide_grid!(ax)
+
+Hides the grid lines on an axis.
+"""
+function hide_grid!(ax)
+    ax.xgridvisible = false
+    ax.ygridvisible = false
+end
 
 
 end # module plots

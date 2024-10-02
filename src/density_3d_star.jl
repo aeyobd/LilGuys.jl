@@ -80,6 +80,22 @@ end
 
 
 
+function scale(prof::StellarProfile3D, r_scale, v_scale, m_scale)
+
+    return StellarProfile3D(
+        sigma_vx=prof.sigma_vx * v_scale,
+        rho=prof.rho * m_scale / r_scale^3,
+        rho_err=prof.rho_err * m_scale / r_scale^3,
+        log_r=prof.log_r .+ log10(r_scale),
+        log_r_bins=prof.log_r_bins .+ log10(r_scale),
+        mass_in_shell=prof.mass_in_shell * m_scale,
+        mass_in_shell_err=prof.mass_in_shell_err * m_scale,
+        quantiles=prof.quantiles,
+        r_quantile=prof.r_quantile * r_scale,
+        time=prof.time,
+    )
+end
+
 
 """
     find_r_quantile_star(snap, p)

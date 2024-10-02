@@ -4,6 +4,7 @@ using ArgParse
 
 using LilGuys 
 using HDF5
+import TOML
 
 
 function get_args()
@@ -34,6 +35,8 @@ computes the 3D stellar profiles for each snapshot.
         "-z", "--zero-centre"
             help="do not use centres"
             action="store_true"
+        "--scale"
+            help="if set, the file which contains entries for `M_scale`, `v_scale`, and `r_scale` by which the halo was scaled."
 
         # histogram kwargs
         "--bin-method"
@@ -68,6 +71,13 @@ function main()
         out.v_cen .= zeros(size(out.v_cen))
     end
 
+    if args["scale"] != nothing
+        scales = TOML.parsefile(args["scale"])
+        M_scale = 1.0
+        v_scale = scales["v_scale"]
+        r_scale = scales["r_scale"]
+    end
+
     profiles = Pair{String, LilGuys.StellarProfile3D}[]
 
     snap_idx = eachindex(out)[1:args["skip"]:end]
@@ -75,6 +85,9 @@ function main()
     for i in snap_idx
         @info "computing profile for snapshot $i"
         prof = LilGuys.StellarProfile3D(out[i])
+        if args["scale"] != nothing
+            prof = LilGuys.scale(prof, r_scale, v_scale, M_scale)
+        end
         push!(profiles, string(i) => prof)
     end
 

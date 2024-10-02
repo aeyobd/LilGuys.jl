@@ -19,6 +19,7 @@ function get_args()
         description="""Calculates the energies of a snapshot, 
 outputing a table of the snapshot index, binding energy, potential, and
 radius for each particle.
+Note, best practice is to pull the snapshot from a combined.hdf5 file with centres.
 """,
     )
 
@@ -27,7 +28,7 @@ radius for each particle.
             help="snapshot to use"
             required=true
         "output"
-            help="output file name"
+            help="file to write the energies to"
             required=true
     end
 
