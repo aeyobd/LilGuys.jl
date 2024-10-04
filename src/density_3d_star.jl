@@ -22,13 +22,19 @@ Represents a stellar density profile in 3D,
     mass_in_shell::Vector{F}
     mass_in_shell_err::Vector{F}
 
+    "The time since the last pericentre"
+    delta_t::F
+
+    "The break radius in kpc"
+    r_break::F
+
     quantiles::Vector{F}
     r_quantile::Vector{F}
     time::F = NaN
 end
 
 
-function StellarProfile3D(snap; bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99])
+function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99])
     log_r_snap = log10.(calc_r(snap))
 
     bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights)
@@ -63,6 +69,7 @@ function StellarProfile3D(snap; bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0
     σ_v_1d = calc_σv_1d(snap)
     @info "σ_vx = $σ_vx, σ_v_1d = $σ_v_1d"
 
+    r_break = calc_break_radius(σ_vx, delta_t)
     r_quantile = find_r_quantile_star(snap, quantiles)
     return StellarProfile3D(
         sigma_vx=σ_v_1d, 
@@ -75,6 +82,8 @@ function StellarProfile3D(snap; bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0
         quantiles=quantiles,
         r_quantile=r_quantile,
         time = snap.time,
+        delta_t = delta_t, 
+        r_break = r_break,
     )
 end
 
@@ -135,4 +144,21 @@ function calc_σv_1d(snap)
     σ = sqrt( sum(v .^ 2 .* w) / sum(w) )
 
     return σ / √3
+end
+
+
+@doc raw"""
+	calc_rb(σ, delta_t)
+
+Given a radial velocity dispersion σ and the time since last pericentre (all code units)
+calculate the break radius in kpc (code units).
+
+See peñarrubia et al. (200X) for the original equation.
+```math
+r_{\rm break} = C\,\sigma_{v}\,\Delta t
+```
+where $C=0.55$ is an empirical fit
+"""
+function calc_break_radius(σ::F, delta_t::F; C=0.55)
+	return C * σ  * delta_t
 end

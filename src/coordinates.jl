@@ -360,7 +360,11 @@ function rand_coords(obs::ICRS, err::ICRS, N::Int)
 end
 
 
+"""
+    coord_from_file(filename::String)
 
+Given a TOML file with the following keys, return an ICRS object
+"""
 function coord_from_file(filename::String)
     args = TOML.parsefile(filename)
 
@@ -373,8 +377,9 @@ function coord_from_file(filename::String)
         end
     end
 
-    return ICRS{Float64}(;kwargs...)
+    return ICRS(;kwargs...)
 end
+
 
 function coord_err_from_file(filename::String)
     args = TOML.parsefile(filename)
@@ -390,5 +395,24 @@ function coord_err_from_file(filename::String)
         end
     end
 
-    return ICRS{Float64}(;kwargs...)
+    return ICRS(;kwargs...)
 end
+
+
+
+"""
+    coords_from_df(df::DataFrame, coord::AbstractSkyCoord=ICRS)
+
+Given a dataframe with columns ra, dec, pmra, pmdec, radial_velocity, distance, return an array of SkyCoord objects with the given frame.
+"""
+function coords_from_df(df::DataFrame, coord::AbstractSkyCoord=ICRS)
+    for sym in [:ra, :dec, :pmra, :pmdec, :radial_velocity, :distance]
+        if !hasproperty(df, sym)
+            error("DataFrame must have a column named $sym")
+        end
+    end
+
+    return [coord(row.ra, row.dec, row.distance, row.pmra, row.pmdec, row.radial_velocity) for row in eachrow(df)]
+end
+
+

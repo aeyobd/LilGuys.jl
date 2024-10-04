@@ -241,7 +241,8 @@ Returns the particle index and the peris and apos of each particle.
 """
 function peris_apos(out::Output; verbose::Bool=false)
     r0 = calc_r(out[1].positions)
-    peris = apos = r0
+    peris = copy(r0)
+    apos = copy(r0)
 
     idx0 = sort(out[1].index)
 
@@ -258,15 +259,17 @@ function peris_apos(out::Output; verbose::Bool=false)
         snap = out[i]
         idx = sortperm(snap.index)
 
-        r = calc_r(snap.positions[:, idx])
-        apos = max.(apos, r)
-        peris = min.(peris, r)
+        @assert snap.index[idx] == idx0 "snapshots have different indices"
 
+        r = calc_r(snap.positions[:, idx])
+        apos .= max.(apos, r)
+        peris .= min.(peris, r)
     end
     
     if verbose
         @info "completed peri apo calculation"
     end
+
     return idx0, peris, apos  
 end
 

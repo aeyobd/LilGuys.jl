@@ -28,6 +28,7 @@ const V2KMS = 207.4 # km/s (pm 1 fron G uncertainty)
 const kms_per_kpc_mas_per_yr = 4.740470463533348 
 
 
+const kpc_per_Gyr_per_kms = 1.0227 # TODO double check this one
 # source IAU
 const SECONDS_PER_YEAR = 31_557_600 # seconds; exact IAU
 const M_PER_PC = 3.085677581491367e+16 # meters; exact IAU

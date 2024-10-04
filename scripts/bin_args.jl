@@ -18,7 +18,7 @@ function bins_from_args(args; logarithmic=false)
     elseif binmethod == "equal-width"
         f_bins = (x, w) -> bins_equal_width(x, w, bin_width=args["bin-width"])
     elseif binmethod == "both"
-        f_bins = (x, w) -> bins_both(x, w, num_bins_min=args["num-bins"], bin_width_min=args["bin-width"])
+        f_bins = (x, w) -> bins_both(x, w, num_per_bin=args["num-per-bin"], bin_width=args["bin-width"])
     else
         throw(ArgumentError("bin-method must be one of 'equal-number', 'equal-width', or 'both'. Got $binmethod."))
     end

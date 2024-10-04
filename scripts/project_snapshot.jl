@@ -31,7 +31,7 @@ function get_args()
             default="position"
         "-f", "--frame"
         help="frame in which to project on sky. May be ICRS, GSR"
-            default="GSR"
+            default="ICRS"
         "-d", "--distance"
             help="distance at which to set snapshot from sun before projecting onto sky"
     end
@@ -72,6 +72,11 @@ function main()
     println("snap xcen", snap.x_cen)
     @info "Projecting snapshot onto sky"
     df = LilGuys.to_gaia(snap; kwargs...)
+    df_gsr = LilGuys.to_gaia(snap; SkyFrame=LilGuys.GSR)
+
+    df[!, :pmra_gsr] = df_gsr.pmra
+    df[!, :pmdec_gsr] = df_gsr.pmdec
+    df[!, :radial_velocity_gsr] = df_gsr.radial_velocity
 
     @info "Writing output"
     LilGuys.write_fits(args["output"], df)

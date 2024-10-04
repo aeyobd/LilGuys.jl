@@ -50,7 +50,7 @@ function to_gaia(snap::Snapshot;
         snap.positions .+= vec_shift
 
         offset = calc_r(snap.x_cen, sun_vec) - set_to_distance
-        println(vec_final, r_vec, sun_vec)
+
         @assert abs(offset) < 1e-3 "Offset is too large: $offset"
     end
 
@@ -58,7 +58,7 @@ function to_gaia(snap::Snapshot;
     obs_cen = phase_to_sky(snap.x_cen, snap.v_cen; kwargs...)
 
     df = to_frame(observations)
-    println(names(df))
+
     df[!, :index] = snap.index[filt]
 
 

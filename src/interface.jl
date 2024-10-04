@@ -54,7 +54,7 @@ end
 """
     histogram(x, bins=nothing; weights=nothing, normalization=:none)
 
-Compute the histogram of `x` with `bins` bins.
+Compute the histogram of `x` with `bins` bins, returning the bins, values, and uncertainties.
 If `bins` is not provided, it defaults to the rule provided by `default_bins`.
 If `weights` are provided, they are used to weight the histogram.
 """
@@ -69,16 +69,29 @@ function histogram(x, bins=bins_default;
         @info "Using default bins of size = $(length(bins))"
     end
 
-    h = DensityEstimators.histogram(x, bins, weights=weights, normalization=:none)
+    x, weights = filter_nans(x, weights)
+    h = DensityEstimators.histogram(x, bins, weights=weights, normalization=normalization)
 
     return h.bins, h.values, h.err
 end
 
 
+function filter_nans(x, weights=nothing)
+    filt = isfinite.(x)
+    if weights !== nothing
+        filt .&= isfinite.(weights)
+        weights = weights[filt]
+    end
+    x = x[filt]
+    @info "Filtered out $(sum(.!filt)) NaNs out of $(length(x))"
+
+    return x, weights
+end
+
 """
     default_bins(x, weights=nothing)
 
-Calculates the Freedman-Diaconis rule for bin size.
+The default setting for bins, returns the equal width bins.
 """
 function bins_default(x, weights)
     return bins_equal_width(x, weights)
@@ -88,38 +101,17 @@ end
 """
     bins_equal_width(x, weights=nothing)
 
-Calculates the bins
+Returns a vector of bins
 """
-function bins_equal_width(x, weights::Nothing; bin_width=nothing)
-    filt = isfinite.(x) 
-    N = effective_sample_size(x[filt])
-
-    if bin_width === nothing
-        iqr = quantile(x[filt], 0.75) - quantile(x[filt], 0.25)
-        bin_width = 2 * iqr / N^(1/3)
-    end
-
-    γ = 0.5
-    x_l = minimum(x[filt]) - γ * bin_width 
-    x_u = maximum(x[filt]) +  bin_width
-
-    return x_l:bin_width:x_u
-end
-
-
 function bins_equal_width(x, weights; bin_width=nothing)
-    filt = isfinite.(x) 
-    filt .&= isfinite.(weights)
-    N = effective_sample_size(x[filt], weights[filt])
-
+    x, weights = filter_nans(x, weights)
     if bin_width === nothing
-        iqr = quantile(x[filt], weights[filt], 0.75) - quantile(x[filt], weights[filt], 0.25)
-        bin_width = 2 * iqr / N^(1/3)
+        bin_width = default_bin_width(x, weights)
     end
 
     γ = 0.5
-    x_l = minimum(x[filt]) - γ * bin_width 
-    x_u = maximum(x[filt]) +  bin_width
+    x_l = minimum(x) - γ * bin_width 
+    x_u = maximum(x) +  bin_width
 
     return x_l:bin_width:x_u
 end
@@ -129,29 +121,83 @@ end
 """
     bins_equal_number(x, weights; num_bins=nothing)
 
+Returns bins with an equal number of observations per bin
 """
 function bins_equal_number(x, weights; num_per_bin=nothing)
-    N = effective_sample_size(x, weights)
+    x, weights = filter_nans(x, weights)
 
     if num_per_bin === nothing
-        num_per_bin = ceil(Int, 2N^(2/5))
-
+        num_per_bin = default_n_per_bin(x, weights)
         @info "Using $num_per_bin observations per bins"
     end
 
-    num_bins = ceil(Int, N / num_per_bin)
+    num_bins = ceil(Int, length(x) / num_per_bin)
     q = LinRange(0, 1, num_bins + 1)
 
-    if weights === nothing
-        return quantile(x, q)
-    else
-        return quantile(x, weights, q)
+    bins = quantile(x, q)
+    
+    bins = unique(bins) 
+    @assert length(bins) > 1 "Not enough bins, have $bins"
+    return bins
+end
+
+
+"""
+    bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
+
+Computes bins where each bin is of width at least `bin_width` and contains at least `num_per_bin` observations. Returns an array of type x containing the bins.
+"""
+function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
+    x, weights = filter_nans(x, weights)
+
+    if bin_width === nothing
+        bin_width = default_bin_width(x, weights)
     end
+    if num_per_bin === nothing
+        num_per_bin = default_n_per_bin(x, weights)
+    end
+
+
+    bins = empty(x)
+    x = sort(x)
+
+    x_i = minimum(x) - 0.5*bin_width
+    push!(bins, x_i)
+    N = length(x)
+
+    while x_i < maximum(x)
+        x_binwidth = x_i + bin_width
+        idx = findfirst(x .≥ x_i)
+        x_number = x[min(idx + num_per_bin-1, N)]
+        x_i = max(x_binwidth, x_number)
+        push!(bins, x_i)
+    end
+
+    return bins
 end
 
-function bins_both(x, weights; num_min=nothing, )
 
+"""
+    default_bin_width(x, weights=nothing)
+
+Calculates the Freedman-Diaconis rule for bin size.
+"""
+function default_bin_width(x, weights=nothing)
+    N = effective_sample_size(x)
+
+    iqr = quantile(x, 0.75) - quantile(x, 0.25)
+    bin_width = 2 * iqr / N^(1/3)
+    return bin_width
 end
+
+
+function default_n_per_bin(x, weights=nothing)
+    N = effective_sample_size(x)
+
+    num_per_bin = ceil(Int, 2N^(2/5))
+    return ceil(Int, num_per_bin * length(x) / N)
+end
+
 
 """
     mean(x; kwargs...)
@@ -207,6 +253,7 @@ end
 Returns the pth quantile of x with weights w
 """
 function quantile(x, w, p)
+    ws = sb.weights(w)
     return sb.quantile(x, sb.weights(w), p)
 end
 
