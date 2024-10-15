@@ -23,10 +23,10 @@ Represents a stellar density profile in 3D,
     mass_in_shell_err::Vector{F}
 
     "The time since the last pericentre"
-    delta_t::F
+    delta_t::F = NaN
 
     "The break radius in kpc"
-    r_break::F
+    r_break::F = NaN
 
     quantiles::Vector{F}
     r_quantile::Vector{F}

@@ -5,6 +5,8 @@ using ArgParse
 using LilGuys 
 using HDF5
 
+include("bin_args.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -31,6 +33,7 @@ function get_args()
 
     end
 
+    s = add_bin_args(s)
     args = parse_args(s)
 
     return args
@@ -39,6 +42,7 @@ end
 
 function main()
     args = get_args()
+    bins = bins_from_args(args)
 
     out = Output(args["input"])
     if args["zero-centre"]
@@ -51,7 +55,7 @@ function main()
     snap_idx = eachindex(out)[1:args["skip"]:end]
     for i in snap_idx
         @info "computing profile for snapshot $i"
-        prof = LilGuys.MassProfile3D(out[i])
+        prof = LilGuys.MassProfile3D(out[i], bins=bins)
         push!(profiles, string(i) => prof)
     end
 

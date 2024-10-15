@@ -516,3 +516,27 @@ function to_orbit_coords(ra::Real, dec::Real, ra0::Real, dec0::Real, PA::Real)
     ra, dec =  to_orbit_coords([ra], [dec], ra0, dec0, PA)
     return ra[1], dec[1]
 end
+
+
+function scale(prof::StellarProfile, r_scale, v_scale, m_scale)
+    return StellarProfile(
+        r_units = prof.r_units,
+        log_r = prof.log_r .+ log10(r_scale),
+        log_r_bins = prof.log_r_bins .+ log10(r_scale),
+        counts = prof.counts,
+        M_in = prof.M_in * m_scale,
+        M_in_err = prof.M_in_err * m_scale,
+        mass_in_annulus = prof.mass_in_annulus * m_scale,
+        mass_in_annulus_err = prof.mass_in_annulus_err * m_scale,
+        Sigma = prof.Sigma * m_scale / r_scale^2,
+        Sigma_err = prof.Sigma_err * m_scale / r_scale^2,
+        Sigma_m = prof.Sigma_m * m_scale / r_scale^2,
+        Sigma_m_err = prof.Sigma_m_err * m_scale / r_scale^2,
+        log_Sigma = prof.log_Sigma .+ log10(m_scale) .- 2log10(r_scale),
+        log_Sigma_err = prof.log_Sigma_err .+ log10(m_scale) .- 2log10(r_scale),
+        Gamma = prof.Gamma,
+        Gamma_err = prof.Gamma_err,
+        Gamma_max = prof.Gamma_max,
+        Gamma_max_err = prof.Gamma_max_err
+    )
+end

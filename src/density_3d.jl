@@ -48,10 +48,14 @@ All properties are in code units.
     "Density error in each shell"
     rho_err::Vector{F}
 
-    "Circular velocity at each bin edge"
+    "The radius for each value of v_circ"
+    r_circ::Vector{F}
+    "Circular velocity"
     v_circ::Vector{F}
-    "Circular velocity error at each bin edge"
+    "Circular velocity error"
     v_circ_err::Vector{F}
+    "The number of particles within each r_circ"
+    n_circ::Vector{F}
 
     "Circular crossing time / dynamical time at bin"
     t_circ::Vector{F}
@@ -128,14 +132,13 @@ function MassProfile3D(snap::Snapshot;
     M_in = cumsum(mass_in_shell)
     M_in_err = 1 ./ sqrt.(cumsum(counts)) .* M_in
 
-    # circular velocity is mass inclusive
-    r_right = r_bins[2:end]
-    v_circ = calc_v_circ.(r_right, M_in)
-    v_circ_err = v_circ .* M_in_err ./ M_in
-    t_circ = r_right ./ v_circ
-    t_circ_err = t_circ .* rel_err
+    skip = min(round(Int, default_n_per_bin(log_r_snap) / 1.5), 200)
+    @info "circ vel bins $skip"
+    r_circ, v_circ, n_circ = calc_v_circ(snap, skip=skip)
+    v_circ_err = v_circ ./ sqrt.(n_circ)
+    t_circ = 2π * r_circ ./ v_circ
 
-    fit = fit_v_r_circ_max(r, v_circ)
+    fit = fit_v_r_circ_max(r_circ, v_circ)
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
@@ -155,9 +158,11 @@ function MassProfile3D(snap::Snapshot;
         M_in_err=M_in_err,
         rho=rho,
         rho_err=rho_err,
+        r_circ=r_circ,
         v_circ=v_circ,
         v_circ_err=v_circ_err,
         t_circ=t_circ,
+        n_circ=n_circ,
         v_circ_max=v_circ_max,
         r_circ_max=r_circ_max,
         N_bound=N_bound,
@@ -220,13 +225,15 @@ end
 
 
 """
-    calc_v_circ(snap; x_cen, filter_bound)
+    calc_v_circ(snap; filter_bound=true, skip=10)
 
 Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
+Removes unbound particles first if `filter_bound`, and skips every `skip` particles (i.e. each radius contains n times skip particles inclusive)
 """
-function calc_v_circ(snap::Snapshot; x_cen=snap.x_cen, filter_bound=true)
-    r = calc_r(snap.positions .- x_cen)
+function calc_v_circ(snap::Snapshot; filter_bound::Bool=true, skip::Integer=10)
+    r = calc_r(snap)
     m = snap.masses
+
     if filter_bound
         filt = get_bound(snap)
 
@@ -234,11 +241,17 @@ function calc_v_circ(snap::Snapshot; x_cen=snap.x_cen, filter_bound=true)
         m = m[filt]
     end
 
-    r = sort(r)
-    m = snap.masses[sortperm(r)]
+    idx = sortperm(r)
+    m = snap.masses[idx]
+    r = r[idx]
     M = cumsum(m)
 
-    return r, calc_v_circ.(r, M)
+    idx_skip = skip:skip:length(r)
+    r = r[idx_skip]
+    M = M[idx_skip]
+    v_circ = calc_v_circ.(r, M)
+
+    return r, v_circ, idx_skip
 end
 
 

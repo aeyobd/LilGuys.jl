@@ -13,6 +13,7 @@ export integrate, curve_fit, find_zero
 export ±, uncertainty, value, Measurement
 
 export histogram, effective_sample_size, bins_default, bins_equal_number, bins_both, bins_equal_width
+export default_bin_width, default_n_per_bin
 export DataFrame
 
 # TODO: wrap DataFrame around tables.jl interface and only export `Table` and minimal functions :)
@@ -83,7 +84,10 @@ function filter_nans(x, weights=nothing)
         weights = weights[filt]
     end
     x = x[filt]
-    @info "Filtered out $(sum(.!filt)) NaNs out of $(length(x))"
+
+    if sum(.!filt) > 0
+        @info "Filtered out $(sum(.!filt)) NaNs out of $(length(x))"
+    end
 
     return x, weights
 end

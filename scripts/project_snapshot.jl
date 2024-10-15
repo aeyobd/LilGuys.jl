@@ -34,6 +34,8 @@ function get_args()
             default="ICRS"
         "-d", "--distance"
             help="distance at which to set snapshot from sun before projecting onto sky"
+        "--scale"
+            help="file to halo rescaling used.toml"
     end
 
     args = parse_args(s)
@@ -68,6 +70,16 @@ function main()
     @info "Reading snapshot"
     out = Output(args["input"], weights=stars.probability)
     snap = out[args["index"]]
+
+    if args["scale"] != nothing
+        scales = TOML.parsefile(args["scale"])
+        M_scale = scales["M_scale"]
+        v_scale = scales["v_scale"]
+        r_scale = scales["r_scale"]
+
+        @assert v_scale^2 == M_scale / r_scale "v_scale^2 must equal M_scale / r_scale"
+        snap = LilGuys.rescale(snap, M_scale, r_scale)
+    end
 
     println("snap xcen", snap.x_cen)
     @info "Projecting snapshot onto sky"

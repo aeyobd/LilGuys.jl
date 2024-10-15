@@ -6,6 +6,7 @@ using LilGuys
 using HDF5
 import TOML
 
+include("bin_args.jl")
 
 function get_args()
     s = ArgParseSettings(
@@ -40,6 +41,7 @@ computes the 3D stellar profiles for each snapshot.
 
     end
 
+    s = add_bin_args(s)
     args = parse_args(s)
 
     if args["output"] == nothing
@@ -53,16 +55,18 @@ end
 function main()
     args = get_args()
 
+    bins = bins_from_args(args)
+
     weights = LilGuys.read_hdf5_table(args["starsfile"]).probability
     out = Output(args["simulation_output"], weights=weights)
 
     props_file = dirname(args["simulation_output"]) * "/orbital_properties.toml"
     if isfile(props_file)
-        t_peris = TOML.parsefile(props_file)["t_peris"]
-        @assert issorted(t_peris)
+        idx_peris = TOML.parsefile(props_file)["idx_peris"]
+        @assert issorted(idx_peris)
         @info "loaded properties file"
     else
-        t_peris = nothing
+        idx_peris = nothing
     end
 
 
@@ -80,19 +84,23 @@ function main()
 
     profiles = Pair{String, LilGuys.StellarProfile3D}[]
 
-    snap_idx = eachindex(out)[1:args["skip"]:end]
+    snap_idx = collect(eachindex(out)[1:args["skip"]:end])
+    if snap_idx[end] != length(out)
+        push!(snap_idx, length(out))
+    end
 
     for i in snap_idx
         @info "computing profile for snapshot $i"
-        time = out.times[i]
-        if (t_peris != nothing) && (t_peris[1] < time)
-            t_peri = t_peris[t_peris .< time][end]
-            delta_t = time - t_peri
+        if (idx_peris != nothing) && (idx_peris[1] <= i)
+            idx_last_peri = idx_peris[idx_peris .<= i][end]
+            t_peri = out.times[idx_last_peri]
+            delta_t = out.times[i] - t_peri
         else
+            @info "no peri found"
             delta_t = NaN
         end
 
-        prof = LilGuys.StellarProfile3D(out[i], delta_t=delta_t)
+        prof = LilGuys.StellarProfile3D(out[i], delta_t=delta_t, bins=bins)
 
         if args["scale"] != nothing
             prof = LilGuys.scale(prof, r_scale, v_scale, M_scale)

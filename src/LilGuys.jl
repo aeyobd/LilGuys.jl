@@ -42,6 +42,7 @@ include("gravity.jl")
 
 include("analytic_profiles.jl")
 include("nfw.jl")
+include("scaling_relations.jl")
 
 include("project.jl")
 include("density_3d.jl")
@@ -53,7 +54,6 @@ include("centres/Centres.jl")
 
 
 function __init__()
-    @require Polyhedra="67491407-f73d-577b-9b50-8179a7c68029" include("convex_hull.jl")
     @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("plots.jl")
 end
 
