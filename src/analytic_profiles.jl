@@ -106,19 +106,39 @@ function calc_M end
 
 
 
+@doc raw"""
+    Plummer(M, r_s)
+
+A Plummer profile. The density profile is given by
+
+``
+\Sigma(r) = \frac{M}{4\pi r_s^2} \left(1 + \frac{r^2}{r_s^2}\right)^{-2}
+``
+
+where M is the total mass and r_s is the scale radius. 
+"""
 @kwdef struct Plummer <: SphericalProfile
     M::Float64 = 1
     r_s::Float64 = 1
 end
 
 
+@kwdef struct Sersic <: SphericalProfile
+    M::Float64 = 1
+    r_s::Float64 = 1
+    n::Float64 = 1
+end
 
-"""
+
+
+@doc raw"""
     Exp2D(M, R_s)
 
 An exponential disk profile in 2D. The density profile is given by
 
-Σ(r) = Σ_0 * exp(-r/R_s)
+``
+\Sigma = \Sigma_0 \, \exp(-R/R_s)
+``
 
 where M is the total mass and R_s is the scale radius, and Σ_0 = M / (2π * R_s^2)
 """
@@ -128,12 +148,14 @@ where M is the total mass and R_s is the scale radius, and Σ_0 = M / (2π * R_s
 end
 
 
-"""
+@doc raw"""
     Exp3D(M, r_s)
 
 An exponential disk profile in 3D. The density profile is given by
 
-ρ(r) = ρ_0 * exp(-r/r_s)
+``  
+\rho = \rho_0 \, \exp(-r/r_s)
+``
 
 where M is the total mass and r_s is the scale radius, and ρ_0 = M / (8π * r_s^3)
 """
@@ -147,9 +169,10 @@ end
     LogCusp2D(M, R_s)
 
 A logarithmic cusp profile in 2D. The density profile is given by
-```math
-\rho(r) = 
-```
+
+``math
+\Sigma(r) = \Sigma_0\, 
+``
 """
 @kwdef struct LogCusp2D <: SphericalProfile
     M::Float64 = 1
@@ -211,6 +234,47 @@ function KingProfile(;kwargs...)
     end
 
     return KingProfile(kwargs[:k], kwargs[:R_s], kwargs[:R_t])
+end
+
+
+# Calculations
+#
+#
+
+function calc_ρ(profile::Plummer, r::Real)
+    M, r_s = profile.M, profile.r_s
+    x = r / r_s
+    ρ0 = get_ρ0(profile)
+    return ρ0 * (1 + x^2)^(-5/2)
+end
+
+function get_ρ0(profile::Plummer)
+    return 3*profile.M / (4π * profile.r_s^3)
+end
+
+function get_Σ0(profile::Plummer)
+    return profile.M / (π * profile.r_s^2)
+end
+
+function calc_Σ(profile::Plummer, R::Real)
+    M, r_s = profile.M, profile.r_s
+    x = R / r_s
+    Σ0 = get_Σ0(profile)
+    return Σ0 * (1 + x^2)^(-2)
+end
+    
+
+function calc_M(profile::Plummer, r::Real)
+    M, r_s = profile.M, profile.r_s
+    x = r / r_s
+    return M * x^3 / (1 + x^2)^(3/2)
+end
+
+
+function calc_M_2D(profile::Plummer, R::Real)
+    M, r_s = profile.M, profile.r_s
+    x = R / r_s
+    return M * x^2 / (1 + x^2)
 end
 
 
@@ -410,8 +474,14 @@ function calc_v_circ(profile::SphericalProfile, r)
 end
 
 
-"""
-calculate the 3D density profile of a profile at radius r
+@doc raw"""
+calculate the 3D density profile of a profile at radius r provided the 
+profile has a 2D surface density profile implemented.
+Abel inversion formula:
+
+``
+\rho(r) = -1/π \int_r^\infty dR dΣ/dR / \sqrt{R^2 - r^2}
+``
 """
 function calc_ρ_from_Σ(profile::SphericalProfile, r::Real)
     integrand(R) = derivative(R->calc_Σ(profile, R), R) / sqrt(R^2 - r^2)

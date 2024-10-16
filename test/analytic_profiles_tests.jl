@@ -12,7 +12,7 @@ function test_r_h(profile, M=profile.M)
     @test lguys.calc_M(profile, r_h) ./ M ≈ 1/2 rtol=1e-3
 end
 
-function test_M_tot(profile, M=profile.M, r=100)
+function test_M_tot(profile, M=profile.M; r=100)
     @test lguys.calc_M(profile, r) ≈ M
 end
 
@@ -27,6 +27,61 @@ function test_to_zero(profile; r=1000, atol=1e-8)
 end
 
 
+@testset "Plummer" begin
+    @testset "Σ" begin
+        profile = lguys.Plummer(1, 1)
+        @test lguys.calc_Σ(profile, 0) ≈ 1 / π
+        @test lguys.calc_Σ(profile, 1) ≈ 1 / (4π)
+        @test lguys.calc_Σ(profile, 2) ≈ 1 / (25π)
+    end
+
+    @testset "ρ" begin
+        profile = lguys.Plummer(0.23, 0.51)
+        x = 10 .^ LinRange(-1, 1, 10)
+        ρ1 = lguys.calc_ρ.(profile, x)
+        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+        @test ρ1 ≈ ρ2 rtol=1e-5
+    end
+
+    @testset "Σ_inv" begin
+        profile = lguys.Plummer(0.23, 0.51)
+        x = 10 .^ LinRange(-1, 1, 10)
+        Σ1 = lguys.calc_Σ.(profile, x)
+        Σ2 = lguys.calc_Σ_from_ρ.(profile, x)
+        @test Σ1 ≈ Σ2 rtol=1e-5
+    end
+
+    @testset "M" begin
+        profile = lguys.Plummer(0.989, 1.35)
+        x = 10 .^ LinRange(-1, 0.5, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+
+    @testset "M2D" begin
+        profile = lguys.Plummer(0.989, 1.35)
+        x = 10 .^ LinRange(-1, 0.5, 10)
+
+        M1 = lguys.calc_M_2D.(profile, x)
+        M2 = lguys.calc_M_2D_from_Σ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+    @testset "consistency" begin
+        profile = lguys.Plummer(0.987, 3.3)
+
+        test_R_h(profile)
+        test_r_h(profile)
+        test_M_tot(profile, r=1e5)
+        test_to_zero(profile)
+    end
+
+end
 
 @testset "Exp2D" begin
     @testset "Σ" begin
@@ -145,6 +200,8 @@ end
     end
 
 end
+
+
 
 
 @testset "load profile" begin
