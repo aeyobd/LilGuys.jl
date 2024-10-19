@@ -375,3 +375,29 @@ function rescale(snap::Snapshot, m_scale::Real, r_scale::Real)
 
     return rescaled
 end
+
+
+"""
+    add_stars!(snap, index, probability)
+
+Given an object with at least two attributes (index and probabilities), 
+adds stars to the snapshot with the given probabilities.
+"""
+function add_stars!(snap::Snapshot, index, probability)
+    if length(index) != length(snap)
+        throw(DimensionMismatch("stars must have the same length as the snapshot"))
+    end
+
+    @assert issorted(index) "stars must be sorted by index"
+
+    if isperm(snap.index)
+        idx = snap.index
+    else
+        idx = invperm(sortperm(snap.index))
+    end
+
+    @assert sort(snap.index) == index "stars must have the same indices as the snapshot"
+
+    snap.weights = probability[idx]
+    return snap
+end

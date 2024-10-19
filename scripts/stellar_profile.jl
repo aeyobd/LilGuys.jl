@@ -49,6 +49,10 @@ function get_args()
             help="Radius past which to normalize"
             default=5
             arg_type=Float64
+        "--rv-max-radius"
+            help="Maximum radius for radial velocity calculation in arcminutes"
+            default=60
+            arg_type=Float64
     end
 
     s = add_bin_args(s)
@@ -105,19 +109,27 @@ function main()
     r_ell = LilGuys.calc_r_ell_sky(sample.ra, sample.dec,
         args["ellipticity"], args["PA"], centre=(ra0, dec0))
 
-    r_ell_max = 60 * LilGuys.calc_r_max(sample.ra, sample.dec, 
-        args["ellipticity"], args["PA"], centre=(ra0, dec0))
+    filt = .!isnan.(r_ell)
 
-    @info "r_ell_max: $(r_ell_max)"
-    filt = r_ell .< r_ell_max
-    filt .&= .!isnan.(r_ell)
+    if args["simulation"]
+        distance = LilGuys.mean(sample.distance, weights)
+        @info "distance: $(distance)"
 
+        rv_filt = sample.r_ell .< args["rv-max-radius"]
+
+        σv = LilGuys.std(sample.radial_velocity[rv_filt], weights[rv_filt])
+        @info "σv: $(σv)"
+    else
+        distance = NaN
+    end
 
     profile = LilGuys.StellarProfile(r_ell[filt], 
         bins=bins, 
         weights=weights[filt], 
         normalization=Symbol(args["normalization"]), 
-        r_centre=args["r-centre"]
+        r_centre=args["r-centre"],
+        distance=distance,
+        sigma_v=σv,
     )
 
 

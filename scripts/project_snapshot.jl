@@ -2,6 +2,7 @@
 
 using ArgParse
 using LilGuys
+import TOML
 
 
 function get_args()
@@ -24,7 +25,6 @@ function get_args()
         "-i", "--index"
             help="Index of snapshot to project"
             arg_type=Int
-            required=true
 
         "-m", "--mode"
         help="mode by which to project on sky. May be position (use present-day position to project onto sky), orthoganal (chose an axis and return in physical coordinates) or "
@@ -34,6 +34,7 @@ function get_args()
             default="ICRS"
         "-d", "--distance"
             help="distance at which to set snapshot from sun before projecting onto sky"
+            arg_type=Float64
         "--scale"
             help="file to halo rescaling used.toml"
     end
@@ -53,7 +54,7 @@ function get_kwargs(args)
     kwargs[:SkyFrame] = frame
 
     if args["distance"] !== nothing
-        kwargs[:set_to_distance] = parse(Float64, args["distance"])
+        kwargs[:set_to_distance] = args["distance"]
     end
     return kwargs
 end
@@ -62,14 +63,26 @@ end
 function main()
     args = get_args()
     kwargs = get_kwargs(args)
+    println(kwargs)
 
     @info "Reading stars"
     stars = LilGuys.read_hdf5_table(args["stars"])
 
     @assert issorted(stars.index) "stars.index must be sorted"
+
     @info "Reading snapshot"
-    out = Output(args["input"], weights=stars.probability)
-    snap = out[args["index"]]
+    if args["index"] === nothing
+        snap = Snapshot(args["input"])
+        if isperm(snap.index)
+            idx = snap.index
+        else
+            idx = invperm(sortperm(snap.index))
+        end
+        snap.weights = stars.probability[idx]
+    else
+        out = Output(args["input"], weights=stars.probability)
+        snap = out[args["index"]]
+    end
 
     if args["scale"] != nothing
         scales = TOML.parsefile(args["scale"])
@@ -77,14 +90,18 @@ function main()
         v_scale = scales["v_scale"]
         r_scale = scales["r_scale"]
 
-        @assert v_scale^2 == M_scale / r_scale "v_scale^2 must equal M_scale / r_scale"
+        relerr = v_scale^2 / (M_scale / r_scale) - 1
+        @assert abs(relerr) < 1e-6 "V scale inconsistent with M & r scale"
+        @info "Rescaling snapshot"
+
         snap = LilGuys.rescale(snap, M_scale, r_scale)
     end
 
-    println("snap xcen", snap.x_cen)
+    @info "snap xcen = $(snap.x_cen)"
     @info "Projecting snapshot onto sky"
     df = LilGuys.to_gaia(snap; kwargs...)
-    df_gsr = LilGuys.to_gaia(snap; SkyFrame=LilGuys.GSR)
+    kwargs[:SkyFrame] = LilGuys.GSR
+    df_gsr = LilGuys.to_gaia(snap; kwargs...)
 
     df[!, :pmra_gsr] = df_gsr.pmra
     df[!, :pmdec_gsr] = df_gsr.pmdec

@@ -121,6 +121,14 @@ function Base.getindex(out::Output, i::Int)
 end
 
 
+function extract(snap::Snapshot, symbol, idx::Int)
+    i = findfirst(snap.index .== idx)
+    if i === nothing
+        error("index $idx not found in snapshot")
+    end
+    return getfield(snap, symbol)[:, i]
+end
+
 
 """
     extract(snap::Snapshot, symbol::Symbol, idx::Int)
@@ -136,7 +144,7 @@ end
 
 
 """
-    extract_vector(snap::Snapshot, symbol::Symbol, idx::Int)
+    extract_vector(snap::Snapshot, symbol::Symbol, idx)
 
 Extract the value of a field from a snapshot (at a given index). Returns a list as sorted by index
 """
@@ -151,7 +159,15 @@ end
 
 
 """
+    extract(out::Output, symbol::Symbol, idx::Int)
+
 Extracts the given symbol from the output at the given index
+
+Note that if the index is just an integer, the implementation simply 
+finds the index by searching through the snapshot. However, if the index
+is a vector, the implementation sorts the entire snapshot index, which is
+abount constant in performance time, but will take much longer than 
+individual searches for only a few index values.
 """
 function extract(out::Output, symbol::Symbol, idx::Int; group="PartType1")
     Nt = length(out)
@@ -160,8 +176,11 @@ function extract(out::Output, symbol::Symbol, idx::Int; group="PartType1")
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
         snap_idx = h5f["$group/$(h5vectors[:index])"][:]
-        idx_sort = sortperm(snap_idx)
-        result[i] = h5f["$group/$(h5vectors[symbol])"][idx_sort[idx]]
+        idx_sort = findfirst(snap_idx .== idx)
+        if idx_sort === nothing
+            error("index $idx not found in snapshot")
+        end
+        result[i] = h5f["$group/$(h5vectors[symbol])"][idx_sort]
     end
     return result
 end
@@ -170,7 +189,14 @@ end
 
 
 """
+    extract_vector(out::Output, symbol::Symbol, idx::Int)
+
+
 Extracts the given symbol from the output at the given index
+
+Extracts a vector from the output at the given index.
+If the index is array-like, then the returned vector is a 3xNpxNt array.
+Otherwise the returned vector is a 3xNt array.
 """
 function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group="PartType1")
     Nt = length(out)
@@ -179,15 +205,18 @@ function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
         snap_idx = h5f["$group/$(h5vectors[:index])"][:]
-        idx_sort = sortperm(snap_idx)
-        result[:, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort[idx]]
+        idx_sort = findfirst(snap_idx .== idx)
+        if idx_sort === nothing
+            error("index $idx not found in snapshot")
+        end
+        result[:, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort]
     end
     return result
 end
 
 
 
-function extract(out::Output, symbol::Symbol, idx=(:))
+function extract(out::Output, symbol::Symbol, idx=(:); group="PartType1")
     if idx == (:)
         idx = 1:length(out[1].index)
     elseif idx isa BitArray
@@ -198,22 +227,20 @@ function extract(out::Output, symbol::Symbol, idx=(:))
     result = Array{F}(undef, Np, Nt)
 
     for i in 1:Nt
-        snap = out[i]
-        result[:, i] .= extract(snap, symbol, idx)
+        h5f = out.h5file[out.index[i]]
+        idx_sort = sortperm(h5f["$group/$(h5vectors[:index])"][:])
+
+        @assert idx == idx_sort "index not found in snapshot or snapshot not permuation index"
+        for j in eachindex(idx)
+            result[j, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort[idx[j]]]
+        end
     end
 
     return result
 end
 
 
-"""
-    extract_vector(out::Output, symbol::Symbol, idx=(:))
-
-Extracts a vector from the output at the given index.
-If the index is array-like, then the returned vector is a 3xNpxNt array.
-Otherwise the returned vector is a 3xNt array.
-"""
-function extract_vector(out::Output, symbol::Symbol, idx=(:))
+function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")
     if idx == (:)
         idx = 1:length(out[1].index)
     elseif idx isa BitArray
@@ -224,8 +251,14 @@ function extract_vector(out::Output, symbol::Symbol, idx=(:))
     result = Array{F}(undef, 3, Np, Nt)
 
     for i in 1:Nt
-        snap = out[i]
-        result[:, :, i] .= extract_vector(snap, symbol, idx)
+        h5f = out.h5file[out.index[i]]
+        index = h5f["$group/$(h5vectors[:index])"][:]
+        idx_sort = sortperm(index)[idx]
+
+        @assert idx == idx_sort "index not found in snapshot or snapshot not permuation index"
+        for j in eachindex(idx_sort)
+            result[:, j, i] .= h5f["$group/$(h5vectors[symbol])"][:, idx_sort[j]]
+        end
     end
 
     return result
@@ -240,12 +273,12 @@ Calculate the pericentre and apocentre of the system.
 Returns the particle index and the peris and apos of each particle.
 """
 function peris_apos(out::Output; verbose::Bool=false)
-    r0 = calc_r(out[1].positions)
-    peris = copy(r0)
-    apos = copy(r0)
 
     idx0 = sort(out[1].index)
 
+    r0 = calc_r(out[1].positions)[sortperm(out[1].index)]
+    peris = copy(r0)
+    apos = copy(r0)
     if verbose
         @info "begining peri apo calculation"
     end

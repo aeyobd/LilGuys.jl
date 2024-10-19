@@ -14,6 +14,9 @@ An observed 2D density profile
 """
 @kwdef mutable struct StellarProfile
     r_units::String
+    distance::F = NaN
+    mass_units::String = ""
+    sigma_v::F = NaN
 
     log_r::Vector{F}
     log_r_bins::Vector{F}
@@ -64,6 +67,8 @@ function StellarProfile(rs;
         bins=nothing, 
         normalization=:mass,
         r_centre=30,
+        distance=NaN,
+        sigma_v=NaN,
     )
 
     if weights === nothing
@@ -108,11 +113,13 @@ function StellarProfile(rs;
     Γ = calc_Γ(log_r, Σ)
     Γ_max = calc_Γ_max(Σ, Σ_m)
 
-	log_Σ = log10.(Σ)
+    log_Σ = log10.(Σ)
     log_Σ[Σ .== 0] .= NaN
 
     prof = StellarProfile(
         r_units = r_units,
+        distance = distance,
+        sigma_v = sigma_v,
         log_r = value.(log_r),
         log_r_bins = log_r_bin,
         counts = counts,
@@ -263,8 +270,6 @@ end
     calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing, centre="mean", units="arcmin")
 
 Given a set of sky coordinates (ra, dec), computes the elliptical radius of each point with respect to the centre of the ellipse defined by the parameters (a, b, PA).
-
-Returns r_ell and the maximum radius within the convex hull of the points.
 """
 function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
         centre="mean",
@@ -294,12 +299,14 @@ function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
     return r_ell
 end
 
+
 function calc_r_ell_sky(ra, dec, ell, PA; kwargs...)
     aspect = ellipticity_to_aspect(ell)
     b = sqrt(aspect)
     a = 1/b
     return calc_r_ell_sky(ra, dec, a, b, PA; kwargs...)
 end
+
 
 function calc_r_ell_sky(ra, dec; kwargs...)
     return calc_r_ell_sky(ra, dec, 0, 0; kwargs...)
@@ -352,42 +359,6 @@ function shear_points_to_ellipse(x, y, ell, PA)
 end
 
 
-
-"""
-    calc_r_max(ra, dec, args...; centre="mean", weights=nothing)
-
-
-"""
-function calc_r_max(ra, dec, args...; 
-        centre="mean",
-        weights=nothing
-    )
-
-    ra0, dec0 = calc_centre2D(ra, dec, centre, weights)
-
-    x, y = to_tangent(ra, dec, ra0, dec0)
-    x_p, y_p = shear_points_to_ellipse(x, y, args...)
-
-    if length(args) == 3
-        a, b, _ = args
-        aspect = b/a
-        if aspect < 1
-            aspect = 1/aspect
-        end
-    else
-        aspect = ellipticity_to_aspect(args[1])
-    end
-    
-    if isdefined(LilGuys, :convex_hull)
-        hull = convex_hull(x_p, y_p)
-        r_max = min_distance_to_polygon(hull...)
-    else
-        @warn "r_ell: Convex hull not defined. Using max radius. Load Polyhedra to enable convex hull."
-        r_max = maximum(@. sqrt(x^2 + y^2)) ./ sqrt(aspect)
-    end
-
-    return r_max
-end
 
 
 
@@ -518,9 +489,10 @@ function to_orbit_coords(ra::Real, dec::Real, ra0::Real, dec0::Real, PA::Real)
 end
 
 
-function scale(prof::StellarProfile, r_scale, v_scale, m_scale)
+function scale(prof::StellarProfile, r_scale, m_scale)
     return StellarProfile(
         r_units = prof.r_units,
+        distance = prof.distance,
         log_r = prof.log_r .+ log10(r_scale),
         log_r_bins = prof.log_r_bins .+ log10(r_scale),
         counts = prof.counts,

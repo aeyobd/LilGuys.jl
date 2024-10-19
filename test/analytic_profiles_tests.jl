@@ -33,6 +33,8 @@ end
         @test lguys.calc_Σ(profile, 0) ≈ 1 / π
         @test lguys.calc_Σ(profile, 1) ≈ 1 / (4π)
         @test lguys.calc_Σ(profile, 2) ≈ 1 / (25π)
+
+        @test lguys.calc_R_h(profile) ≈ 1
     end
 
     @testset "ρ" begin

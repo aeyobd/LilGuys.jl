@@ -106,6 +106,17 @@ function calc_M end
 
 
 
+"""
+    scale(profile, radius_scale[, mass_scale])
+
+Scales the profile by a factor in radius (and optionally mass).
+"""
+function scale(profile::AbstractProfile, radius_scale::Real, mass_scale::Real=1)
+    raise(NotImplementedError()) 
+end
+
+
+
 @doc raw"""
     Plummer(M, r_s)
 
@@ -277,6 +288,19 @@ function calc_M_2D(profile::Plummer, R::Real)
     return M * x^2 / (1 + x^2)
 end
 
+function calc_R_h(profile::Plummer)
+    return profile.r_s
+end
+
+function calc_r_h(profile::Plummer)
+    return (2^(2/3) - 1)^(-1/2) * profile.r_s
+end
+
+function scale(profile::Plummer, radius_scale::Real, mass_scale::Real=1)
+    return Plummer(profile.M * mass_scale, profile.r_s * radius_scale)
+end
+
+
 
 function get_Σ_s(profile::Exp2D)
     return profile.M / (2π * profile.R_s^2)
@@ -305,6 +329,10 @@ function calc_Σ(profile::Exp2D, R::Real)
     Σ_s = get_Σ_s(profile)
     x = R / profile.R_s
     return Σ_s * exp(-x)
+end
+
+function scale(profile::Exp2D, radius_scale::Real, mass_scale::Real)
+    return Exp2D(profile.M * mass_scale, profile.R_s * radius_scale)
 end
 
 # function calc_M(profile::Exp2D, r::Float64)
@@ -342,6 +370,11 @@ function calc_M(profile::Exp3D, r::Real)
     return M * 1/2 * (2 - (x^2 + 2*x + 2)*exp(-x))
 end
 
+function scale(profile::Exp3D, radius_scale::Real, mass_scale::Real)
+    return Exp3D(profile.M * mass_scale, profile.r_s * radius_scale)
+end
+
+
 
 function calc_ρ(profile::LogCusp2D, r::Real)
     M, r_s = profile.M, profile.R_s
@@ -369,6 +402,14 @@ function calc_M(profile::LogCusp2D, r::Real)
     x = r / r_s
     return M * (1 - exp(-x) - x*exp(-x))
 end
+
+function scale(profile::LogCusp2D, radius_scale::Real, mass_scale::Real)
+    return LogCusp2D(
+        M = profile.M * mass_scale, 
+        R_s = profile.R_s * radius_scale
+    )
+end
+
 
 
 function calc_Σ(profile::KingProfile, r::Real)
@@ -434,6 +475,16 @@ function calc_M_2D(profile::KingProfile, R::Real)
         log(1+x^2) - 4*( √(1+x^2) - 1)/√(1+x_t^2) + x^2/(1+x_t^2)
        )
 end
+
+
+function scale(profile::KingProfile, radius_scale::Real, mass_scale::Real)
+    return KingProfile(
+        k = profile.k * mass_scale / radius_scale^2, # k is a 2D density
+        R_s = profile.R_s * radius_scale,
+        R_t = profile.R_t * radius_scale
+    )
+end
+
 
 
 function calc_M(profile::SphericalProfile, r::Real)

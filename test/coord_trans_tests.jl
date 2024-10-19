@@ -1,3 +1,5 @@
+sun_gc = [-8.121973366, 0, 0.0208] # kpc, uses d cos(θ), 0, d sin(θ) where θ  = arcsin(z_sun / d_sun)
+
 coordinate_systems = [
     lguys.ICRS, lguys.Cartesian{lguys.ICRS},
     lguys.GSR, lguys.Cartesian{lguys.GSR},
@@ -51,7 +53,7 @@ end
     sun = lguys.ICRS(ra = 0., dec=-0, distance=0,
                              pmra=0, pmdec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, sun)
-    @test lguys.position_of(phase) ≈ [-8.122, 0, 0] rtol=3e-3
+    @test lguys.position_of(phase) ≈ sun_gc rtol=3e-3
     @test phase.v_x ≈12.9 atol=0.1
     @test phase.v_y ≈ 245.6 atol=0.1
     @test phase.v_z ≈ 7.78 atol=0.1

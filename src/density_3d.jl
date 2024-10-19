@@ -99,6 +99,9 @@ function MassProfile3D(snap::Snapshot;
     end
 
     N_bound = length(snap)
+    if N_bound == 0
+        throw(ArgumentError("No bound particles in snapshot"))
+    end
 
     K = calc_K_tot(snap)
 

@@ -19,17 +19,40 @@ const eta_arcmin_label = L"\eta\, /\, \mathrm{arcmin}"
 
 
 """
+    plot_xyz(args...; plot!, labels, units, limits, kwargs...)
+
+
 Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
+
+# Arguments
+- `args...`: 3xN matricies of xyz positions.
+- `plot!`: The plotting function to use. Default is `lines!`.
+- `labels`: Labels for each orbit.
+- `units`: Units for the axes.
+- `limits`: Limits for the axes. Should be a tuple of tuples for x y and z limits
+- `kwargs...`: Additional keyword arguments to pass to the plotting function.
 """
-function plot_xyz(args...; plot! =lines!, labels=nothing, units=" / kpc", kwargs...)
+function plot_xyz(args...; plot! = lines!, labels=nothing,
+        units=" / kpc", limits=nothing, kwargs...)
 
     fig = Figure()
     Nargs = length(args)
 
+    if limits === nothing
+        xmax = maximum([maximum(abs.(args[i][1, :])) for i in 1:Nargs])
+        ymax = maximum([maximum(abs.(args[i][2, :])) for i in 1:Nargs])
+        zmax = maximum([maximum(abs.(args[i][3, :])) for i in 1:Nargs])
+        # a little bit of breathing room.
+        rmax = 1.1 * max(xmax, ymax, zmax)
+        limits = ((-rmax, rmax), (-rmax, rmax), (-rmax, rmax))
+    end
 
-    ax_xy = Axis(fig[1, 1], xlabel="x$units", ylabel="y$units", aspect=1)
-    ax_yz = Axis(fig[2, 2], xlabel="y$units", ylabel="z$units", aspect=1)
-    ax_xz = Axis(fig[2, 1], xlabel="x$units", ylabel="z$units", aspect=1)
+    ax_xy = Axis(fig[1, 1], xlabel="x$units", ylabel="y$units", 
+                 aspect=DataAspect(), limits=limits[1:2])
+    ax_yz = Axis(fig[2, 2], xlabel="y$units", ylabel="z$units", 
+                 aspect=DataAspect(), limits=limits[2:3])
+    ax_xz = Axis(fig[2, 1], xlabel="x$units", ylabel="z$units", 
+                 aspect=DataAspect(), limits=limits[[1, 3]])
 
     for i in 1:Nargs
         if labels !== nothing

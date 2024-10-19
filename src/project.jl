@@ -13,7 +13,8 @@ Converts a snapshot to a Gaia-like DataFrame.
 ## Arguments for `to_sky`
 - `SkyFrame::CoordinateFrame=ICRS`: The frame to convert the observations to
 - `invert_velocity::Bool=false`: If true, the velocity is inverted. Useful for when time is backwards (e.g. orbital analysis)
-
+- `kwargs...`: Additional arguments for `phase_to_sky`
+- `set_to_distance::Union{Nothing, Real}=nothing`: If set, the snapshot is shifted to this distance from the sun
 """
 function to_gaia(snap::Snapshot; 
         p_min=1e-20, filt_bound=false, add_centre=true, 
@@ -39,13 +40,21 @@ function to_gaia(snap::Snapshot;
     @info "Converting $(sum(filt)) particles to Gaia-like DataFrame"
 
     if set_to_distance != nothing
-        @assert !(snap.x_cen[1] == snap.x_cen[2] == snap.x_cen[3] == 0) "Snapshot is not centred"
+        snap = deepcopy(snap)
+
+        if snap.x_cen[1] == snap.x_cen[2] == snap.x_cen[3] == 0
+            @warn "Snapshot centre is at the origin"
+        end
 
         f = GalactocentricFrame()
-        sun_vec = [f.d, f.z_sun, 0]
+        ρ = asin(f.z_sun/f.d)
+        sun_vec = [-f.d*cos(ρ), 0, f.d*sin(ρ)]
+
         r_vec = snap.x_cen .- sun_vec
         vec_final = r_vec ./ norm(r_vec) * set_to_distance .+ sun_vec
         vec_shift = vec_final .- snap.x_cen
+
+        @info "shifting snapshot $(vec_shift) to $(vec_final) "
         snap.x_cen .+= vec_shift
         snap.positions .+= vec_shift
 
@@ -79,7 +88,12 @@ function to_gaia(snap::Snapshot;
 
     df[!, :r_ell] = 60*calc_r_ell(df.xi, df.eta, 0, 0)
 
-    return df
+
+    filt_nan = isnan.(df.xi) .| isnan.(df.eta)
+    @info "Excluded $(sum(filt_nan)) observations on wrong hemisphere"
+
+
+    return df[.!filt_nan, :]
 end
 
 
@@ -103,7 +117,7 @@ function to_sky(snap::Snapshot;
 
     for i in 1:length(snap)
         if verbose
-            print("converting $(i)/($(length(snap))\r")
+            @info "converting $(i)/($(length(snap))\r"
         end
 
         pos = snap.positions[:, i]

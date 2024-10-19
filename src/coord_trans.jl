@@ -164,19 +164,19 @@ end
 # ========= Galactocentric transformations =========
 
 
-function from_icrs(::Type{<:Galactocentric}, icrs::ICRS{F}; kwargs...) where {F<:Real}
+function from_icrs(::Type{<:Galactocentric}, icrs::ICRS{F}; frame=default_gc_frame) where {F<:Real}
     cart = Cartesian(icrs)
-    return _icrs_cart_to_galcen(cart)
+    return _icrs_cart_to_galcen(cart; frame=frame)
 end
 
 
 function transform(::Type{<:Galactocentric}, cart::Cartesian{<:ICRS, <:Real}; frame=default_gc_frame)
-    return _icrs_cart_to_galcen(cart, frame)
+    return _icrs_cart_to_galcen(cart; frame=frame)
 end
 
-function _icrs_cart_to_galcen(cart::Cartesian{<:ICRS, F}, frame=default_gc_frame) where {F}
-    x_gc = _heliocen_to_galcen_position(cart, frame)
-    v_gc = _heliocen_to_galcen_velocity(cart, frame)
+function _icrs_cart_to_galcen(cart::Cartesian{<:ICRS, F}; frame=default_gc_frame) where {F}
+    x_gc = _heliocen_to_galcen_position(cart, frame=frame)
+    v_gc = _heliocen_to_galcen_velocity(cart, frame=frame)
 
     return Galactocentric{F}(x_gc..., v_gc...; frame=frame)
 end
@@ -191,7 +191,7 @@ function transform(::Type{<:Cartesian{ICRS, <:Real}}, galcen::Galactocentric; fr
     return _galcen_to_icrs_cart(galcen; frame=frame)
 end
 
-function _galcen_to_icrs_cart(galcen::Galactocentric; frame=default_gc_frame)
+function _galcen_to_icrs_cart(galcen::Galactocentric)
     x_icrs = _galcen_to_heliocen_position(galcen)
     v_icrs = _galcen_to_heliocen_velocity(galcen)
 
@@ -223,8 +223,8 @@ end
 
 
 function transform(::Type{<:Galactocentric}, cart::Cartesian{<:GSR, <:Real}; frame=default_gc_frame)
-    x_gc = _heliocen_to_galcen_position(cart, frame)
-    v_gc = _gsr_to_galcen_velocity(cart, frame)
+    x_gc = _heliocen_to_galcen_position(cart; frame)
+    v_gc = _gsr_to_galcen_velocity(cart; frame)
 
     return Galactocentric(x_gc, v_gc, frame=frame)
 end
@@ -256,7 +256,7 @@ end
 
 
 
-function _heliocen_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFrame()) where {F<:Real}
+function _heliocen_to_galcen_position(x_vec::Vector{F}; frame=GalactocentricFrame()) where {F<:Real}
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R(frame)
@@ -269,12 +269,12 @@ function _heliocen_to_galcen_position(x_vec::Vector{F}, frame=GalactocentricFram
 end
 
 
-function _heliocen_to_galcen_position(cart::Cartesian, frame=default_gc_frame)
-    return _heliocen_to_galcen_position(position_of(cart), frame)
+function _heliocen_to_galcen_position(cart::Cartesian; frame=default_gc_frame)
+    return _heliocen_to_galcen_position(position_of(cart); frame=frame)
 end
 
 
-function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
+function _gsr_to_galcen_velocity(v_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
     R_mat = _coordinate_R(frame)
     H_mat = _coordinate_H(frame)
 
@@ -283,23 +283,23 @@ function _gsr_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where
 end
 
 
-function _heliocen_to_galcen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
-    v_gc = _gsr_to_galcen_velocity(v_vec, frame)
+function _heliocen_to_galcen_velocity(v_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
+    v_gc = _gsr_to_galcen_velocity(v_vec; frame=frame)
     return v_gc .+ frame.v_sun
 end
 
 
-function _gsr_to_galcen_velocity(cart::Cartesian{<:GSR}, frame=default_gc_frame)
-    return _gsr_to_galcen_velocity(velocity_of(cart), frame)
+function _gsr_to_galcen_velocity(cart::Cartesian{<:GSR}; frame=default_gc_frame)
+    return _gsr_to_galcen_velocity(velocity_of(cart); frame=frame)
 end
 
-function _heliocen_to_galcen_velocity(cart::Cartesian{<:ICRS}, frame=default_gc_frame)
-    return _heliocen_to_galcen_velocity(velocity_of(cart), frame)
+function _heliocen_to_galcen_velocity(cart::Cartesian{<:ICRS}; frame=default_gc_frame)
+    return _heliocen_to_galcen_velocity(velocity_of(cart); frame=frame)
 end
 
 
 
-function _galcen_to_heliocen_position(x_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
+function _galcen_to_heliocen_position(x_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R_inv(frame)
@@ -312,11 +312,11 @@ end
 
 
 function _galcen_to_heliocen_position(galcen::Galactocentric)
-    return _galcen_to_heliocen_position(position_of(galcen), galcen.frame)
+    return _galcen_to_heliocen_position(position_of(galcen), frame=galcen.frame)
 end
 
 
-function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
+function _galcen_to_gsr_velocity(v_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
     R_mat = _coordinate_R_inv(frame)
     H_mat = _coordinate_H_inv(frame)
 
@@ -324,16 +324,16 @@ function _galcen_to_gsr_velocity(v_vec::Vector{F}, frame=default_gc_frame) where
     return v_icrs
 end
 
-function _galcen_to_heliocen_velocity(v_vec::Vector{F}, frame=default_gc_frame) where {F<:Real}
-    return _galcen_to_gsr_velocity(v_vec .- frame.v_sun, frame) 
+function _galcen_to_heliocen_velocity(v_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
+    return _galcen_to_gsr_velocity(v_vec .- frame.v_sun, frame=frame) 
 end
 
 function _galcen_to_gsr_velocity(galcen::Galactocentric)
-    return _galcen_to_gsr_velocity(velocity_of(galcen), galcen.frame)
+    return _galcen_to_gsr_velocity(velocity_of(galcen), frame=galcen.frame)
 end
 
 function _galcen_to_heliocen_velocity(galcen::Galactocentric)
-    return _galcen_to_heliocen_velocity(velocity_of(galcen), galcen.frame)
+    return _galcen_to_heliocen_velocity(velocity_of(galcen), frame=galcen.frame)
 end
 
 

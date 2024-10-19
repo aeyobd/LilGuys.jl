@@ -4,6 +4,7 @@ using ArgParse
 using Polyhedra
 using LilGuys
 import DensityEstimators
+import TOML
 
 
 include("bin_args.jl")
@@ -27,10 +28,13 @@ function get_args()
             help="Skip length for snapshots"
             default=10
             arg_type=Int
+        "--scale"
+            help="Scale factor file for snapshots"
     end
 
     s = add_bin_args(s)
     args = parse_args(s)
+
 
 
     if args["output"] === nothing
@@ -64,6 +68,14 @@ function main()
         push!(idx, length(out))
     end
 
+
+    if args["scale"] != nothing
+        scales = TOML.parsefile(args["scale"])
+        M_scale = 1.0
+        v_scale = scales["v_scale"]
+        r_scale = scales["r_scale"]
+    end
+
     for i in idx
         @info "processing snapshot $i"
         snap = out[i]
@@ -72,6 +84,9 @@ function main()
             r_units = "kpc"
           )
 
+        if args["scale"] != nothing
+            prof = LilGuys.scale(prof, r_scale, M_scale)
+        end
         push!(profiles, ("$i" => prof))
     end
 

@@ -43,6 +43,10 @@ are set to zero.
         "out"
             help="Output filename base. Will write _stars.hdf5 and _df.hdf5"
             required=false
+        "--r-max"
+            help="Maximum radius to consider"
+            default=Inf
+            arg_type=Float64
     end
 
     args = parse_args(s)
@@ -79,6 +83,8 @@ function main()
 
         prob_e[prob_e .< 0] .= 0
     end
+
+    prob_e[df_df.radii .> args["r-max"]] .= 0
 
     if profile isa lguys.KingProfile
         ϵ_min = lguys.lerp(radii, ψ)(profile.R_t)
