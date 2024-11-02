@@ -255,7 +255,7 @@ function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")
         index = h5f["$group/$(h5vectors[:index])"][:]
         idx_sort = sortperm(index)[idx]
 
-        @assert idx == idx_sort "index not found in snapshot or snapshot not permuation index"
+        @assert idx == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
         for j in eachindex(idx_sort)
             result[:, j, i] .= h5f["$group/$(h5vectors[symbol])"][:, idx_sort[j]]
         end

@@ -11,7 +11,7 @@
         @test all(v .== a)
         @test collect(v) == [a for _ in 1:N]
 
-        @test_throws InexactError lguys.ConstVector(a, -32)
+        #@test_throws InexactError lguys.ConstVector(a, -32)
 
         @test false broken = true #println
     end

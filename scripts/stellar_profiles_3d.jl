@@ -77,9 +77,14 @@ function main()
 
     if args["scale"] != nothing
         scales = TOML.parsefile(args["scale"])
-        M_scale = 1.0
+        M_scale = 1 # do not rescale stellar mass...scales["M_scale"]
         v_scale = scales["v_scale"]
         r_scale = scales["r_scale"]
+        @info "scaling by M=$M_scale, v=$v_scale, r=$r_scale"
+    else
+        M_scale = 1
+        v_scale = 1
+        r_scale = 1
     end
 
     profiles = Pair{String, LilGuys.StellarProfile3D}[]
@@ -100,10 +105,12 @@ function main()
             delta_t = NaN
         end
 
-        prof = LilGuys.StellarProfile3D(out[i], delta_t=delta_t, bins=bins)
+        prof = LilGuys.StellarProfile3D(out[i], delta_t=delta_t, bins=bins, r_max=1/r_scale)
 
+        @info "v = $(prof.sigma_vx)"
         if args["scale"] != nothing
             prof = LilGuys.scale(prof, r_scale, v_scale, M_scale)
+            @info "v scaled = $(prof.sigma_vx)"
         end
         push!(profiles, string(i) => prof)
     end

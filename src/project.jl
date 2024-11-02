@@ -19,6 +19,7 @@ Converts a snapshot to a Gaia-like DataFrame.
 function to_gaia(snap::Snapshot; 
         p_min=1e-20, filt_bound=false, add_centre=true, 
         set_to_distance=nothing,
+        filt_wrong_hemisphere=false,
         kwargs...)
 
     add_weights = !(snap.weights isa ConstVector)
@@ -28,48 +29,25 @@ function to_gaia(snap::Snapshot;
     else
         filt = snap.weights .>= p_min * maximum(snap.weights)
     end
-
     @info "excluded stellar mass: $(sum(snap.weights[.!filt]) / sum(snap.weights))"
 
     if filt_bound
         filt_b = get_bound(snap)
         @info "unbound stellar mass: $(sum(snap.weights[.!filt_b]) / sum(snap.weights))"
-        filt .&= get_bound(snap)
+        filt .&= filt_b
+    end
+
+    if set_to_distance != nothing
+        snap = shift_snapshot_to_distance(snap, set_to_distance)
     end
 
     @info "Converting $(sum(filt)) particles to Gaia-like DataFrame"
-
-    if set_to_distance != nothing
-        snap = deepcopy(snap)
-
-        if snap.x_cen[1] == snap.x_cen[2] == snap.x_cen[3] == 0
-            @warn "Snapshot centre is at the origin"
-        end
-
-        f = GalactocentricFrame()
-        ρ = asin(f.z_sun/f.d)
-        sun_vec = [-f.d*cos(ρ), 0, f.d*sin(ρ)]
-
-        r_vec = snap.x_cen .- sun_vec
-        vec_final = r_vec ./ norm(r_vec) * set_to_distance .+ sun_vec
-        vec_shift = vec_final .- snap.x_cen
-
-        @info "shifting snapshot $(vec_shift) to $(vec_final) "
-        snap.x_cen .+= vec_shift
-        snap.positions .+= vec_shift
-
-        offset = calc_r(snap.x_cen, sun_vec) - set_to_distance
-
-        @assert abs(offset) < 1e-3 "Offset is too large: $offset"
-    end
 
     observations = to_sky(snap[filt]; kwargs...)
     obs_cen = phase_to_sky(snap.x_cen, snap.v_cen; kwargs...)
 
     df = to_frame(observations)
-
     df[!, :index] = snap.index[filt]
-
 
     if add_weights
         df[!, :weights] = snap.weights[filt]
@@ -85,17 +63,43 @@ function to_gaia(snap::Snapshot;
     end
 
     df[!, :xi], df[!, :eta] = to_tangent(df.ra, df.dec, obs_cen.ra, obs_cen.dec)
-
     df[!, :r_ell] = 60*calc_r_ell(df.xi, df.eta, 0, 0)
 
 
-    filt_nan = isnan.(df.xi) .| isnan.(df.eta)
-    @info "Excluded $(sum(filt_nan)) observations on wrong hemisphere"
+    if filt_wrong_hemisphere
+        filt_nan = isnan.(df.xi) .| isnan.(df.eta)
+        @info "Excluded $(sum(filt_nan)) observations on wrong hemisphere"
+        df = df[.!filt_nan, :]
+    end
 
-
-    return df[.!filt_nan, :]
+    return df
 end
 
+function shift_snapshot_to_distance(snap::Snapshot, set_to_distance::Real)
+    snap = deepcopy(snap)
+
+    if snap.x_cen[1] == snap.x_cen[2] == snap.x_cen[3] == 0
+        @warn "Snapshot centre is at the origin"
+    end
+
+    f = GalactocentricFrame()
+    ρ = asin(f.z_sun/f.d)
+    sun_vec = [-f.d*cos(ρ), 0, f.d*sin(ρ)]
+
+    r_vec = snap.x_cen .- sun_vec
+    vec_final = r_vec ./ norm(r_vec) * set_to_distance .+ sun_vec
+    vec_shift = vec_final .- snap.x_cen
+
+    @info "shifting snapshot $(vec_shift) to $(vec_final) "
+    snap.x_cen .+= vec_shift
+    snap.positions .+= vec_shift
+
+    offset = calc_r(snap.x_cen, sun_vec) - set_to_distance
+
+    @assert abs(offset) < 1e-3 "Offset is too large: $offset"
+
+    return snap
+end
 
 """
     to_sky(snap::Snapshot, invert_velocity=false, verbose=false, SkyFrame=ICRS)

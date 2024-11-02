@@ -99,6 +99,7 @@ function main()
 
     @info "snap xcen = $(snap.x_cen)"
     @info "Projecting snapshot onto sky"
+    kwargs[:filt_wrong_hemisphere] = true
     df = LilGuys.to_gaia(snap; kwargs...)
     kwargs[:SkyFrame] = LilGuys.GSR
     df_gsr = LilGuys.to_gaia(snap; kwargs...)

@@ -34,7 +34,7 @@ Represents a stellar density profile in 3D,
 end
 
 
-function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99])
+function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99], r_max=1/r_scale)
     log_r_snap = log10.(calc_r(snap))
 
     bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights)
@@ -65,8 +65,8 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03
     M_in = cumsum(mass_in_shell)
     M_in_err = 1 ./ sqrt.(cumsum(counts)) .* M_in
 
-    σ_vx = calc_σv_x(snap)
-    σ_v_1d = calc_σv_1d(snap)
+    σ_vx = calc_σv_x(snap, r_max=r_max)
+    σ_v_1d = calc_σv_1d(snap, r_max=r_max)
     @info "σ_vx = $σ_vx, σ_v_1d = $σ_v_1d"
 
     r_break = calc_break_radius(σ_vx, delta_t)
@@ -122,25 +122,33 @@ end
 
 
 """
-    calc_σv_x(snap)
+    calc_σv_x(snap; r_max=1)
 
 Calculate the velocity dispersion in the x-direction
+for particles within r_max of the centre.
 """
-function calc_σv_x(snap)
-	vs = get_v_x(snap)
-	w = snap.weights
+function calc_σv_x(snap; r_max=1)
+    vs = get_v_x(snap)
+    filt = calc_r(snap) .< r_max
+    w = snap.weights[filt]
+    vs = vs[filt]
     return std(vs, w)
 end
 
 
 """
-    calc_σv_1d(snap)
+    calc_σv_1d(snap; r_max=1)
 
 Calculate the average 1D orthoganal velocity dispersion
+for particles within r_max of the centre. 
+Assums relative to snapshot center
 """
-function calc_σv_1d(snap)
-    v = calc_v(snap)
-    w = snap.weights
+function calc_σv_1d(snap; r_max=1)
+    filt = calc_r(snap) .< r_max
+
+    w = snap.weights[filt]
+    v = calc_v(snap)[filt]
+
     σ = sqrt( sum(v .^ 2 .* w) / sum(w) )
 
     return σ / √3

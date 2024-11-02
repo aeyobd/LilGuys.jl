@@ -8,7 +8,7 @@ Memory efficient vector which is constant (useful for type-enforced vectors, e.g
 """
 struct ConstVector <: AbstractArray{F, 1}
     value::F
-    size::UInt
+    size::Int
 end
 
 
@@ -21,8 +21,14 @@ function (*)(s::F, a::ConstVector)
 end
 
 
-Base.getindex(v::ConstVector, i::Int) = v.value
-Base.show(io::IO, v::ConstVector) = print(io, v.value) # TODO: test
+function Base.getindex(v::ConstVector, i::Int)
+    if i < 1 || i > v.size
+        throw(BoundsError(v, i))
+    end
+    return v.value
+end
+
+Base.show(io::IO, v::ConstVector) = print(io, v.value)
 Base.size(v::ConstVector) = (v.size,)
 Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 
