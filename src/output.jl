@@ -126,7 +126,7 @@ function extract(snap::Snapshot, symbol, idx::Int)
     if i === nothing
         error("index $idx not found in snapshot")
     end
-    return getfield(snap, symbol)[:, i]
+    return getfield(snap, symbol)[i]
 end
 
 
@@ -226,13 +226,15 @@ function extract(out::Output, symbol::Symbol, idx=(:); group="PartType1")
     Nt = length(out)
     result = Array{F}(undef, Np, Nt)
 
+    index_0 = sort(out[1].index)
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
-        idx_sort = sortperm(h5f["$group/$(h5vectors[:index])"][:])
+        index = h5f["$group/$(h5vectors[:index])"][:]
+        idx_sort = sortperm(index)
 
-        @assert idx == idx_sort "index not found in snapshot or snapshot not permuation index"
+        @assert index_0 == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
         for j in eachindex(idx)
-            result[j, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort[idx[j]]]
+            result[j, i] = h5f["$group/$(h5vectors[symbol])"][idx_sort[idx[j]]]
         end
     end
 

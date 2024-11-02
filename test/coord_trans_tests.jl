@@ -24,7 +24,7 @@ end
 
 @testset "cartesian to sky" begin
 
-    cart = lguys.Cartesian{lguys.ICRS, Float64}(x=1., y=0, z=0,
+    cart = lguys.Cartesian{lguys.ICRS}(x=1., y=0, z=0,
                                       v_x=0, v_y=0, v_z=0)
     icrs = lguys.transform(lguys.ICRS, cart)
 

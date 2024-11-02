@@ -2,6 +2,9 @@
 # as an output is a file of files :)
 #
 
+using HDF5 
+
+
 @testset "output" begin
 
     dir = mktempdir()
@@ -27,7 +30,13 @@
 
     old_dir = pwd()
     cd(dir * "/out")
-    run(`combine_outputs.py`)
+
+    h5open("combined.hdf5", "w") do file
+        HDF5.create_external(file, "/snap0", "snapshot_000.hdf5", "/")
+        HDF5.create_external(file, "/snap1", "snapshot_001.hdf5", "/")
+        HDF5.create_external(file, "/snap2", "snapshot_002.hdf5", "/")
+    end
+
     cd(old_dir)
 
     out = Output(dir)

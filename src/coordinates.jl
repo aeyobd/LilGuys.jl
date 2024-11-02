@@ -166,6 +166,10 @@ function ICRS(; ra, dec, distance=NaN, pmra=NaN, pmdec=NaN, radial_velocity=NaN)
     return ICRS(sc)
 end
 
+function ICRS{F}(; ra::F, dec::F, distance::F=NaN, pmra::F=NaN, pmdec::F=NaN, radial_velocity::F=NaN)
+    return ICRS(SkyCoord{F}(ra, dec, distance, pmra, pmdec, radial_velocity))
+end
+
 
 
 """ 
@@ -270,7 +274,7 @@ end
 
 
 function Cartesian{T}(x, y, z, v_x, v_y, v_z, coord=nothing) where {T<:CoordinateFrame}
-    F = promote_type(typeof.(x, y, z, v_x, v_y, v_z)...)
+    F = eltype(promote(x, y, z, v_x, v_y, v_z))
     return Cartesian{T, F}(Point6D{F}(x, y, z, v_x, v_y, v_z), coord)
 end
 

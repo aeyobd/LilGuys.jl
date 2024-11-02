@@ -187,8 +187,8 @@ function to_icrs(galcen::Galactocentric)::ICRS
 end
 
 
-function transform(::Type{<:Cartesian{ICRS, <:Real}}, galcen::Galactocentric; frame=default_gc_frame)
-    return _galcen_to_icrs_cart(galcen; frame=frame)
+function transform(::Type{<:Cartesian{ICRS, <:Real}}, galcen::Galactocentric)
+    return _galcen_to_icrs_cart(galcen)
 end
 
 function _galcen_to_icrs_cart(galcen::Galactocentric)

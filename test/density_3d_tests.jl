@@ -215,7 +215,7 @@ end
     @test_χ2 profile.M_in profile.M_in_err M_exp
 
     # errors tend to be overestimated here...
-    v_circ_exp = lguys.calc_v_circ.(halo, r)
+    v_circ_exp = lguys.calc_v_circ.(halo, profile.r_circ)
     @test_χ2 profile.v_circ profile.v_circ_err v_circ_exp
 
 end

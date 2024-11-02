@@ -11,7 +11,7 @@
     struct TestFrame <: lguys.CoordinateFrame end
 
     p1 = lguys.Cartesian{TestFrame}(position, velocity)
-    p2  = lguys.Cartesian{TestFrame, Float64}(x=x, y=y, z=z, v_x=v_x, v_y=v_y, v_z=v_z)
+    p2  = lguys.Cartesian{TestFrame, Float64}(x, y, z, v_x, v_y, v_z)
 
     # @test fieldnames(lguys.Cartesian{TestFrame, Float64}) == (:x, :y, :z, :v_x, :v_y, :v_z, :coord)
 
@@ -82,7 +82,7 @@ end
         x, y, z = position
         v_x, v_y, v_z = velocity
 
-        p = frame(x=x, y=y, z=z, v_x=v_x, v_y=v_y, v_z=v_z)
+        p = frame(x, y, z, v_x, v_y, v_z)
 
         @test p.x ≈ x
         @test p.y ≈ y
