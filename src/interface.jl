@@ -28,7 +28,7 @@ import SpecialFunctions: erf, expinti
 import QuadGK: quadgk
 import LsqFit: curve_fit
 
-using Measurements: ±, value, uncertainty
+using Measurements: ±, value, uncertainty, Measurement
 import DensityEstimators
 
 import Roots: find_zero

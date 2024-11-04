@@ -46,27 +46,29 @@ end
 
 
 """
-    StellarProfile(radii; r_units="", weights=nothing, bins=nothing, normalization="mass")
+    StellarProfile(radii; arguments...)
 
 Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
 
 
 # Arguments
-- `bins`: Passed to Arya.histogram. Bins in log r for histogram.
 - `weights`: The weights of the radii.
+- `bins`: Passed to Arya.histogram. Bins in log r for histogram.
 - `normalization`: The normalization of the profile.
     - :mass: normalizes the profile by the total mass.
     - :central: normalizes the profile by the mass within a central radius, r_centre
     - :none: no normalization.
 - `r_centre`: The central radius for normalization if `normalization=:central`.
+- `distance`: distance (optional)
+- `sigma_v`: velocity dispersion (just as an annotation)
 - `r_units`: The units of the radii, entirely for self-documentation currently.
 """
 function StellarProfile(rs; 
-        r_units="", 
         weights=nothing, 
         bins=nothing, 
         normalization=:mass,
         r_centre=30,
+        r_units="", 
         distance=NaN,
         sigma_v=NaN,
     )
@@ -83,6 +85,7 @@ function StellarProfile(rs;
         throw(ArgumentError("Radii must have at least 2 elements."))
     end
     log_r_bin, values, err = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
+    err[isnan.(err)] .= 0
     log_r = midpoints(log_r_bin)
     δ_log_r = diff(log_r_bin) ./ 2
 
@@ -96,10 +99,10 @@ function StellarProfile(rs;
     err[counts .== 0] .= 1
 
     if normalization == :mass
-        mass_per_annulus = mass_per_annulus ./ sum(mass_per_annulus)
+        mass_per_annulus = mass_per_annulus ./ sum(value.(mass_per_annulus))
     elseif normalization == :central
         filt_cen = log_r .< log10(r_centre)
-        Σ_m_cen = sum(mass_per_annulus[filt_cen]) ./ (π * r_centre^2)
+        Σ_m_cen = sum(value.(mass_per_annulus[filt_cen])) ./ (π * r_centre^2)
         mass_per_annulus = mass_per_annulus ./ Σ_m_cen
     elseif normalization == :none
         mass_per_annulus = mass_per_annulus
@@ -116,6 +119,7 @@ function StellarProfile(rs;
     log_Σ = log10.(Σ)
     log_Σ[Σ .== 0] .= NaN
 
+
     prof = StellarProfile(
         r_units = r_units,
         distance = distance,
@@ -124,23 +128,24 @@ function StellarProfile(rs;
         log_r_bins = log_r_bin,
         counts = counts,
         M_in = value.(M_in),
-        M_in_err = uncertainty.(M_in),
+        M_in_err = nan_uncertainty(M_in),
         mass_in_annulus = value.(mass_per_annulus),
-        mass_in_annulus_err = uncertainty.(mass_per_annulus),
+        mass_in_annulus_err = nan_uncertainty(mass_per_annulus),
         Sigma = value.(Σ),
-        Sigma_err = uncertainty.(Σ),
+        Sigma_err = nan_uncertainty(Σ),
         Sigma_m = value.(Σ_m),
-        Sigma_m_err = uncertainty.(Σ_m),
+        Sigma_m_err = nan_uncertainty(Σ_m),
         log_Sigma = value.(log_Σ),
-        log_Sigma_err = uncertainty.(log_Σ),
+        log_Sigma_err = nan_uncertainty(log_Σ),
         Gamma = value.(Γ),
-        Gamma_err = uncertainty.(Γ),
+        Gamma_err = nan_uncertainty(Γ),
         Gamma_max = value.(Γ_max),
-        Gamma_max_err = uncertainty.(Γ_max)
+        Gamma_max_err = nan_uncertainty(Γ_max)
     )
 
     return prof
 end
+
 
 function StellarProfile(snap::Snapshot;
         r_units = "kpc",
@@ -188,12 +193,26 @@ function StellarProfile(filename::String; kwargs...)
 end
 
 
+
+"""
+    nan_uncertainty(v)
+
+Returns the uncertainty of a value `v` with zero uncertainties as NaN.
+"""
+function nan_uncertainty(v::AbstractVector{<:Measurement})
+    x = uncertainty.(v)
+    x[x .== 0] .= NaN
+    return x
+end
+
+
+
 """
     ellipticity_to_aspect(ellipticity)
 
 Converts the ellipticity to the aspect ratio (b/a) of an ellipse.
 """
-function ellipticity_to_aspect(ellipticity)
+function ellipticity_to_aspect(ellipticity::Real)
     return 1 - ellipticity
 end
 
@@ -205,7 +224,7 @@ end
 
 Calculate the surface density given the radii `log_r_bin` and the mass per annuli `mass_per_annulus`.
 """
-function calc_Σ_from_hist(log_r_bin, mass_per_annulus)
+function calc_Σ_from_hist(log_r_bin::AbstractVector{<:Real}, mass_per_annulus::AbstractVector{<:Real})
     r = 10. .^ log_r_bin
     As = π * diff(r .^ 2)
 
@@ -219,7 +238,7 @@ end
 
 Calculate the surface density given the radii `log_r_bin` and the 1D density `density1d`.
 """
-function calc_Σ_from_1D_density(log_r_bin, density1d)
+function calc_Σ_from_1D_density(log_r_bin::AbstractVector{<:Real}, density1d::AbstractVector{<:Real})
     r = 10 .^ log_r_bin
     As = π * diff(r .^ 2)
 
@@ -233,22 +252,24 @@ end
 
 Calculate the logarithmic slope of the density profile given the radii `log_rs` and the surface densities `Σs`.
 """
-function calc_Γ(log_rs, Σs)
-	d_log_r = gradient(log_rs)
-	d_log_Σ = gradient(log10.(Σs))
+function calc_Γ(log_rs::AbstractVector{<:Real}, Σs::AbstractVector{<:Real})
+    d_log_r = gradient(log_rs)
+    d_log_Σ = gradient(log10.(Σs))
 
-	return d_log_Σ ./ d_log_r
+    return d_log_Σ ./ d_log_r
 end
 
 
 """
+    calc_Σ_mean_from_hist(log_r_bin, M_in)
+
 Calculates the mean surface density from the interior mass to each bin
 """
-function calc_Σ_mean_from_hist(log_r_bin, M_in)
+function calc_Σ_mean_from_hist(log_r_bin::AbstractVector{<:Real}, M_in::AbstractVector{<:Real})
     r = 10 .^ log_r_bin[2:end]
-	Areas = @. π * r^2
-	Σ_bar = M_in ./ Areas
-	return Σ_bar
+    Areas = @. π * r^2
+    Σ_bar = M_in ./ Areas
+    return Σ_bar
 end
 
 
@@ -275,11 +296,7 @@ function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
         centre="mean",
         units="arcmin"
     )
-    if centre isa Tuple
-        ra0, dec0 = centre
-    else
-        ra0, dec0 = calc_centre2D(ra, dec, centre, weights)
-    end
+    ra0, dec0 = calc_centre2D(ra, dec, centre, weights)
 
     x, y = to_tangent(ra, dec, ra0, dec0)
 
@@ -335,21 +352,27 @@ end
 
 Transforms x and y into the sheared rotated frame of the ellipse.
 Position angle is measured from y axis in the direction of positive x.
+(North to East on sky).
 """
 function shear_points_to_ellipse(x, y, a, b, PA)
+    @assert_same_size x y
+
     if a <= 0 || b <= 0
         throw(DomainError("a and b must be positive. Got a = $a, b = $b."))
     end
 
+    # rotate
     θ = @. deg2rad(PA - 90)
-	x_p = @. x * cos(θ) + -y * sin(θ)
-	y_p = @. x * sin(θ) + y * cos(θ)
+    x_p = @. x * cos(θ) + -y * sin(θ)
+    y_p = @. x * sin(θ) + y * cos(θ)
+
     # scale
     x_p = x_p ./ a
     y_p = y_p ./ b
 
     return x_p, y_p
 end
+
 
 function shear_points_to_ellipse(x, y, ell, PA)
     aspect = ellipticity_to_aspect(ell)
@@ -361,65 +384,12 @@ end
 
 
 
-
-function min_distance_to_polygon(x, y)
-    min_dist = Inf
-    N = length(x)
-    for i in 1:N
-        a = [x[i], y[i]]
-        j = mod1(i + 1, N)
-        b = [x[j], y[j]]
-
-        dist = distance_to_segment(a, b)
-
-        min_dist = min(min_dist, dist)
-    end
-
-    return min_dist
-end
-
-    
 """
-    distance_to_segment(a, b, p)
+    spherical_mean(ra, dec, weights=nothing)
 
-Distance from point `p` to the line segment defined by `a` and `b`.
-all points are 2D vectors.
+Calculates the spherical mean of a set of sky coordinates (ra, dec) with optional weights. The mean is calculated by taking the average of the unit vectors of the points, so avoids problems with periodicity and spherical geometry.
 """
-function distance_to_segment(a, b, p=zeros(2))
-    a = vec(a)
-    b = vec(b)
-
-    # work in origin at p
-    a -= p
-    b -= p
-
-    # is the segment a point?
-    l = norm(a - b)
-    if l == 0
-        return norm(a)  
-    end
-
-    # line unit vector
-    n = (a - b) / l
-    # projection along line
-    t = dot(a, n) 
-
-    if t < 0
-        closest_point = a
-    elseif t > l
-        closest_point = b
-    else
-        closest_point = a - t * n
-    end
-
-    dist = norm(closest_point)
-
-    return dist
-end
-
-
-
-function spherical_mean(ra, dec, weights=nothing)
+function spherical_mean(ra::AbstractVector{<:Real}, dec::AbstractVector{<:Real}, weights::Union{Nothing, AbstractVector{<:Real}}=nothing)
     if length(ra) != length(dec)
         throw(DimensionMismatch("ra and dec must have the same length."))
     end
@@ -431,7 +401,7 @@ function spherical_mean(ra, dec, weights=nothing)
         mean_pos = centroid(pos, weights)
     end
 
-    ra0, dec0, r= cartesian_to_sky(mean_pos...)
+    ra0, dec0, r = cartesian_to_sky(mean_pos...)
     if r == 0
         throw(DomainError("Mean position is at the origin."))
     end
@@ -441,18 +411,25 @@ end
 
 
 """
-Calculates the 2d centre givin data.
+    calc_centre2D(ra, dec, centre_method, weights=nothing)
+
+Calculates the centre of vectors of ra and dec (with weights) using one of the
+following methods:
+- "mean": calculates the mean of the vectors
+- Tuple{ra0, dec0}: uses the given ra0 and dec0 as the centre (bypasses calculation)
+This is a utility function.
+
 """
-function calc_centre2D(ra, dec, centre_method, weights=nothing)
-	if centre_method == "mean"
-		ra0, dec0 = spherical_mean(ra, dec, weights)
+function calc_centre2D(ra::AbstractVector{<:Real}, dec::AbstractVector{<:Real}, centre_method, weights=nothing)
+    if centre_method == "mean"
+        ra0, dec0 = spherical_mean(ra, dec, weights)
     elseif centre_method isa Tuple
         ra0, dec0 = centre_method
     else
-        error("centre method not implemented: $centre_method")
-	end
+        throw(ArgumentError("centre method not implemented: $centre_method"))
+    end
 
-	return ra0, dec0
+    return ra0, dec0
 end
 
 
