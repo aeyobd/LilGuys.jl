@@ -222,6 +222,20 @@ end
 
 
 """
+    structs_to_int_pairs(structs)
+
+Converts a vector of of pairs of string=>struct to a sorted vector of pairs
+of int=>struct.
+"""
+function structs_to_int_pairs(structs::AbstractVector{<:Pair{String, <:Any}})
+    structs_new = Pair{Int, <:Any}[(parse(Int, k) => v) for (k, v) in structs]
+    idx = sortperm(first.(structs_new))
+    structs_new = structs_new[idx]
+    return structs_new
+end
+
+
+"""
     write_struct_to_hdf5(filename, obj[, group=""])
 
 Writes a struct to an HDF5 file. Each field in the struct is stored
