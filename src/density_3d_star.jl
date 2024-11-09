@@ -1,7 +1,6 @@
 """
 Represents a stellar density profile in 3D,
 """
-
 @kwdef struct StellarProfile3D
     "1D averaged velocity dispersion"
     sigma_vx::F 
@@ -34,7 +33,23 @@ Represents a stellar density profile in 3D,
 end
 
 
-function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99], r_max=1/r_scale)
+"""
+    StellarProfile3D(snap; args...)
+
+Calculate the 3D stellar density profile of the snapshot.
+
+# Arguments
+- `snap::Snapshot`: The snapshot to calculate the profile of
+- `bins::Vector{Real}`: The bin edges (in log r) to use for the profile
+- `quantiles::Vector{Real}`: The mass quantiles to calculate radii of
+- `r_max::Real=1`: The maximum radius to calculate the velocity dispersion for
+- `delta_t::Real=NaN`: The time since the last pericentre (optional). Used for break radius
+"""
+function StellarProfile3D(snap; delta_t=NaN, bins=nothing, 
+        quantiles=[0.01, 0.03, 0.1, 0.5, 0.9, 0.99], 
+        r_max=1,
+    )
+
     log_r_snap = log10.(calc_r(snap))
 
     bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights)
@@ -65,12 +80,10 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing, quantiles=[0.01, 0.03
     M_in = cumsum(mass_in_shell)
     M_in_err = 1 ./ sqrt.(cumsum(counts)) .* M_in
 
-    σ_vx = calc_σv_x(snap, r_max=r_max)
     σ_v_1d = calc_σv_1d(snap, r_max=r_max)
-    @info "σ_vx = $σ_vx, σ_v_1d = $σ_v_1d"
-
-    r_break = calc_break_radius(σ_vx, delta_t)
+    r_break = calc_break_radius(σ_v_1d, delta_t)
     r_quantile = find_r_quantile_star(snap, quantiles)
+
     return StellarProfile3D(
         sigma_vx=σ_v_1d, 
         rho=rho,
@@ -89,8 +102,15 @@ end
 
 
 
-function scale(prof::StellarProfile3D, r_scale, v_scale, m_scale)
+"""
+    scale(prof::StellarProfile3D, r_scale, v_scale, m_scale)
 
+Scale the profile by the given factors, returning a new
+instance of StellarProfile3D. Note that the mass scale affects
+only the stellar mass. (Changes to the potential would change 
+the v_scale but this only affects the velocity dispersion)
+"""
+function scale(prof::StellarProfile3D, r_scale::Real, v_scale::Real, m_scale::Real=1)
     return StellarProfile3D(
         sigma_vx=prof.sigma_vx * v_scale,
         rho=prof.rho * m_scale / r_scale^3,
@@ -155,11 +175,12 @@ function calc_σv_1d(snap; r_max=1)
 end
 
 
-@doc raw"""
-	calc_rb(σ, delta_t)
 
-Given a radial velocity dispersion σ and the time since last pericentre (all code units)
-calculate the break radius in kpc (code units).
+@doc raw"""
+	calc_break_radius(σ, delta_t)
+
+Given a radial velocity dispersion σ and the time since last pericentre (all
+code units) calculate the break radius in kpc (code units).
 
 See peñarrubia et al. (200X) for the original equation.
 ```math
@@ -167,6 +188,6 @@ r_{\rm break} = C\,\sigma_{v}\,\Delta t
 ```
 where $C=0.55$ is an empirical fit
 """
-function calc_break_radius(σ::F, delta_t::F; C=0.55)
-	return C * σ  * delta_t
+function calc_break_radius(σ::Real, delta_t::Real; C::Real=0.55)
+    return C * σ  * delta_t
 end

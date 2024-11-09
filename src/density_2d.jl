@@ -478,7 +478,13 @@ function to_orbit_coords(ra::Real, dec::Real, ra0::Real, dec0::Real, PA::Real)
 end
 
 
-function scale(prof::StellarProfile, r_scale, m_scale)
+"""
+    scale(prof::StellarProfile, r_scale::Real, m_scale::Real)
+
+Scales the profile by a factor of `r_scale` in radius and `m_scale` in mass,
+returning a new profile.
+"""
+function scale(prof::StellarProfile, r_scale::Real, m_scale::Real)
     if prof.normalization == "mass"
         if m_scale != 1
             @warn "Normalization is mass, but mass scale is not 1."

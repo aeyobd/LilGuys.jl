@@ -76,10 +76,10 @@ end
 
 Create a snapshot with constant mass.
 """
-function Snapshot(positions, velocities, mass::Real)
+function Snapshot(positions, velocities, mass::Real; kwargs...)
     N = size(positions, 2)
     masses = ConstVector(mass, N)
-    return Snapshot(positions, velocities, masses)
+    return Snapshot(positions, velocities, masses; kwargs...)
 end
 
 
@@ -88,7 +88,7 @@ end
 
 Create a snapshot.
 """
-function Snapshot(positions, velocities, masses)
+function Snapshot(positions, velocities, masses; kwargs...)
     N = size(positions, 2)
     if size(velocities) != size(positions)
         throw(DimensionMismatch("velocities and positions must have the same size"))
@@ -105,7 +105,7 @@ function Snapshot(positions, velocities, masses)
 
     header = make_default_header(N, m_header)
     index = collect(1:N)
-    return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index)
+    return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index; kwargs...)
 end
 
 
