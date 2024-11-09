@@ -88,6 +88,30 @@ end
 
         @test_throws Exception LilGuys.StellarProfile(radii, bins=bins, normalization=:jaberwocky)
     end
+
+
+
+    @testset "snapshot" begin
+        x = [0., 0.5, 1.0, -1.0]
+        y = [1.0, 0.0, -2.5, 3.0]
+        z = [0.0, 1.0, 0.5, -1.0]
+
+        positions = [x y z]'
+        velocities = zeros(3, 4)
+        masses = [1, 0, 1, 0]
+
+        snap = LilGuys.Snapshot(positions, velocities, ones(4))
+        snap.weights = masses
+
+        prof = LilGuys.StellarProfile(snap)
+
+        prof = LilGuys.StellarProfile(snap, x_vec = [0, 1, 0], y_vec = [0, 0, 1])
+
+        prof = LilGuys.StellarProfile(snap, r_units="arcmin")
+
+        prof = LilGuys.StellarProfile(snap, normalization=:none)
+        @test false broken=true
+    end
 end
 
 
@@ -130,15 +154,9 @@ end
             if v isa String
                 @test getproperty(obs2, name) == v
             elseif v isa Real
-                if isnan(v)
-                    @test isnan(getproperty(obs2, name))
-                else
-                    @test v ≈ getproperty(obs2, name)
-                end
+                @test v ≈ getproperty(obs2, name) nans=true
             else    
-                filt = .!isnan.(v)
-                @test v[filt] ≈ getproperty(obs2, name)[filt]
-                @test isnan.(v) == isnan.(getproperty(obs2, name))
+                @test v ≈ getproperty(obs2, name) nans=true
             end
         end
     end
@@ -362,15 +380,9 @@ end
             if v isa String
                 @test getproperty(obs2, name) == v
             elseif v isa Real
-                if isnan(v)
-                    @test isnan(getproperty(obs2, name))
-                else
-                    @test v ≈ getproperty(obs2, name)
-                end
+                @test v ≈ getproperty(obs2, name) nans=true
             else    
-                filt = .!isnan.(v)
-                @test v[filt] ≈ getproperty(obs2, name)[filt]
-                @test isnan.(v) == isnan.(getproperty(obs2, name))
+                @test v ≈ getproperty(obs2, name) nans=true
             end
         end
     end
@@ -488,18 +500,36 @@ end
     r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90)
     @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
+    r_ell = LilGuys.calc_r_ell_sky(ra, dec)
+    @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
+
     r_ell = LilGuys.calc_r_ell_sky(ra, dec, 0, 45)
     @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 23, units="arcsec")
-    @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 * 60 .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, -234, units="deg")
-    @test r_ell ≈ [0., 1, 1, 1, 1]  .* r0
+    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 3, 1, 90, units="deg")
+    @test r_ell ≈ [0., 1/3, 1, 1/3, 1]  .* r0
 
+    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 0.5, 0, units="deg")
+    @test r_ell ≈ [0., 2, 1, 2, 1] / sqrt(2)  .* r0
 
     r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, -24, centre=(34 - 2r0, 0), units="deg")
     @test r_ell ≈ [2., 3., √5, 1, √5]  .* r0 rtol=1e-6
+
+
+    @testset "units" begin
+
+        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90, units="arcmin")
+        @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
+
+        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 23, units="arcsec")
+        @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 * 60 .* r0
+
+        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, -234, units="deg")
+        @test r_ell ≈ [0., 1, 1, 1, 1]  .* r0
+
+        @test_throws Exception LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90, units="jabberwocky")
+    end
 end
 
 @testset "to_orbit_coords" begin
@@ -574,5 +604,34 @@ end
         dec2 = last.(radec)
         @test ra2 ≈ zeros(N) atol=1e-5
         @test dec2 ≈ α_exp atol=1e-6
+    end
+end
+
+
+
+@testset "scale" begin
+    N = 100
+
+    r = 10 .^ (0 .+ 0.4randn(N))
+    m = rand(N)
+
+    bins = LinRange(-1, 1, 5)
+    prof_1 = LilGuys.StellarProfile(r, weights=m, bins=bins, normalization=:none)
+
+    M_scale = 0.232
+    r_scale = 1.992
+    prof_1 = LilGuys.scale(prof_1, r_scale, M_scale)
+
+    prof_2 = LilGuys.StellarProfile(r * r_scale, weights=m * M_scale, bins=bins .+ log10(r_scale), normalization=:none)
+
+    for key in fieldnames(typeof(prof_1))
+        v1 = getproperty(prof_1, key)
+        v2 = getproperty(prof_2, key)
+        
+        if v1 isa Real
+            @test v2 ≈ v1 nans=true
+        elseif v1 isa AbstractVector
+            @test v1 ≈ v2 nans=true
+        end
     end
 end

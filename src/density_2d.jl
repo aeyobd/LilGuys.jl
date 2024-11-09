@@ -41,6 +41,8 @@ An observed 2D density profile
     Gamma_max_err::Vector{F}
 
     time::F = NaN
+
+    normalization::String = "mass"
 end
 
 
@@ -140,23 +142,30 @@ function StellarProfile(rs;
         Gamma = value.(Γ),
         Gamma_err = nan_uncertainty(Γ),
         Gamma_max = value.(Γ_max),
-        Gamma_max_err = nan_uncertainty(Γ_max)
+        Gamma_max_err = nan_uncertainty(Γ_max),
+        normalization = string(normalization),
     )
 
     return prof
 end
 
 
+"""
+    StellarProfile(snap::Snapshot; r_units="kpc", x_vec=[1, 0, 0], y_vec=[0, 1, 0], kwargs...)
+
+Creates a StellarProfile from a snapshot. 
+If the units is set to kpc, than the profile is calculated in the xy plane defined
+by the vectors x_vec and y_vec. Otherwise, the snapshot is projected as is to the sky by `to_gaia` and then the profile is calculated using the circular radius
+of the on-sky tangent plane. Kwarguments are passed to the StellarProfile constructor for a list of radii.
+"""
 function StellarProfile(snap::Snapshot;
         r_units = "kpc",
-        eye_vector=[0, 0, 1],
+        x_vec = [1, 0, 0],
+        y_vec = [0, 1, 0],
         kwargs...
     )
 
     if r_units == "kpc"
-        x_vec = normalize([1, 0, 0] × eye_vector)
-        y_vec = normalize(x_vec × eye_vector)
-
         N = size(snap.positions, 2)
         ra = [dot(snap.positions[:, i], x_vec) for i in 1:N]
         dec = [dot(snap.positions[:, i], y_vec) for i in 1:N]
@@ -164,13 +173,15 @@ function StellarProfile(snap::Snapshot;
         weights = snap.weights
         ra0 = snap.x_cen ⋅ x_vec
         dec0 = snap.x_cen ⋅ y_vec
-    else 
-        projected = to_gaia(snap, add_centre=true)
+    elseif r_units ∈ ["arcmin", "arcsec", "deg"]
+        projected = to_gaia(snap, add_centre=true) # centre has zero weight
         ra = projected.ra
         dec = projected.dec
         ra0 = projected.ra[1]
         dec0 = projected.dec[1]
         weights = projected.weights
+    else
+        throw(ArgumentError("r_units not implemented: $r_units"))
     end
 
     xi, eta = to_tangent(ra, dec, ra0, dec0)
@@ -178,6 +189,7 @@ function StellarProfile(snap::Snapshot;
 
     return StellarProfile(r; r_units=r_units, weights=weights, kwargs...)
 end
+
 
 
 function Base.print(io::IO, prof::StellarProfile)
@@ -467,6 +479,12 @@ end
 
 
 function scale(prof::StellarProfile, r_scale, m_scale)
+    if prof.normalization == "mass"
+        if m_scale != 1
+            @warn "Normalization is mass, but mass scale is not 1."
+        end
+    end
+
     return StellarProfile(
         r_units = prof.r_units,
         distance = prof.distance,
@@ -482,7 +500,7 @@ function scale(prof::StellarProfile, r_scale, m_scale)
         Sigma_m = prof.Sigma_m * m_scale / r_scale^2,
         Sigma_m_err = prof.Sigma_m_err * m_scale / r_scale^2,
         log_Sigma = prof.log_Sigma .+ log10(m_scale) .- 2log10(r_scale),
-        log_Sigma_err = prof.log_Sigma_err .+ log10(m_scale) .- 2log10(r_scale),
+        log_Sigma_err = prof.log_Sigma_err,
         Gamma = prof.Gamma,
         Gamma_err = prof.Gamma_err,
         Gamma_max = prof.Gamma_max,
