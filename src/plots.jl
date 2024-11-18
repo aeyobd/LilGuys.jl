@@ -28,11 +28,13 @@ Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each 
 - `args...`: 3xN matricies of xyz positions.
 - `plot!`: The plotting function to use. Default is `lines!`.
 - `labels`: Labels for each orbit.
+- `xlabel`, `ylabel`, `zlabel`: Labels for the axes.
 - `units`: Units for the axes.
 - `limits`: Limits for the axes. Should be a tuple of tuples for x y and z limits
 - `kwargs...`: Additional keyword arguments to pass to the plotting function.
 """
 function plot_xyz(args...; plot! = lines!, labels=nothing,
+        xlabel="x", ylabel="y", zlabel="z",
         units=" / kpc", limits=nothing, kwargs...)
 
     fig = Figure()
@@ -47,11 +49,11 @@ function plot_xyz(args...; plot! = lines!, labels=nothing,
         limits = ((-rmax, rmax), (-rmax, rmax), (-rmax, rmax))
     end
 
-    ax_xy = Axis(fig[1, 1], xlabel="x$units", ylabel="y$units", 
+    ax_xy = Axis(fig[1, 1], xlabel="$xlabel$units", ylabel="$ylabel$units", 
                  aspect=DataAspect(), limits=limits[1:2])
-    ax_yz = Axis(fig[2, 2], xlabel="y$units", ylabel="z$units", 
+    ax_yz = Axis(fig[2, 2], xlabel="$ylabel$units", ylabel="$zlabel$units", 
                  aspect=DataAspect(), limits=limits[2:3])
-    ax_xz = Axis(fig[2, 1], xlabel="x$units", ylabel="z$units", 
+    ax_xz = Axis(fig[2, 1], xlabel="$xlabel$units", ylabel="$zlabel$units", 
                  aspect=DataAspect(), limits=limits[[1, 3]])
 
     for i in 1:Nargs
@@ -65,6 +67,7 @@ function plot_xyz(args...; plot! = lines!, labels=nothing,
         plot!(ax_xz, args[i][1, :], args[i][3, :]; label=label, kwargs...)
     end
 
+    # hide extra axis labels since they are linked
     linkxaxes!(ax_xy, ax_xz)
     hidexdecorations!(ax_xy, grid=false, ticks=false, minorticks=false)
     linkyaxes!(ax_xz, ax_yz)
@@ -73,6 +76,12 @@ function plot_xyz(args...; plot! = lines!, labels=nothing,
     if labels !== nothing
         Legend(fig[1, 2], ax_xy, tellwidth=false)
     end
+
+    # fixes spacing...
+    rowsize!(fig.layout, 1, Aspect(1, 1))
+    rowsize!(fig.layout, 2, Aspect(1, 1))
+
+    resize_to_layout!(fig)
 
     return fig
 end

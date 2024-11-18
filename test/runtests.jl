@@ -2,10 +2,10 @@ include("setup.jl")
 
 
 tests = ["units", "utils", 
-         "io",
+         "io", "interface",
          "snapshot", "output",
          "spherical", "coordinates", "coord_trans",
-         "density_2d", "density_3d",
+         "density_2d", "density_3d", "density_3d_star",
          "nfw",
          "physics", "gravity", 
          "centre_static", "analytic_profiles", 

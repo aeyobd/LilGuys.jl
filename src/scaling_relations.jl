@@ -1,3 +1,21 @@
+"""
+Given the maximum circular velocity (in km/s), returns the stellar mass (in Msun).
+Uses the fit from @fattahi2018.
+"""
+function M_s_from_vel_fattahi(v_max)
+	ν = v_max * V2KMS / 50 # km/s
+	α = 3.36
+	γ = -2.4
+	m_0 = 3e-2 # 1e10 Msun
+	return m_0 * ν^α * exp(-ν^γ)
+end
+
+
+function vel_from_M_s_fattahi(Mstar) # code units
+    return find_zero(ν -> M_s_from_vel_fattahi(ν) - Mstar, 0.1)
+end
+
+
 
 
 @doc raw"""

@@ -272,18 +272,35 @@ end
     peris_apos(out::Output; verbose::Bool=false)
 
 Calculate the pericentre and apocentre of the system.
-Returns the particle index and the peris and apos of each particle.
+Returns a dataframe with the columns
+- `index` the index of the particle
+- `peris` the pericentre of the particle
+- `apos` the apocentre of the particle
+- `t_last_peris` the time of the last pericentre passage
+- `t_last_apos` the time of the last apocentre passage
 """
-function peris_apos(out::Output; verbose::Bool=false)
+function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
 
     idx0 = sort(out[1].index)
 
-    r0 = calc_r(out[1].positions)[sortperm(out[1].index)]
+    if length(size(x0)) == 2
+        x = x0[:, 1]
+    else
+        x = x0
+    end
+
+    r0 = calc_r(out[1].positions, x)[sortperm(out[1].index)]
+    rm1 = copy(r0)
+    rm2 = copy(r0)
     peris = copy(r0)
     apos = copy(r0)
+    t_last_peris = fill(NaN, length(r0))
+    t_last_apos = fill(NaN, length(r0))
+
     if verbose
         @info "begining peri apo calculation"
     end
+
 
     N = length(out)
     for i in 2:N
@@ -296,16 +313,40 @@ function peris_apos(out::Output; verbose::Bool=false)
 
         @assert snap.index[idx] == idx0 "snapshots have different indices"
 
-        r = calc_r(snap.positions[:, idx])
-        apos .= max.(apos, r)
-        peris .= min.(peris, r)
+        if length(size(x0)) == 2
+            x = x0[:, i]
+        else
+            x = x0
+        end
+
+        r = calc_r(snap.positions[:, idx], x)
+
+        # rm1 is a minimum & not calculated yet
+        filt_peri = (r .>= rm1) .& (rm1 .<= rm2) .& isnan.(t_last_peris)
+        filt_apo = (r .<= rm1) .& (rm1 .>= rm2) .& isnan.(t_last_apos)
+
+        if i > 2
+            t_last_peris[filt_peri] .= out.times[i-1]
+            t_last_apos[filt_apo] .= out.times[i-1]
+            apos .= max.(apos, r)
+            peris .= min.(peris, r)
+        end
+
+        rm2 .= rm1
+        rm1 .= r
     end
     
     if verbose
         @info "completed peri apo calculation"
     end
 
-    return idx0, peris, apos  
+    return DataFrame(
+        :index => idx0,
+        :pericentre => peris,
+        :apocentre => apos,
+        :t_last_peri => t_last_peris,
+        :t_last_apo => t_last_apos,
+       )
 end
 
 
