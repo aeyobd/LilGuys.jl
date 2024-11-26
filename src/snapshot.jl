@@ -88,7 +88,7 @@ end
 
 Create a snapshot.
 """
-function Snapshot(positions, velocities, masses; kwargs...)
+function Snapshot(positions, velocities, masses; time=0,kwargs...)
     N = size(positions, 2)
     if size(velocities) != size(positions)
         throw(DimensionMismatch("velocities and positions must have the same size"))
@@ -103,9 +103,9 @@ function Snapshot(positions, velocities, masses; kwargs...)
         end
     end
 
-    header = make_default_header(N, m_header)
+    header = make_default_header(N, m_header, time)
     index = collect(1:N)
-    return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index; kwargs...)
+    return Snapshot(positions=positions, velocities=velocities, masses=masses, header=header, index=index; time=time,kwargs...)
 end
 
 
@@ -188,6 +188,7 @@ function Base.getindex(snap::Snapshot, idx)
     kwargs[:v_cen] = snap.v_cen
     kwargs[:header] = snap.header
     kwargs[:filename] = snap.filename
+    kwargs[:time] = snap.time
 
     for sym in [:positions, :velocities, :masses, :index, :accelerations, :Φs, :Φs_ext, :weights]
         if getproperty(snap, sym) === nothing
@@ -294,12 +295,12 @@ end
 
 Create a default Gadget header for a snapshot with N particles and DM mass `mass`.
 """
-function make_default_header(N, mass)
+function make_default_header(N, mass, time=0)
 
     return Dict(
         "NumPart_ThisFile"=>UInt64[0, N],
         "MassTable"=>F[0.0, mass],
-        "Time"=>0.0,
+        "Time"=>time,
         "Redshift"=>0.0,
         "NumPart_Total"=>UInt64[0, N],
         "NumFilesPerSnapshot"=>1,

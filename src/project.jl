@@ -41,11 +41,11 @@ function to_gaia(snap::Snapshot;
         snap = shift_snapshot_to_distance(snap, set_to_distance)
     end
 
-    @info "Converting $(sum(filt)) particles to Gaia-like DataFrame"
-
+    @info "transforming coordinate frames"
     observations = to_sky(snap[filt]; kwargs...)
     obs_cen = phase_to_sky(snap.x_cen, snap.v_cen; kwargs...)
 
+    @info "converting $(sum(filt)) particles to Gaia-like DataFrame"
     df = to_frame(observations)
     df[!, :index] = snap.index[filt]
 
@@ -68,7 +68,7 @@ function to_gaia(snap::Snapshot;
 
     if filt_wrong_hemisphere
         filt_nan = isnan.(df.xi) .| isnan.(df.eta)
-        @info "Excluded $(sum(filt_nan)) observations on wrong hemisphere"
+        @info "excluded $(sum(filt_nan)) observations on wrong hemisphere"
         df = df[.!filt_nan, :]
     end
 

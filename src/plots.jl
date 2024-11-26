@@ -17,29 +17,36 @@ const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
 const xi_arcmin_label = L"\xi\, /\, \mathrm{arcmin}"
 const eta_arcmin_label = L"\eta\, /\, \mathrm{arcmin}"
 
-
-"""
-    plot_xyz(args...; plot!, labels, units, limits, kwargs...)
+const markers = [:circle, :rect, :star5, :cross, :diamond, :hexagon, :octagon, :star4, :star6, :star7, :star8, :star9, :star10, :star11, :star12, :star13, :star14, :star15, :star16, :star17, :star18, :star19, :star20]
 
 
-Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
+function axis_xyz(fig; limits, 
+        xlabel="x", ylabel="y", zlabel="z", units=" / kpc")
+    ax_xy = Axis(fig[1, 1], xlabel="$xlabel$units", ylabel="$ylabel$units", 
+                 aspect=DataAspect(), limits=limits[1:2])
+    ax_yz = Axis(fig[2, 2], xlabel="$ylabel$units", ylabel="$zlabel$units", 
+                 aspect=DataAspect(), limits=limits[2:3])
+    ax_xz = Axis(fig[2, 1], xlabel="$xlabel$units", ylabel="$zlabel$units", 
+                 aspect=DataAspect(), limits=limits[[1, 3]])
 
-# Arguments
-- `args...`: 3xN matricies of xyz positions.
-- `plot!`: The plotting function to use. Default is `lines!`.
-- `labels`: Labels for each orbit.
-- `xlabel`, `ylabel`, `zlabel`: Labels for the axes.
-- `units`: Units for the axes.
-- `limits`: Limits for the axes. Should be a tuple of tuples for x y and z limits
-- `kwargs...`: Additional keyword arguments to pass to the plotting function.
-"""
-function plot_xyz(args...; plot! = lines!, labels=nothing,
-        xlabel="x", ylabel="y", zlabel="z",
-        units=" / kpc", limits=nothing, kwargs...)
+    # hide extra axis labels since they are linked
+    linkxaxes!(ax_xy, ax_xz)
+    hidexdecorations!(ax_xy, grid=false, ticks=false, minorticks=false)
+    linkyaxes!(ax_xz, ax_yz)
+    hideydecorations!(ax_yz, grid=false, ticks=false, minorticks=false)
 
-    fig = Figure()
+    # fixes spacing...
+    rowsize!(fig.layout, 1, Aspect(1, 1))
+    rowsize!(fig.layout, 2, Aspect(1, 1))
+
+    resize_to_layout!(fig)
+
+    return ax_xy, ax_yz, ax_xz
+end
+
+
+function limits_xyz(args...; limits=nothing)
     Nargs = length(args)
-
     if limits === nothing
         xmax = maximum([maximum(abs.(args[i][1, :])) for i in 1:Nargs])
         ymax = maximum([maximum(abs.(args[i][2, :])) for i in 1:Nargs])
@@ -49,41 +56,103 @@ function plot_xyz(args...; plot! = lines!, labels=nothing,
         limits = ((-rmax, rmax), (-rmax, rmax), (-rmax, rmax))
     end
 
-    ax_xy = Axis(fig[1, 1], xlabel="$xlabel$units", ylabel="$ylabel$units", 
-                 aspect=DataAspect(), limits=limits[1:2])
-    ax_yz = Axis(fig[2, 2], xlabel="$ylabel$units", ylabel="$zlabel$units", 
-                 aspect=DataAspect(), limits=limits[2:3])
-    ax_xz = Axis(fig[2, 1], xlabel="$xlabel$units", ylabel="$zlabel$units", 
-                 aspect=DataAspect(), limits=limits[[1, 3]])
+    return limits
+end
 
+
+"""
+    plot_xyz(args...; plot!, labels, units, limits, kwargs...)
+
+
+Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
+
+# Arguments
+- `args...`: 3xN matricies of xyz positions.
+- `plot`: The plotting mode to use. May be :scatter or :lines
+- `labels`: Labels for each orbit.
+- `idx_scatter`: If set, also plots points at the given index for each 
+- `xlabel`, `ylabel`, `zlabel`: Labels for the axes.
+- `units`: Units for the axes.
+- `limits`: Limits for the axes. Should be a tuple of tuples for x y and z limits
+- `kwargs...`: Additional keyword arguments to pass to the plotting function.
+"""
+function plot_xyz(args...; labels=nothing, limits=nothing, idx_scatter=nothing, times=nothing,
+        xlabel="x", ylabel="y", zlabel="z", units=" / kpc", colorrange=nothing, kwargs...)
+
+    limits = limits_xyz(args...; limits=limits)
+    fig = Figure()
+    axes = axis_xyz(fig; limits=limits, xlabel=xlabel, ylabel=ylabel, 
+                    zlabel=zlabel, units=units)
+
+    if colorrange === nothing && times !== nothing
+        colorrange = extrema(times * T2GYR)
+        kwargs = (; colorrange=colorrange, kwargs...)
+    end
+
+    p = plot_xyz!(axes, args...; labels=labels, times=times, kwargs...)
+
+    if idx_scatter !== nothing
+        args_scatter = [arg[:, idx] for (arg, idx) in zip(args, idx_scatter)]
+        println(args_scatter)
+
+
+        if times !== nothing
+            times = times[idx_scatter[1]]
+        else
+            times = nothing
+        end 
+
+
+        plot_xyz!(axes, args_scatter...; times=times, plot=:scatter, labels=nothing, kwargs...)
+    end
+
+    if labels !== nothing
+        Legend(fig[1, 2], axes[1], tellwidth=false)
+    elseif times !== nothing
+        cbar = Colorbar(fig[1, 2], p, label="time / Gyr", tellwidth=false, halign=:left)
+    end
+
+
+    return fig
+end
+
+
+
+function plot_xyz!(axes, args...; plot = :lines, labels=nothing, 
+        times=nothing, limits=nothing, kwargs...)
+
+    if plot === :lines
+        plot! = lines!
+    elseif plot === :scatter
+        plot! = scatter!
+    else
+        error("Unknown plot type: $plot")
+    end
+
+    ax_xy, ax_yz, ax_xz = axes
+
+    Nargs = length(args)
+
+    if times !== nothing
+        kwargs = (; color=times * T2GYR, kwargs...)
+    end
+
+    local p
     for i in 1:Nargs
         if labels !== nothing
             label = labels[i]
         else 
             label = nothing
         end
+
         plot!(ax_xy, args[i][1, :], args[i][2, :]; label=label, kwargs...)
         plot!(ax_yz, args[i][2, :], args[i][3, :]; label=label, kwargs...)
-        plot!(ax_xz, args[i][1, :], args[i][3, :]; label=label, kwargs...)
+        p = plot!(ax_xz, args[i][1, :], args[i][3, :]; label=label, kwargs...)
     end
 
-    # hide extra axis labels since they are linked
-    linkxaxes!(ax_xy, ax_xz)
-    hidexdecorations!(ax_xy, grid=false, ticks=false, minorticks=false)
-    linkyaxes!(ax_xz, ax_yz)
-    hideydecorations!(ax_yz, grid=false, ticks=false, minorticks=false)
 
-    if labels !== nothing
-        Legend(fig[1, 2], ax_xy, tellwidth=false)
-    end
 
-    # fixes spacing...
-    rowsize!(fig.layout, 1, Aspect(1, 1))
-    rowsize!(fig.layout, 2, Aspect(1, 1))
-
-    resize_to_layout!(fig)
-
-    return fig
+    return p
 end
 
 

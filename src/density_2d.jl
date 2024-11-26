@@ -73,6 +73,7 @@ function StellarProfile(rs;
         r_units="", 
         distance=NaN,
         sigma_v=NaN,
+        kwargs...
     )
 
     if weights === nothing
@@ -100,6 +101,10 @@ function StellarProfile(rs;
 
     err[counts .== 0] .= 1
 
+    if normalization isa String
+        normalization = Symbol(normalization)
+    end
+
     if normalization == :mass
         mass_per_annulus = mass_per_annulus ./ sum(value.(mass_per_annulus))
     elseif normalization == :central
@@ -122,7 +127,7 @@ function StellarProfile(rs;
     log_Σ[Σ .== 0] .= NaN
 
 
-    prof = StellarProfile(
+    prof = StellarProfile(;
         r_units = r_units,
         distance = distance,
         sigma_v = sigma_v,
@@ -144,6 +149,7 @@ function StellarProfile(rs;
         Gamma_max = value.(Γ_max),
         Gamma_max_err = nan_uncertainty(Γ_max),
         normalization = string(normalization),
+        kwargs...
     )
 
     return prof
@@ -187,7 +193,7 @@ function StellarProfile(snap::Snapshot;
     xi, eta = to_tangent(ra, dec, ra0, dec0)
     r = sqrt.(xi .^ 2 + eta .^ 2)
 
-    return StellarProfile(r; r_units=r_units, weights=weights, kwargs...)
+    return StellarProfile(r; r_units=r_units, weights=weights, time=snap.time, kwargs...)
 end
 
 
