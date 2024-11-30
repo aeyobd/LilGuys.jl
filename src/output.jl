@@ -320,7 +320,10 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
         end
 
         r = calc_r(snap.positions[:, idx], x)
+        apos .= max.(apos, r)
+        peris .= min.(peris, r)
 
+        # calculate if at local max/min
         # rm1 is a minimum & not calculated yet
         filt_peri = (r .>= rm1) .& (rm1 .<= rm2) .& isnan.(t_last_peris)
         filt_apo = (r .<= rm1) .& (rm1 .>= rm2) .& isnan.(t_last_apos)
@@ -328,8 +331,6 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
         if i > 2
             t_last_peris[filt_peri] .= out.times[i-1]
             t_last_apos[filt_apo] .= out.times[i-1]
-            apos .= max.(apos, r)
-            peris .= min.(peris, r)
         end
 
         rm2 .= rm1

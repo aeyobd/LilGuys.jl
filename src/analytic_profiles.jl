@@ -514,6 +514,11 @@ function calc_Σ_from_ρ(profile::SphericalProfile, R::Real)
     return 2*integrate(integrand, R, Inf)
 end
 
+function calc_Σ(profile::SphericalProfile, R::Real)
+    return calc_Σ_from_ρ(profile, R)
+end
+
+
 
 """
     calc_v_circ(profile, r)

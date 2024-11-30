@@ -6,13 +6,18 @@ using Printf
 using HDF5
 using Arya
 
+const white = Makie.RGBA{Float32}(1.0f0, 1.0f0, 1.0f0, 1.0f0)
+const yellow = COLORS[7]
+const orange = COLORS[2]
+const red = COLORS[6]
+const pink = COLORS[4]
 # Define default colors
 const DEFAULT_COLORS = [
-    Makie.RGBA{Float32}(1.0f0, 1.0f0, 1.0f0, 1.0f0),      # White
-    COLORS[7], # yellow
-    COLORS[2], # orange
-    COLORS[6], # rust
-    COLORS[4], # pink
+    white,
+    yellow,
+    orange,
+    red,
+    pink
 ]
 
 
@@ -180,6 +185,8 @@ function have_same_bins(h5files, staticfiles=[])
             xbins = h5files[i]["/$(key)/xbins"][:]
             ybins = h5files[i]["/$(key)/ybins"][:]
             if !( xbins1 ≈ xbins && ybins1 ≈ ybins )
+                @info "xrange: $(length(xbins1)), $(extrema(xbins1)) vs $(length(xbins)), $(extrema(xbins))"
+                @info "yrange: $(length(ybins1)), $(extrema(ybins1)) vs $(length(ybins)), $(extrema(ybins))"
                 return false
             end
         end
@@ -189,11 +196,37 @@ function have_same_bins(h5files, staticfiles=[])
         xbins = staticfiles[i]["/xbins"][:]
         ybins = staticfiles[i]["/ybins"][:]
         if !( xbins1 ≈ xbins && ybins1 ≈ ybins )
+            @info "xrange: $(length(xbins1)), $(extrema(xbins1)) vs $(length(xbins)), $(extrema(xbins))"
+            @info "yrange: $(length(ybins1)), $(extrema(ybins1)) vs $(length(ybins)), $(extrema(ybins))"
             return false
         end
     end
 
     return true
+end
+function parse_colors(colors)
+    if !(colors[1] isa String)
+        return colors
+    end
+    parsed_colors = []
+    for color in colors
+        if color == "white" 
+            push!(parsed_colors, white)
+        elseif color == "yellow"
+            push!(parsed_colors, yellow)
+        elseif color == "orange"
+            push!(parsed_colors, orange)
+        elseif color == "red"
+            push!(parsed_colors, red)
+        elseif color == "pink"
+            push!(parsed_colors, pink)
+        else
+            error("Invalid color: $color")
+        end
+    end
+
+    @info "Parsed colors: $parsed_colors"
+    return parsed_colors
 end
 
 
@@ -201,7 +234,7 @@ function main()
     args = get_args()
 
     input_files = args["input"]
-    colors = args["colors"]
+    colors = args["colors"] |> parse_colors
     scalings = args["scalings"]
     output_dir = args["output"]
     dm_power = args["power"]

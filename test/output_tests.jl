@@ -54,9 +54,9 @@ using HDF5
 
 
     @testset "peris and apos" begin
-        _, peris, apos = LilGuys.peris_apos(out)
-        @test peris ≈ [√5, √2]
-        @test apos ≈ [√16.25, √21]
+        df = LilGuys.peris_apos(out)
+        @test df.pericentre ≈ [√5, √2]
+        @test df.apocentre ≈ [√16.25, √21]
     end
 
     @testset "extract vector" begin
