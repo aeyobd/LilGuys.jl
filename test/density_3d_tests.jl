@@ -116,8 +116,8 @@ end
         v = lguys.calc_v_circ.(halo, r)
 
         fit = lguys.fit_v_r_circ_max(r, v)
-        @test fit.r_circ_max ≈ 1.0
-        @test fit.v_circ_max ≈ 1.0
+        @test fit.r_circ_max ≈ 1.0 
+        @test fit.v_circ_max ≈ 1.0 
         @test fit.converged
 
 
@@ -197,7 +197,7 @@ end
     snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
 
     radii = lguys.calc_r(snap)
-    bins = bins_min_width_equal_number(log10.(radii), dx_min=0.05, N_per_bin_min=100)#[2:end-1]
+    bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
 
     profile = lguys.MassProfile3D(snap, bins=bins)
 

@@ -13,6 +13,28 @@ function assert_equal(a::Snapshot, b::Snapshot)
     end
 end
 
+
+function assert_approx(a::Snapshot, b::Snapshot)
+    for attr in fieldnames(Snapshot)
+        if attr != :h
+            if getfield(a, attr) === NaN
+                @test isnan(getfield(b, attr))
+            else
+                x = getfield(a, attr)
+                y = getfield(b, attr)
+
+                if x isa AbstractArray
+                    @test x ≈ y
+                elseif x isa Dict
+                    # pass
+                else
+                    @test getfield(a, attr) == getfield(b, attr)
+                end
+            end
+        end
+    end
+end
+
 # Test for creating a default header
 @testset "Snapshot Creation" begin
     N = 1000
@@ -37,12 +59,34 @@ end
     @test all(snap.accelerations .== acc)
     @test all(snap.Φs .== Φ)
     @test snap.masses[1] ≈ m[1]
+    @test size(snap) == (N,)
 
 
     lguys.save(filename, snap)
     snap_saved = Snapshot(filename)
     assert_equal(snap, snap_saved)
 end
+
+
+@testset "simple snapshot creation" begin
+    N = 100
+    pos = randn((3, N))
+    vel = randn((3, N))
+    mass = 2.5
+    snap = Snapshot(pos, vel, mass)
+
+    @test all(snap.positions .== pos)
+    @test all(snap.velocities .== vel)
+    @test all(snap.masses .== mass)
+
+    masses = rand(N)
+    snap = Snapshot(pos, vel, masses)
+    @test all(snap.masses .== masses)
+
+    @test_throws DimensionMismatch Snapshot(pos, vel, rand(N+1))
+    @test_throws DimensionMismatch Snapshot(pos, vel[:, 1:N-2], masses)
+end
+
 
 
 function load_snap()
@@ -131,3 +175,74 @@ end
 
 end
 
+@testset "regenerate_header!" begin
+    # mass and particle number stored in header, want to 
+    # make sure this is updated if we save a new snapshot
+    N = 4
+    snap = Snapshot(randn((3, N)), randn((3, N)), 1.5)
+    snap.masses = [1,2,3,4]
+    
+    lguys.regenerate_header!(snap)
+    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
+    @test snap2.masses == snap.masses
+
+
+    snap.masses = ones(4)
+    
+    #lguys.regenerate_header!(snap)
+    # check this is done automatically
+    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
+    @test snap2.masses == lguys.ConstVector(1.0, 4)
+
+    snap = snap[1:3]
+    #lguys.regenerate_header!(snap)
+    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
+    @test snap2.masses == lguys.ConstVector(1.0, 3)
+    @test snap2.header["NumPart_ThisFile"] == [0, 3]
+end
+
+@testset "rescale" begin
+    N = 100
+    pos = randn((3, N))
+    vel = randn((3, N))
+    masses = ones(N)
+    snap = Snapshot(pos, vel, masses)
+
+    m_scale = 2
+    r_scale = 0.1
+    snap = lguys.rescale(snap, m_scale, r_scale)
+    v_scale = sqrt(m_scale / r_scale)
+
+    snap_rescaled = Snapshot(pos*r_scale, vel*v_scale, masses*m_scale)
+
+    assert_approx(snap, snap_rescaled)
+
+    # TODO: add potential tests....
+
+end
+
+
+
+@testset "add_stars!" begin
+    pos = [1 2 3
+           2 3 4
+           1 0 1]
+    vel = zeros(3, 3)
+
+    idx = [3,1,2]
+    snap = Snapshot(pos, vel, 1.0, index=[4,1,2])
+
+    probabilities = [0.2, 0.1, 0.3]
+    lguys.add_stars!(snap, probabilities)
+    @test snap.weights ≈ [0.3, 0.2, 0.1]
+
+    lguys.add_stars!(snap, [1,2,4], probabilities)
+    @test snap.weights ≈ [0.3, 0.2, 0.1]
+
+    @test_throws DimensionMismatch lguys.add_stars!(snap, [1, 0.2])
+    @test_throws AssertionError lguys.add_stars!(snap, [1,2,3], [0.1, 0.2])
+    @test_throws AssertionError lguys.add_stars!(snap, [1,2], [0.1, 0.2])
+end

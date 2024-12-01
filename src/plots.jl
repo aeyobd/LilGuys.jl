@@ -1,4 +1,4 @@
-module Plots
+module MakieExtension
 
 using Makie
 using StatsBase
@@ -57,6 +57,46 @@ function limits_xyz(args...; limits=nothing)
     end
 
     return limits
+end
+
+
+"""
+Makie recipe for projected density plot
+"""
+@recipe(ProjectedDensity, snapshot) do scene
+    Attributes(
+        bins = 200,
+        r_max = 10,
+        centre = true,
+        xdirection = 1,
+        ydirection = 2
+    )
+end
+
+function Makie.plot!(p::ProjectedDensity)
+    snap = p[:snapshot][]
+    
+    # Extract positions and calculate limits
+    x0 = snap.x_cen[1]
+    y0 = snap.x_cen[2]
+    r_max = p[:r_max][]
+    
+    limits = p[:centre][] ? 
+        (-r_max + x0, r_max + x0, -r_max + y0, r_max + y0) : 
+        (-r_max, r_max, -r_max, r_max)
+    
+    # Extract positions and plot
+    x = snap.positions[p[:xdirection][], :]
+    y = snap.positions[p[:ydirection][], :]
+    
+    # Use Arya's hist2d! function
+    Arya.hist2d!(p, x, y; 
+        bins=p[:bins][], 
+        limits=limits, 
+        weights=snap.masses
+    )
+    
+    return p
 end
 
 
@@ -328,4 +368,4 @@ function hide_grid!(ax)
 end
 
 
-end # module plots
+end # module 

@@ -4,9 +4,7 @@
 
 using HDF5 
 
-
-@testset "output" begin
-
+let
     dir = mktempdir()
     mkdir(joinpath(dir, "out"))
 
@@ -24,6 +22,7 @@ using HDF5
         index=[1, 2], header=header)
 
 
+    # write and open output
     LilGuys.save("$dir/out/snapshot_000.hdf5", snap1)
     LilGuys.save("$dir/out/snapshot_001.hdf5", snap2)
     LilGuys.save("$dir/out/snapshot_002.hdf5", snap3)
@@ -38,8 +37,8 @@ using HDF5
     end
 
     cd(old_dir)
-
     out = Output(dir)
+
 
     @testset "output creation" begin
         @test length(out) == 3
@@ -53,10 +52,29 @@ using HDF5
     end
 
 
+    @testset "snap int indexing" begin
+        snap = Snapshot(joinpath(dir, "out/combined.hdf5/1"))
+        @test snap.positions == snap1.positions
+        @test snap.velocities == snap1.velocities
+        @test snap.masses == snap1.masses
+    end
+
+
     @testset "peris and apos" begin
         df = LilGuys.peris_apos(out)
         @test df.pericentre ≈ [√5, √2]
         @test df.apocentre ≈ [√16.25, √21]
+    end
+
+
+    @testset "extract" begin
+        index = LilGuys.extract(out, :index)
+        @test index == [[1, 2] [1, 2] [1, 2]]
+    end
+
+    @testset "extract with index" begin
+        index = LilGuys.extract(out, :index, 1)
+        @test index == [1,1,1]
     end
 
     @testset "extract vector" begin
@@ -74,15 +92,28 @@ using HDF5
         @test vel1[:, 2] ≈ snap2.velocities[:, 2]
     end
 
-    @testset "extract" begin
-        index = LilGuys.extract(out, :index)
-        @test index == [[1, 2] [1, 2] [1, 2]]
+
+    @testset "print" begin
+        s = sprint(print, out)
+        @test s == "<output with 3 snapshots of 2 particles>"
     end
-
-
 end
 
 
+@testset "extract snapshot" begin
+    pos  = [1 4
+            2 5
+            3 6]
+    vel  = [0.1 0.2
+            0.2 0.3
+            0.3 0.4]
+    mass = [0.5, 1]
 
-# TODO more comprehensive testing without explicit io 
-# especially for the extract methods
+    snap = Snapshot(pos, vel, mass, index=[2,1])
+
+    @test LilGuys.extract_vector(snap, :positions) == pos[:, [2,1]]
+    @test LilGuys.extract_vector(snap, :positions, 1) == pos[:, 2]
+
+    @test LilGuys.extract(snap, :masses) == mass[[2,1]]
+    @test LilGuys.extract(snap, :masses, 1) == mass[2]
+end

@@ -57,7 +57,6 @@ end
 @testset "shrinking spheres: one point" begin 
     positions = [2.;0.12;0.25;;]
     params = lguys.Centres._ShrinkingSpheresParams(positions)
-    println(params.x0)
     cen, filt = lguys.shrinking_spheres(positions)
     @test cen ≈ [2.;0.12;0.25] rtol=1e-10
     @test sum(filt) == 1
@@ -76,8 +75,6 @@ end
 
     state = lguys.SS_State(snap, verbose=true)
     
-    println(snap.positions)
-    println(state)
 
     lguys.Centres.calc_centre!(state, snap)
     cen = state.centre

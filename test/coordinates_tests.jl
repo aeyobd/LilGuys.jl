@@ -92,3 +92,32 @@ end
         @test p.v_z ≈ v_z
     end
 end
+
+
+@testset "rand_coords" begin
+    obs = lguys.ICRS(ra=15, dec=-33, distance=80, pmra=-0.1, pmdec=0.2, radial_velocity=50)
+    err = lguys.ICRS(ra=0.1, dec=0.1, distance=1, pmra=0.01, pmdec=0.01, radial_velocity=0.4)
+
+    N = 1000
+
+    coords = lguys.rand_coords(obs, err, N)
+
+    @test length(coords) == N
+    @test lguys.mean([c.ra for c in coords]) ≈ obs.ra atol=0.1
+    @test lguys.mean([c.dec for c in coords]) ≈ obs.dec atol=0.1
+    @test lguys.mean([c.distance for c in coords]) ≈ obs.distance atol=1
+    @test lguys.mean([c.pmra for c in coords]) ≈ obs.pmra atol=0.01
+    @test lguys.mean([c.pmdec for c in coords]) ≈ obs.pmdec atol=0.01
+    @test lguys.mean([c.radial_velocity for c in coords]) ≈ obs.radial_velocity atol=0.4
+
+    @test lguys.std([c.ra for c in coords]) ≈ err.ra atol=0.1
+    @test lguys.std([c.dec for c in coords]) ≈ err.dec atol=0.1
+    @test lguys.std([c.distance for c in coords]) ≈ err.distance atol=1
+    @test lguys.std([c.pmra for c in coords]) ≈ err.pmra atol=0.01
+    @test lguys.std([c.pmdec for c in coords]) ≈ err.pmdec atol=0.01
+    @test lguys.std([c.radial_velocity for c in coords]) ≈ err.radial_velocity atol=0.4
+end
+
+
+@test "coords from file" begin
+end

@@ -289,7 +289,7 @@ function fit_v_r_circ_max(r::AbstractArray{<:Real}, v_circ::AbstractArray{<:Real
         fit = nothing
     else
         try
-            fit = curve_fit(_v_circ_max_model, r[filt], v_circ[filt], p0)
+            fit = Interface.LsqFit.curve_fit(_v_circ_max_model, r[filt], v_circ[filt], p0)
             converged = fit.converged
         catch ArgumentError
             converged = false

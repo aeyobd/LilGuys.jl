@@ -8,6 +8,9 @@ using HDF5
 import Random
 import Distributions: Chisq, quantile
 
+import Logging
+Logging.disable_logging(Logging.Info)
+
 Random.seed!(1234)
 
 

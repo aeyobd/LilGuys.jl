@@ -2,7 +2,7 @@
 @testset "phase volume" begin
     rs = [0.1, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3]
     vs = zeros(7)
-    δr, δv = lguys.phase_volume(rs, vs)
+    δr, δv = lguys.Centres.phase_volume(rs, vs)
 
 
     expected = 0.1
@@ -17,7 +17,7 @@
     for i in 1:N
         rs = sort(sqrt.(rand(k)))
         vs = rand(k)
-        δr, δv = lguys.phase_volume(rs, vs)
+        δr, δv = lguys.Centres.phase_volume(rs, vs)
         δrs[i] = δr
         δvs[i] = δv
     end

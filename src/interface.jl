@@ -26,7 +26,7 @@ import StatsBase as sb
 import SpecialFunctions: erf, expinti
 
 import QuadGK: quadgk
-import LsqFit: curve_fit
+import LsqFit
 
 using Measurements: ±, value, uncertainty, Measurement
 import DensityEstimators
@@ -34,6 +34,22 @@ import DensityEstimators
 import Roots: find_zero
 import DataFrames: DataFrame
 
+
+"""
+  curve_fit(model, xdata, ydata, p0) -> fit
+  curve_fit(model, xdata, ydata, weights, p0) -> fit
+
+Fit the model to the data using the initial guess `p0`. weights are optional. Returns the best fit (Least Squares) parameters and the estimated covariance matrix.
+"""
+function curve_fit(args...)
+    fit = LsqFit.curve_fit(args...)
+
+    if !fit.converged
+        @warn "LSq fit did not converge"
+    end
+
+    return fit.param, LsqFit.vcov(fit)
+end
 
 
 """
@@ -55,9 +71,10 @@ end
 """
     histogram(x, bins=nothing; weights=nothing, normalization=:none)
 
-Compute the histogram of `x` with `bins` bins, returning the bins, values, and uncertainties.
+Compute the histogram of `x` with `bins` bins, returning the bins, values, and poisson uncertainties.
 If `bins` is not provided, it defaults to the rule provided by `default_bins`.
 If `weights` are provided, they are used to weight the histogram.
+If `normalization` is `:none`, the histogram is normalized to the total number of observations.
 """
 function histogram(x, bins=bins_default; 
         weights=nothing, normalization=:none, kwargs...)
@@ -77,6 +94,12 @@ function histogram(x, bins=bins_default;
 end
 
 
+"""
+    filter_nans(x, weights=nothing)
+
+Filter out NaNs from x and weights. If weights are provided, filter out NaNs from
+both x and weights. Returns the filtered x and weights.
+"""
 function filter_nans(x, weights=nothing)
     filt = isfinite.(x)
     if weights !== nothing
@@ -93,7 +116,7 @@ function filter_nans(x, weights=nothing)
 end
 
 """
-    default_bins(x, weights=nothing)
+    bins_default(x, weights=nothing)
 
 The default setting for bins, returns the equal width bins.
 """
@@ -169,12 +192,23 @@ function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
     push!(bins, x_i)
     N = length(x)
 
-    while x_i < maximum(x)
+    while x_i < maximum(x) - bin_width
         x_binwidth = x_i + bin_width
-        idx = findfirst(x .≥ x_i)
-        x_number = x[min(idx + num_per_bin-1, N)]
+        idx = searchsortedfirst(x, x_i)
+
+        if idx + num_per_bin >= N # we are out of data
+            break
+        end
+        x_number = x[idx + num_per_bin]
         x_i = max(x_binwidth, x_number)
+
         push!(bins, x_i)
+    end
+
+    if (sum(x .> bins[end]) <= num_per_bin) || (maximum(x) - bins[end] < bin_width)
+        bins[end] = maximum(x) + 0.5*bin_width
+    else
+        push!(bins, maximum(x) + 0.5*bin_width)
     end
 
     return bins
@@ -187,7 +221,7 @@ end
 Calculates the Freedman-Diaconis rule for bin size.
 """
 function default_bin_width(x, weights=nothing)
-    N = effective_sample_size(x)
+    N = effective_sample_size(x, weights)
 
     iqr = quantile(x, 0.75) - quantile(x, 0.25)
     bin_width = 2 * iqr / N^(1/3)
@@ -195,11 +229,16 @@ function default_bin_width(x, weights=nothing)
 end
 
 
-function default_n_per_bin(x, weights=nothing)
-    N = effective_sample_size(x)
+"""
+    default_n_per_bin(x, weights=nothing)
 
-    num_per_bin = ceil(Int, 2N^(2/5))
-    return ceil(Int, num_per_bin * length(x) / N)
+Calculates the recommended number of observations per bin.
+"""
+function default_n_per_bin(x, weights=nothing)
+    N = effective_sample_size(x, nothing) # ignore weight for now
+
+    num_per_bin = 2N^(2/5)
+    return num_per_bin * length(x) / N
 end
 
 
@@ -225,10 +264,10 @@ end
 """
     std(x; kwargs...)
 
-Returns the standard deviation of x
+Returns the (bias corrected) standard deviation of a vector of real numbers.
 """
 function std(x; kwargs...)
-    return sb.std(x; kwargs...)
+    return sb.std(x; corrected=true, kwargs...)
 end
 
 """
@@ -241,6 +280,8 @@ function std(x, w; kwargs...)
 end
 
 midpoints = sb.midpoints
+
+
 
 """
     quantile(x, p)
@@ -263,7 +304,7 @@ end
 
 
 @doc raw"""
-    effective_size(weights)
+    effective_size(data, weights)
 
 Computes the effective size of a set of weights. If all weights are equal, than
 the effective sample size is simply the number of observations (the length of
@@ -280,13 +321,12 @@ function effective_sample_size(weights::AbstractVector{<:Real})
 end
 
 
-function effective_sample_size(data::AbstractVector{<:Real}, weights::Union{Nothing, AbstractVector{<:Real}})
-    if weights === nothing
-        return length(data)
-    else
-        return effective_sample_size(weights)
-    end
+function effective_sample_size(data::AbstractVector{<:Real}, weights::Nothing)
+    return length(data)
 end
 
+function effective_sample_size(data::AbstractVector{<:Real}, weights::AbstractVector{<:Real})
+    return effective_sample_size(weights)
+end
 
 end

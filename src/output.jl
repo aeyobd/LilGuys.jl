@@ -1,6 +1,8 @@
+"""
+    Output
 
-
-
+A simulation output structure. 
+"""
 Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
     """ The hdf5 file containing the snapshots """
     h5file::HDF5.File
@@ -101,20 +103,8 @@ function Base.getindex(out::Output, i::Int)
     snap.x_cen = out.x_cen[:, i]
     snap.v_cen = out.v_cen[:, i]
     snap.time = out.times[i]
-
-    if !isnothing(out.weights)
-        if length(snap.index) !== length(out.weights)
-            println("warning: Weights and snapshot index have different lengths: $(length(snap.index)) vs $(length(out.weights))")
-
-        else
-            if isperm(snap.index)
-                idx = snap.index
-            else
-                idx = invperm(sortperm(snap.index))
-            end
-
-            snap.weights = out.weights[idx]
-        end
+    if out.weights !== nothing
+        add_stars!(snap, out.weights)
     end
 
     return snap
@@ -186,6 +176,30 @@ function extract(out::Output, symbol::Symbol, idx::Int; group="PartType1")
 end
 
 
+function extract(out::Output, symbol::Symbol, idx=(:); group="PartType1")
+    if idx == (:)
+        idx = 1:length(out[1].index)
+    elseif idx isa BitArray
+        idx = findall(idx)
+    end
+    Np = length(idx)
+    Nt = length(out)
+    result = Array{F}(undef, Np, Nt)
+
+    index_0 = sort(out[1].index)
+    for i in 1:Nt
+        h5f = out.h5file[out.index[i]]
+        index = h5f["$group/$(h5vectors[:index])"][:]
+        idx_sort = sortperm(index)
+
+        @assert index_0 == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
+        for j in eachindex(idx)
+            result[j, i] = h5f["$group/$(h5vectors[symbol])"][idx_sort[idx[j]]]
+        end
+    end
+
+    return result
+end
 
 
 """
@@ -216,30 +230,6 @@ end
 
 
 
-function extract(out::Output, symbol::Symbol, idx=(:); group="PartType1")
-    if idx == (:)
-        idx = 1:length(out[1].index)
-    elseif idx isa BitArray
-        idx = findall(idx)
-    end
-    Np = length(idx)
-    Nt = length(out)
-    result = Array{F}(undef, Np, Nt)
-
-    index_0 = sort(out[1].index)
-    for i in 1:Nt
-        h5f = out.h5file[out.index[i]]
-        index = h5f["$group/$(h5vectors[:index])"][:]
-        idx_sort = sortperm(index)
-
-        @assert index_0 == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
-        for j in eachindex(idx)
-            result[j, i] = h5f["$group/$(h5vectors[symbol])"][idx_sort[idx[j]]]
-        end
-    end
-
-    return result
-end
 
 
 function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")

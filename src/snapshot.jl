@@ -379,25 +379,31 @@ end
 
 
 """
-    add_stars!(snap, index, probability)
+    add_stars!(snap, [index, ]probability)
 
-Given an object with at least two attributes (index and probabilities), 
-adds stars to the snapshot with the given probabilities.
+Given a snapshot, add a set of stars with the given probability.
+Probabilites should be sorted in the index order of the snapshot.
+If index is given, this is interpreted as the indices of the stars of the
+probability array, and the snapshot index is checked against the provided index.
 """
 function add_stars!(snap::Snapshot, index, probability)
-    if length(index) != length(snap)
+    @assert sort(snap.index) == index "stars must have the same indices as the snapshot"
+
+    add_stars!(snap, probability)
+    return snap
+end
+
+
+function add_stars!(snap::Snapshot, probability)
+    if length(probability) != length(snap)
         throw(DimensionMismatch("stars must have the same length as the snapshot"))
     end
-
-    @assert issorted(index) "stars must be sorted by index"
 
     if isperm(snap.index)
         idx = snap.index
     else
         idx = invperm(sortperm(snap.index))
     end
-
-    @assert sort(snap.index) == index "stars must have the same indices as the snapshot"
 
     snap.weights = probability[idx]
     return snap
