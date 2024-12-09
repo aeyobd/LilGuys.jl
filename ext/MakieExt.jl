@@ -1,0 +1,275 @@
+module MakieExt
+
+using Makie
+using StatsBase
+
+using LilGuys
+import LilGuys: @assert_3vector
+import LinearAlgebra: norm, dot
+
+using Arya
+
+# methods defined here
+import LilGuys: plot_xyz, plot_xyz!
+import LilGuys: cmd_axis
+import LilGuys: projecteddensity, projecteddensity!
+import LilGuys: hide_grid!
+
+
+
+const log_r_label = L"\log\,(r\, /\, \mathrm{kpc})"
+const log_rho_label = L"\log\,(\rho\, /\, 10^{10}\mathrm{M}_\odot\mathrm{pc}^{-3})"
+const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
+const xi_arcmin_label = L"\xi\, /\, \mathrm{arcmin}"
+const eta_arcmin_label = L"\eta\, /\, \mathrm{arcmin}"
+
+const markers = [:circle, :rect, :star5, :cross, :diamond, :hexagon, :octagon, :star4, :star6, :star7, :star8, :star9, :star10, :star11, :star12, :star13, :star14, :star15, :star16, :star17, :star18, :star19, :star20]
+
+
+
+"""
+    projecteddensity(snapshot)
+
+Projects a snapshot into 2 dimensions and plots the density.
+
+# Attributes
+- `snapshot`: The snapshot to plot.
+- `bin=200`: The number of bins to use.
+- `r_max=10`: The maximum radius to plot.
+- `centre=true`: If true, centres the plot on the centre of mass. Otherwise, plots in the range -r_max to r_max.
+- `xdirection=1`: The direction to plot in the x axis.
+- `ydirection=2`: The direction to plot in the y axis.
+
+"""
+@recipe(ProjectedDensity, snapshot) do scene
+    Attributes(
+        bins = 200,
+        r_max = 10,
+        centre = true,
+        xdirection = 1,
+        ydirection = 2
+    )
+end
+
+function Makie.plot!(p::ProjectedDensity)
+    snap = p[:snapshot][]
+    
+    # Extract positions and calculate limits
+    x0 = snap.x_cen[1]
+    y0 = snap.x_cen[2]
+    r_max = p[:r_max][]
+    
+    limits = p[:centre][] ? 
+        (-r_max + x0, r_max + x0, -r_max + y0, r_max + y0) : 
+        (-r_max, r_max, -r_max, r_max)
+    
+    # Extract positions and plot
+    x = snap.positions[p[:xdirection][], :]
+    y = snap.positions[p[:ydirection][], :]
+    
+    # Use Arya's hist2d! function
+    Arya.hist2d!(p, x, y; 
+        bins=p[:bins][], 
+        limits=limits, 
+        weights=snap.masses
+    )
+    
+    return p
+end
+
+
+"""
+    plot_xyz(args...; plot!, labels, units, limits, kwargs...)
+
+
+Given (any number of) 3xN matricies of xyz positions, makes orbit plots in each plane.
+
+# Arguments
+- `args...`: 3xN matricies of xyz positions.
+- `plot`: The plotting mode to use. May be :scatter or :lines
+- `labels`: Labels for each orbit.
+- `idx_scatter`: If set, also plots points at the given index for each 
+- `xlabel`, `ylabel`, `zlabel`: Labels for the axes.
+- `units`: Units for the axes.
+- `limits`: Limits for the axes. Should be a tuple of tuples for x y and z limits
+- `kwargs...`: Additional keyword arguments to pass to the plotting function.
+"""
+function plot_xyz(args...; 
+        labels=nothing, 
+        limits=nothing, 
+        idx_scatter=nothing, 
+        times=nothing, 
+        xlabel="x", ylabel="y", zlabel="z", 
+        units=" / kpc", 
+        colorrange=nothing, 
+        kwargs...
+    )
+
+    limits = limits_xyz(args...; limits=limits)
+    fig = Figure()
+    axes = axis_xyz(fig; limits=limits, xlabel=xlabel, ylabel=ylabel, 
+                    zlabel=zlabel, units=units)
+
+    if colorrange === nothing && times !== nothing
+        colorrange = extrema(times * T2GYR)
+        kwargs = (; colorrange=colorrange, kwargs...)
+    end
+
+    p = plot_xyz!(axes, args...; labels=labels, times=times, kwargs...)
+
+    if idx_scatter !== nothing
+        args_scatter = [arg[:, idx] for (arg, idx) in zip(args, idx_scatter)]
+
+        if times !== nothing
+            times = times[idx_scatter[1]]
+        else
+            times = nothing
+        end 
+
+
+        plot_xyz!(axes, args_scatter...; times=times, plot=:scatter, labels=nothing, kwargs...)
+    end
+
+    if labels !== nothing
+        Legend(fig[1, 2], axes[1], tellwidth=false)
+    elseif times !== nothing
+        cbar = Colorbar(fig[1, 2], p, label="time / Gyr", tellwidth=false, halign=:left)
+    end
+
+
+    return fig
+end
+
+
+
+function plot_xyz!(axes, args...; plot = :lines, labels=nothing, 
+        times=nothing, limits=nothing, kwargs...)
+
+    if plot === :lines
+        plot! = lines!
+    elseif plot === :scatter
+        plot! = scatter!
+    else
+        error("Unknown plot type: $plot")
+    end
+
+    ax_xy, ax_yz, ax_xz = axes
+
+    Nargs = length(args)
+
+    if times !== nothing
+        kwargs = (; color=times * T2GYR, kwargs...)
+    end
+
+    for i in 1:Nargs
+        @assert_3vector args[i]
+    end
+
+    local p
+
+    for i in 1:Nargs
+        if labels !== nothing
+            label = labels[i]
+        else 
+            label = nothing
+        end
+
+        plot!(ax_xy, args[i][1, :], args[i][2, :]; label=label, kwargs...)
+        plot!(ax_yz, args[i][2, :], args[i][3, :]; label=label, kwargs...)
+        p = plot!(ax_xz, args[i][1, :], args[i][3, :]; label=label, kwargs...)
+    end
+
+
+
+    return p
+end
+
+
+"""
+    axis_xyz(fig; limits, xlabel="x", ylabel="y", zlabel="z", units=" / kpc")
+
+Creates 3 linked axes for a coupled xyz plot of a 3D system.
+"""
+function axis_xyz(fig; limits, 
+        xlabel="x", ylabel="y", zlabel="z", units=" / kpc")
+    ax_xy = Axis(fig[1, 1], xlabel="$xlabel$units", ylabel="$ylabel$units", 
+                 aspect=DataAspect(), limits=limits[1:2])
+    ax_yz = Axis(fig[2, 2], xlabel="$ylabel$units", ylabel="$zlabel$units", 
+                 aspect=DataAspect(), limits=limits[2:3])
+    ax_xz = Axis(fig[2, 1], xlabel="$xlabel$units", ylabel="$zlabel$units", 
+                 aspect=DataAspect(), limits=limits[[1, 3]])
+
+    # hide extra axis labels since they are linked
+    linkxaxes!(ax_xy, ax_xz)
+    hidexdecorations!(ax_xy, grid=false, ticks=false, minorticks=false)
+    linkyaxes!(ax_xz, ax_yz)
+    hideydecorations!(ax_yz, grid=false, ticks=false, minorticks=false)
+
+    # fixes spacing...
+    rowsize!(fig.layout, 1, Aspect(1, 1))
+    rowsize!(fig.layout, 2, Aspect(1, 1))
+
+    resize_to_layout!(fig)
+
+    return ax_xy, ax_yz, ax_xz
+end
+
+
+
+"""
+    limits_xyz(args...; symmetric=true, limits=nothing)
+
+Calculates limits for a 3D plot based on the maximum and minimum values of the input arrays.
+If `symmetric=true`, the limits are symmetric about the origin. Otherwise, the limits are set to the maximum extent of the data and centred on the centre of the data range.
+"""
+function limits_xyz(args...; symmetric=true, limits=nothing)
+    for i in eachindex(args)
+        @assert_3vector args[i]
+    end
+
+    if limits === nothing
+        xmax = maximum(maximum.(args))
+        xmin = minimum(minimum.(args))
+
+        ymax = maximum(maximum.(args))
+        ymin = minimum(minimum.(args))
+
+        zmax = maximum(maximum.(args))
+        zmin = minimum(minimum.(args))
+
+        if symmetric
+            xmax = max(abs(xmax), abs(xmin))
+            ymax = max(abs(ymax), abs(ymin))
+            zmax = max(abs(zmax), abs(zmin))
+
+            rmax = 1.1 * max(xmax, ymax, zmax)
+
+            limits = ((-rmax, rmax), (-rmax, rmax), (-rmax, rmax))
+        else
+            rmax = 1/2 * max(xmax - xmin, ymax - ymin, zmax - zmin)
+            xm = (xmax + xmin) / 2
+            ym = (ymax + ymin) / 2
+            zm = (zmax + zmin) / 2
+
+            limits = ((xm - rmax, xm + rmax), (ym - rmax, ym + rmax), (zm - rmax, zm + rmax))
+        end
+    end
+
+    return limits
+end
+
+
+
+
+"""
+    hide_grid!(ax)
+
+Hides the grid lines on an axis.
+"""
+function hide_grid!(ax)
+    ax.xgridvisible = false
+    ax.ygridvisible = false
+end
+
+
+end # module 

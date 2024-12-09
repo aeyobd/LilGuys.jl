@@ -1,8 +1,5 @@
 module LilGuys
 
-using Requires
-
-
 export Snapshot
 export Output
 export ICRS, PhasePoint
@@ -52,10 +49,19 @@ include("density_3d_star.jl")
 include("centres/Centres.jl")
 
 
+# Empty function definitions for MakieExt
+public plot_xyz, plot_xyz!
+public projecteddensity, projecteddensity!
+public hide_grid!, cmd_axis
 
-function __init__()
-    @require Makie="ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("plots.jl")
-end
+function plot_xyz end
+function plot_xyz! end
+function cmd_axis end
+
+function projecteddensity end
+function projecteddensity! end
+function hide_grid! end
+
 
 
 using .Centres

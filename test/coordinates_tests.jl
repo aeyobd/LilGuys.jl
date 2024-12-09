@@ -119,5 +119,5 @@ end
 end
 
 
-@test "coords from file" begin
+@testset "coords from file" begin
 end

@@ -10,6 +10,7 @@ tests = ["units", "utils",
          "physics", "gravity", 
          "centre_static", "analytic_profiles", 
          "shrinking_spheres",
+         "plots",
         ]
 
 for test in tests

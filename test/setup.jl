@@ -1,4 +1,5 @@
 using Test
+using Makie # need for makie ext
 import LilGuys as lguys
 
 using LilGuys

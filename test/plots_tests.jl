@@ -1,72 +1,76 @@
-@testset "Plotting Components" begin
+using Makie
+using LilGuys
+import Arya
+
+@testset "Plot xyz" begin
     # Test basic plot generation
     @testset "Basic Plot Generation" begin
         # Create sample simulation data
-        simulation_data = generate_sample_simulation_data()
+        pos = randn(3, 10)
+        pos2 = randn(3, 5)
         
-        # Test trajectory plot
-        @test begin
-            fig = plot_trajectory(simulation_data)
-            # Check that a Figure object is returned
-            fig isa Figure
-        end
-        
-        # Test energy evolution plot
-        @test begin
-            fig = plot_energy_evolution(simulation_data)
-            fig isa Figure
-        end
+        fig = LilGuys.plot_xyz(pos)
+        @test fig isa Figure
+
+        fig = LilGuys.plot_xyz(pos, pos2)
+        @test fig isa Figure
+        @test size(fig.layout) == (2,2)
     end
 
-
-    # Test plot customization
-    @testset "Plot Customization" begin
-        simulation_data = generate_sample_simulation_data()
-        
-        # Test custom color schemes
-        @test begin
-            fig = plot_trajectory(simulation_data, 
-                color_scheme = :viridis,
-                linewidth = 2.0
-            )
-            fig isa Figure
-        end
-        
-        # Test title and label customization
-        @test begin
-            fig = plot_trajectory(simulation_data, 
-                title = "N-Body Simulation Trajectory",
-                xlabel = "X Position",
-                ylabel = "Y Position"
-            )
-            fig isa Figure
-        end
-    end
-    
     # Test error handling
     @testset "Error Handling" begin
         # Test with empty or invalid data
-        @test_throws ArgumentError plot_trajectory([])
-        @test_throws ArgumentError plot_energy_evolution(nothing)
+        @test_throws ArgumentError LilGuys.plot_xyz()
+        @test_throws ArgumentError LilGuys.plot_xyz(randn(2, 10))
     end
     
     # Test plot content and visualization properties
     @testset "Plot Content Validation" begin
-        simulation_data = generate_sample_simulation_data()
+        pos = randn(3, 10)
+
+        fig = LilGuys.plot_xyz(pos)
+
+        # xy axis
+        ax = contents(fig[1,1])[1]
+        @test !isempty(plots(ax))
+        p = plots(ax)[1]
+        @test p[1][] ≈ Point2f.(pos[1, :], pos[2, :])
+        @test p.color[] == Arya.COLORS[1]
         
-        # Validate trajectory plot elements
-        fig = plot_trajectory(simulation_data)
-        @test begin
-            # Check for specific plot elements
-            axis = content(fig[1,1])
-            !isempty(axis.plots)  # Ensure plots exist
-        end
-        
-        # Check color and style consistency
-        @test begin
-            fig = plot_trajectory(simulation_data, color = :red)
-            axis = content(fig[1,1])
-            all(p.color[] == :red for p in axis.plots)
-        end
+
+        ax = contents(fig[2,2])[1]
+        @test !isempty(plots(ax))
+        p = plots(ax)[1]
+        @test p[1][] ≈ Point2f.(pos[2, :], pos[3, :])
+
+        ax = contents(fig[2,1])[1]
+        @test !isempty(plots(ax))
+        p = plots(ax)[1]
+        @test p[1][] ≈ Point2f.(pos[1, :], pos[3, :])
     end
+end
+
+
+@testset "projecteddensity" begin
+    @testset "make plot" begin
+        pos = randn(3, 10)
+        vel = randn(3, 10)
+        snap = LilGuys.Snapshot(pos, vel, 1)
+        fig, ax, p = LilGuys.projecteddensity(snap)
+        @test fig isa Figure
+        @test ax isa Axis
+        @test p isa AbstractPlot
+
+        # test other arguments
+        fig, ax, p = LilGuys.projecteddensity(snap, bins=30)
+        @test p isa AbstractPlot
+
+        fig, ax, p = LilGuys.projecteddensity(snap, centre=false)
+        @test p isa AbstractPlot
+
+        fig, ax, p = LilGuys.projecteddensity(snap, centre=false, xdirection=3, ydirection=1)
+        @test p isa AbstractPlot
+    end
+
+
 end
