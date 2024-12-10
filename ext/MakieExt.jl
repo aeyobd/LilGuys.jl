@@ -47,16 +47,21 @@ Projects a snapshot into 2 dimensions and plots the density.
         r_max = 10,
         centre = true,
         xdirection = 1,
-        ydirection = 2
+        ydirection = 2,
+        colorrange = theme(scene, :colorrange),
+        colormap = theme(scene, :colormap),
+        colorscale = identity,
     )
 end
+
+Makie.needs_tight_limits(::ProjectedDensity) = true
 
 function Makie.plot!(p::ProjectedDensity)
     snap = p[:snapshot][]
     
     # Extract positions and calculate limits
-    x0 = snap.x_cen[1]
-    y0 = snap.x_cen[2]
+    x0 = snap.x_cen[p[:xdirection][]]
+    y0 = snap.x_cen[p[:ydirection][]]
     r_max = p[:r_max][]
     
     limits = p[:centre][] ? 
@@ -71,7 +76,10 @@ function Makie.plot!(p::ProjectedDensity)
     Arya.hist2d!(p, x, y; 
         bins=p[:bins][], 
         limits=limits, 
-        weights=snap.masses
+        weights=snap.masses,
+        colorrange=p[:colorrange][],
+        colormap=p[:colormap][],
+        colorscale=p[:colorscale][]
     )
     
     return p

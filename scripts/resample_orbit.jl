@@ -20,6 +20,13 @@ function get_args()
             arg_type = Float64
             default = 1.0
             help = "Time scale factor"
+        "--delim"
+            arg_type = String
+            default = " "
+            help = "Delimiter for the input file"
+        "-H", "--header"
+            help = "Does the input file have a header?"
+            action = "store_true"
     end
 
     return parse_args(s)
@@ -33,7 +40,12 @@ function main()
     outputname = args["output"]
 
     # Read LMC trajectory file
-    lmc_traj = CSV.read(filename, DataFrame, delim=" ", header=[:time, :x, :y, :z, :v_x, :v_y, :v_z])
+    #
+    if args["header"]
+        lmc_traj = CSV.read(filename, DataFrame, delim=args["delim"], ignorerepeated=true)
+    else
+        lmc_traj = CSV.read(filename, DataFrame, delim=args["delim"], header=[:time, :x, :y, :z, :v_x, :v_y, :v_z], ignorerepeated=true)
+    end
 
     # Constants
     V_T2GYR = 0.97779
@@ -44,7 +56,7 @@ function main()
     timesin  = args["times"]
     if timesin isa AbstractString
         if endswith(timesin, ".csv")
-            times = CSV.read(timesin, DataFrame).t
+            times = CSV.read(timesin, DataFrame).time
         elseif endswith(timesin, ".hdf5")
             times = Output(timesin).times
         end
