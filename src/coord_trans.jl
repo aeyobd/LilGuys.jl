@@ -204,9 +204,36 @@ end
 
 
 function from_icrs(::Type{<:GSR}, icrs::ICRS{F}; kwargs...) where {F<:Real}
-    cart = from_icrs(Cartesian{GSR}, icrs; kwargs...)
-    return to_sky(cart)
+    distance1 = isnan(icrs.distance) ? 1 : icrs.distance
+    pmra1 = isnan(icrs.pmra) ? 0 : icrs.pmra
+    pmdec1 = isnan(icrs.pmdec) ? 0 : icrs.pmdec
+
+    icrs2 = ICRS(ra=icrs.ra, dec=icrs.dec, distance=distance1, pmra=pmra1,
+                 pmdec=pmdec1, radial_velocity=icrs.radial_velocity)
+
+    gc = from_icrs(Galactocentric, icrs2; kwargs...)
+    gsr = transform(GSR, _gc_to_gsr_cart(gc))
+
+    if isnan(icrs.distance) 
+        distance = NaN
+    else
+        distance = gsr.distance
+    end
+    if isnan(icrs.distance) || isnan(icrs.pmra)
+        pmra = NaN
+    else
+        pmra = gsr.pmra
+    end
+
+    if isnan(icrs.distance) || isnan(icrs.pmdec)
+        pmdec = NaN
+    else
+        pmdec = gsr.pmdec
+    end
+
+    return GSR(ra=gsr.ra, dec=gsr.dec, distance=distance, pmra=pmra, pmdec=pmdec, radial_velocity=gsr.radial_velocity)
 end
+
 
 function from_icrs(::Type{<:Cartesian{GSR}}, icrs::ICRS; kwargs...) 
     gc = from_icrs(Galactocentric, icrs)
@@ -231,8 +258,33 @@ end
 
 
 function to_icrs(gsr::GSR)::ICRS
-    cart = Cartesian(gsr)
-    return to_icrs(cart)
+    distance1 = isnan(gsr.distance) ? 1 : gsr.distance
+    pmra1 = isnan(gsr.pmra) ? 0 : gsr.pmra
+    pmdec1 = isnan(gsr.pmdec) ? 0 : gsr.pmdec
+    gsr2 = GSR(ra=gsr.ra, dec=gsr.dec, distance=distance1, pmra=pmra1, pmdec=pmdec1, radial_velocity=gsr.radial_velocity)
+
+    cart = Cartesian(gsr2)
+    gc = transform(Galactocentric, cart)
+
+    icrs = to_icrs(gc)
+
+    if isnan(gsr.distance) 
+        distance = NaN
+    else
+        distance = icrs.distance
+    end
+    if isnan(gsr.distance) || isnan(gsr.pmra)
+        pmra = NaN
+    else
+        pmra = icrs.pmra
+    end
+    if isnan(gsr.distance) || isnan(gsr.pmdec)
+        pmdec = NaN
+    else
+        pmdec = icrs.pmdec
+    end
+
+    return ICRS(ra=icrs.ra, dec=icrs.dec, distance=distance, pmra=pmra, pmdec=pmdec, radial_velocity=icrs.radial_velocity)
 end
 
 
@@ -245,13 +297,6 @@ end
 function transform(::Type{<:Cartesian{GSR, <:Real}}, galcen::Galactocentric)
     return _gc_to_gsr_cart(galcen)
 end
-
-
-
-
-
-
-
 
 
 
@@ -292,6 +337,8 @@ end
 function _gsr_to_galcen_velocity(cart::Cartesian{<:GSR}; frame=default_gc_frame)
     return _gsr_to_galcen_velocity(velocity_of(cart); frame=frame)
 end
+
+
 
 function _heliocen_to_galcen_velocity(cart::Cartesian{<:ICRS}; frame=default_gc_frame)
     return _heliocen_to_galcen_velocity(velocity_of(cart); frame=frame)

@@ -141,6 +141,8 @@ end
 end
 
 
+
+
 @testset "ICRS to GSR: example" begin
     # from astropy
     icrs = lguys.ICRS(ra=258.58356362, dec=14.55255619, distance=10.0,
@@ -155,6 +157,48 @@ end
     @test gsr.radial_velocity ≈ 123.30460087379765 rtol=1e-2
 end
 
+@testset "ICRS - GSR - ICRS: RV only" begin
+    # can we transform back and forth the RV without distances & PMs?
+    #
+    icrs = lguys.ICRS(ra=258.58356362, dec=14.55255619, distance=NaN,
+                      pmra=NaN, pmdec=NaN, radial_velocity=-16.1)
+
+    gsr = lguys.transform(lguys.GSR, icrs)
+    icrs2 = lguys.transform(lguys.ICRS, gsr)
+    @test icrs2.radial_velocity ≈ icrs.radial_velocity rtol=1e-2
+    @test gsr.radial_velocity ≈ 123.30460087379765 rtol=1e-2
+    @test isnan(icrs2.distance) && isnan(icrs2.pmra) && isnan(icrs2.pmdec)
+    @test isnan(gsr.distance) && isnan(gsr.pmra) && isnan(gsr.pmdec)
+    @test gsr.ra ≈ icrs.ra rtol=1e-2
+    @test gsr.dec ≈ icrs.dec rtol=1e-2
+
+    icrs = lguys.ICRS(ra=258.58356362, dec=14.55255619, distance=23.3,
+                      pmra=NaN, pmdec=NaN, radial_velocity=-16.1)
+
+    gsr = lguys.transform(lguys.GSR, icrs)
+    icrs2 = lguys.transform(lguys.ICRS, gsr)
+    @test icrs2.radial_velocity ≈ icrs.radial_velocity rtol=1e-2
+    @test gsr.radial_velocity ≈ 123.30460087379765 rtol=1e-2
+    @test isnan(icrs2.pmra) && isnan(icrs2.pmdec)
+    @test isnan(gsr.pmra) && isnan(gsr.pmdec)
+    @test icrs2.distance ≈ icrs.distance rtol=1e-2
+    @test gsr.distance ≈ icrs.distance rtol=1e-2
+    @test gsr.ra ≈ icrs.ra rtol=1e-2
+    @test gsr.dec ≈ icrs.dec rtol=1e-2
+
+    icrs = lguys.ICRS(ra=258.58356362, dec=14.55255619, distance=NaN,
+                      pmra=2.25, pmdec=3.12, radial_velocity=-16.1)
+
+    gsr = lguys.transform(lguys.GSR, icrs)
+    icrs2 = lguys.transform(lguys.ICRS, gsr)
+    @test icrs2.radial_velocity ≈ icrs.radial_velocity rtol=1e-2
+    @test gsr.radial_velocity ≈ 123.30460087379765 rtol=1e-2
+    @test isnan(icrs2.distance) && isnan(icrs2.pmra) && isnan(icrs2.pmdec)
+    @test isnan(gsr.distance) && isnan(gsr.pmra) && isnan(gsr.pmdec)
+    @test gsr.ra ≈ icrs.ra rtol=1e-2
+    @test gsr.dec ≈ icrs.dec rtol=1e-2
+
+end
 
 function inverse_test(frame1::Type{<:lguys.AbstractCartesian}, frame2)
     N = 10
