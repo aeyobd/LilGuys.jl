@@ -228,17 +228,28 @@ end
 
 
 """
-    calc_v_circ(snap; filter_bound=true, skip=10)
+    calc_v_circ(snap; filter_bound=:recursive_1d, skip=10)
 
 Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
-Removes unbound particles first if `filter_bound`, and skips every `skip` particles (i.e. each radius contains n times skip particles inclusive)
+Skips every `skip` particles (i.e. each radius contains n times skip particles inclusive)
+filter_bound may be
+- :recursive_1d: recursively removes unbound particles, recomputing the potential each time assuming spherical symmetry
+- :recursive: like recursive_1d but computes the full potential
+- :simple: only removes unbound particles once
+- :false: does not filter particles
 """
-function calc_v_circ(snap::Snapshot; filter_bound::Bool=true, skip::Integer=10)
+function calc_v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=10)
     r = calc_r(snap)
     m = snap.masses
 
-    if filter_bound
-        filt = get_bound(snap)
+    if filter_bound != :false
+        if filter_bound == :simple
+            filt = get_bound(snap)
+        elseif filter_bound == :recursive_1d
+            filt = get_bound_recursive_1D(snap)
+        else
+            throw(ArgumentError("Unknown filter_bound: $filter_bound"))
+        end
 
         r = r[filt]
         m = m[filt]

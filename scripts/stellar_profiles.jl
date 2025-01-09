@@ -56,6 +56,7 @@ end
 function main()
     args = get_args()
     bins = bins_from_args(args)
+    println("bins = ", bins)
 
     @info "loading sample"
     stars = LilGuys.read_hdf5_table(args["stars"])

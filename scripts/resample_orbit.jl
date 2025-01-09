@@ -25,8 +25,11 @@ function get_args()
             default = " "
             help = "Delimiter for the input file"
         "-H", "--header"
-            help = "Does the input file have a header?"
+            help = "use this option if the input file has a header, otherwise uses a default header (time, x, y, z, v_x, v_y, v_z)"
             action = "store_true"
+        "--time-column"
+            default = "time"
+            help = "Name of the time column in the input file if CSV"
     end
 
     return parse_args(s)
@@ -56,7 +59,7 @@ function main()
     timesin  = args["times"]
     if timesin isa AbstractString
         if endswith(timesin, ".csv")
-            times = CSV.read(timesin, DataFrame).time
+            times = CSV.read(timesin, DataFrame)[:, args["time-column"]]
         elseif endswith(timesin, ".hdf5")
             times = Output(timesin).times
         end

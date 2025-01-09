@@ -28,10 +28,18 @@ function main()
             help="Number of iterations"
             arg_type=Int
             default=100
-        "-p", "--percentile"
-            help="percentile to keep per round"
+        "-r", "--r_factor"
+            help="factor to shrink by"
             arg_type=Float64
-            default=95.
+            default=0.95
+        "--f_min"
+            help="minimum factor to shrink by"
+            arg_type=Float64
+            default=0.001
+        "--r_min"
+            help="target radius for shirnking spheres"
+            arg_type=Float64
+            default=0.1
         "-c", "--cut_unbound"
             help="cut unbound particles"
             action="store_true"
@@ -49,8 +57,8 @@ function main()
 
     if args["method"] == "shrinking_spheres"
         statetype = lguys.SS_State
-        kwargs[:percen] = args["percentile"]
-        kwargs[:f_min] = args["f_min"]
+        kwargs[:r_factor] = args["r_factor"]
+        kwargs[:r_min] = args["r_min"]
         kwargs[:verbose] = args["verbose"]
     elseif args["method"] == "potential"
         statetype = lguys.StaticState

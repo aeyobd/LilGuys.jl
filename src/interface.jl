@@ -79,6 +79,8 @@ If `normalization` is `:none`, the histogram is normalized to the total number o
 function histogram(x, bins=bins_default; 
         weights=nothing, normalization=:none, kwargs...)
 
+    x, weights = filter_nans(x, weights)
+
     if bins === nothing
         bins = bins_default
     end
@@ -87,7 +89,6 @@ function histogram(x, bins=bins_default;
         @info "Using default bins of size = $(length(bins))"
     end
 
-    x, weights = filter_nans(x, weights)
     h = DensityEstimators.histogram(x, bins, weights=weights, normalization=normalization)
 
     return h.bins, h.values, h.err
@@ -181,7 +182,7 @@ function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
         bin_width = default_bin_width(x, weights)
     end
     if num_per_bin === nothing
-        num_per_bin = default_n_per_bin(x, weights)
+        num_per_bin = ceil(Int, default_n_per_bin(x, weights))
     end
 
 

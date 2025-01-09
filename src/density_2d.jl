@@ -87,6 +87,9 @@ function StellarProfile(rs;
     if length(rs) < 2
         throw(ArgumentError("Radii must have at least 2 elements."))
     end
+
+    rs, weights = Interface.filter_nans(rs, weights)
+
     log_r_bin, values, err = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
     err[isnan.(err)] .= 0
     log_r = midpoints(log_r_bin)

@@ -121,6 +121,7 @@ function main()
         @info "σv: $(σv)"
     else
         distance = NaN
+        σv = NaN
     end
 
     profile = LilGuys.StellarProfile(r_ell[filt], 

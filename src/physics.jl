@@ -249,3 +249,40 @@ function get_bound(snap::Snapshot)
 end
 
 
+"""
+    get_bound_recursive_1D(snap)
+
+Returns a filter for particles that are bound to the snapshot,
+recursively removing unbound particles and recomputing the potential
+"""
+function get_bound_recursive_1D(snap::Snapshot; maxiter=300)
+    r = calc_r(snap)
+    m = snap.masses
+    v = calc_v(snap)
+
+    ϕ = calc_radial_discrete_Φ(r, m)
+    ϵ = @. -1/2 * v^2 - ϕ
+    filt = ϵ .> 0
+    dN = sum(.!filt)
+
+    for i in 1:maxiter
+        ϕ = calc_radial_discrete_Φ(r[filt], m[filt])
+        ϵ = @. -1/2 * v[filt]^2 - ϕ
+        filt_2 = ϵ .> 0
+
+        idx_dropped = eachindex(filt)[filt][.!filt_2]
+        filt[idx_dropped] .= false
+
+        dN = length(idx_dropped)
+
+        if dN == 0
+            break
+        end
+        if i == maxiter
+            @warn "Maximum iterations reached"
+        end
+    end
+
+    return filt
+end
+
