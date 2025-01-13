@@ -119,7 +119,7 @@ with a slash-index to retrieve the ith snapshot from the output (including the
 centre).
 """
 function Snapshot(filename::String)
-    outidx_pattern = r"/(\d+)$"
+    outidx_pattern = r"/-?(\d+)$"
 
     local snap
 
@@ -131,6 +131,9 @@ function Snapshot(filename::String)
         base_path = replace(filename, outidx_pattern => "")
         num = parse(Int, match(outidx_pattern, filename).captures[1])
         out = Output(base_path)
+        if num < 0
+            num = length(Output(base_path)) + 1 - num
+        end
         snap = out[num]
     else
         throw(ArgumentError("filename must be an HDF5 file or an output/index path"))

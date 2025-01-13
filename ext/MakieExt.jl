@@ -14,6 +14,7 @@ import LilGuys: plot_xyz, plot_xyz!
 import LilGuys: cmd_axis
 import LilGuys: projecteddensity, projecteddensity!
 import LilGuys: hide_grid!
+import LilGuys: @savefig
 
 
 
@@ -279,5 +280,37 @@ function hide_grid!(ax)
     ax.ygridvisible = false
 end
 
+
+"""
+    @savefig name [fig=fig]
+
+Saves a figure to the current figdir as both a pdf and a jpeg.
+If `fig` is not provided, it defaults to the current figure (assumed to be `fig`).
+`figdir` may be defined as the path where figures are saved.
+Saves figures with the basename name and in both pdf and png formats.
+"""
+macro savefig(name, fig=nothing)
+    if isnothing(fig)
+        fig = esc(:fig)
+    else
+        fig = esc(fig)
+    end
+
+
+    return quote
+        local dir, filename
+
+        if isdefined(@__MODULE__, :figdir)
+            dir = (@__MODULE__).figdir
+        else
+            dir = ""
+        end
+        filename = joinpath(dir, $name)
+
+        @info "Saving figure to $filename"
+        Makie.save(filename * ".pdf", $fig)
+        Makie.save(filename * ".png", $fig)
+    end 
+end
 
 end # module 

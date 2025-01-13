@@ -7,6 +7,7 @@ export to_galcen, to_sky
 export save
 
 export calc_r, calc_v
+export @savefig
 
 
 # profile tools
@@ -61,6 +62,8 @@ function cmd_axis end
 function projecteddensity end
 function projecteddensity! end
 function hide_grid! end
+
+macro savefig end
 
 
 
