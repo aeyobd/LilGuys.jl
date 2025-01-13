@@ -100,8 +100,8 @@ function bound_probabilities(snap::Snapshot; k=5)
         δr = δxs[i]
         δv = δvs[i]
         
-        r0 = r(pos1)
-        v0 = r(vel1)
+        r0 = calc_r(pos1)
+        v0 = calc_r(vel1)
         e0 = E_spec(Φ(r0), v0)
         eh = E_spec(Φ(r0 + δr), v0 + δv)
         el = E_spec(Φ(max(r0 - δr, 0)), max(v0 - δv, 0))
@@ -117,7 +117,8 @@ end
 
 
 """
-Computes the sizes of each particle in phase space
+Computes the sizes of each particle in phase space.
+I.e. the 
 
 Parameters
 ----------
@@ -140,7 +141,7 @@ function phase_volumes(snap::Snapshot; k=5, kwargs...)
         rs = dists[i][2:end]
 
         vel_0 = snap.vel[:, i]
-        vs = r(snap.vel[:, idx] .- vel_0)
+        vs = calc_r(snap.vel[:, idx], vel_0)
 
         δr, δv = _phase_volume(rs, vs; kwargs...)
         push!(δrs, δr)

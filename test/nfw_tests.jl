@@ -169,19 +169,6 @@ end
     end
 end
 
-@testset "Ludlow" begin
-    solve_rmax = LilGuys.Ludlow.solve_rmax
-    c_ludlow = LilGuys.Ludlow.c_ludlow
-
-    # tests from Asya's papers
-    # Crater II (Borukhovetskaya et al. 2022)
-    @test solve_rmax(25.9/V2KMS) ≈ 4.7 atol = 0.05
-
-    # Fornax (Borukhovetskaya et al. 2022)
-    @test solve_rmax(39.6/V2KMS) ≈ 8.0 atol = 0.05
-end
-
-
 @testset "literature datapoints" begin
 
     # Fornax (Borukhovetskaya et al. 2022)

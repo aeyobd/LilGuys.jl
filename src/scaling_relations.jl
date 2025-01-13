@@ -1,5 +1,7 @@
 """
-Given the maximum circular velocity (in km/s), returns the stellar mass (in Msun).
+    M_s_from_vel_fattahi(v_max)
+
+Given the maximum circular velocity (in code units), returns the stellar mass (in code units).
 Uses the fit from @fattahi2018.
 """
 function M_s_from_vel_fattahi(v_max)
@@ -11,6 +13,11 @@ function M_s_from_vel_fattahi(v_max)
 end
 
 
+"""
+    vel_from_M_s_fattahi(Mstar)
+
+Inverse of `M_s_from_vel_fattahi`. Given the stellar mass of a galaxy, returns the maximum circular velocity of the halo (in code units).
+"""
 function vel_from_M_s_fattahi(Mstar) # code units
     return find_zero(ν -> M_s_from_vel_fattahi(ν) - Mstar, 0.1)
 end
@@ -52,6 +59,7 @@ function EN21_tidal_track(r_circ_max_0, v_circ_max_0; x_min = 0.1, n_points = 10
     r_circ_max = r_circ_max_0 * x
     return r_circ_max, v_circ_max
 end
+
 
 module Ludlow 
     export solve_rmax, c_ludlow

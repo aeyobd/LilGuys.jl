@@ -83,6 +83,18 @@ end
         test_to_zero(profile)
     end
 
+    @testset "scale" begin
+        prof = lguys.Plummer(2.3, 0.6)
+        r_scale = 1.21
+        m_scale = π
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
+
 end
 
 @testset "Exp2D" begin
@@ -127,6 +139,73 @@ end
         test_M_tot(profile)
         test_to_zero(profile)
     end
+    
+    @testset "scale" begin
+        prof = lguys.Exp2D(2.2, 0.7)
+        r_scale = 1.3
+        m_scale = π/2
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
+end
+
+
+@testset "Exp3D" begin
+    @testset "ρ" begin
+        profile = lguys.Exp3D(1, 1)
+
+        @test lguys.calc_ρ(profile, 0) ≈ 1 / 8π 
+        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 8π
+        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 8π 
+        @test lguys.calc_ρ(profile, Inf) ≈ 0
+    end
+
+    @testset "ρ" begin
+        profile = lguys.Exp3D(0.25, √7)
+        
+        x = 10 .^ LinRange(0, 1, 10)
+
+        ρ1 = lguys.calc_ρ.(profile, x)
+        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+
+        @test ρ1 ≈ ρ2 rtol=1e-5
+    end
+
+    @testset "M" begin
+        profile = lguys.Exp3D(0.989, 1.35)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+
+    @testset "consistency" begin
+        profile = lguys.Exp3D(1.5, 0.95)
+
+        test_R_h(profile)
+        test_r_h(profile)
+        test_M_tot(profile)
+        test_to_zero(profile)
+    end
+
+    @testset "scale" begin
+        prof = lguys.Exp3D(2.3, 0.8)
+        r_scale = 1.4
+        m_scale = π/3
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
 end
 
 
@@ -167,6 +246,18 @@ end
 
         @test Σ1 ≈ Σ2 rtol=1e-5
     end
+
+    @testset "scale" begin
+        prof = lguys.LogCusp2D(3.5, 6.2)
+        r_scale = 1.8
+        m_scale = π^1.5
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
 end
 
 
@@ -201,6 +292,18 @@ end
         test_to_zero(profile)
     end
 
+
+    @testset "scale" begin
+        prof = lguys.KingProfile(M=2.2, R_s=1.9, R_t=3.3)
+        r_scale = 1.7
+        m_scale = π^2
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
 end
 
 
@@ -309,4 +412,10 @@ end
             end
         end
     end
+end
+
+
+
+@testset "calc_σv_star_mean" begin
+    @test false broken=true
 end

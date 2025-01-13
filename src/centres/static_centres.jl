@@ -32,7 +32,7 @@ end
 end
 
 
-function StaticState(snap::Snapshot; method="com")
+function StaticState(snap::Snapshot; method="com", verbose=false)
     return StaticState(centre=Centre(), method=method)
 end
 

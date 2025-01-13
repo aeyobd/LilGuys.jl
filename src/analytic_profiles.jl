@@ -612,15 +612,15 @@ Given a dark matter (mass) profile and a stellar profile, assuming isotropic and
 returns the light-weighted line of sight (1D) velocity dispersion for the system (in code units).
 """
 function calc_σv_star_mean(dm_profile::SphericalProfile, stellar_profile::SphericalProfile; R_min=0, R_max=Inf)
-	ρ(r) = calc_ρ(stellar_profile, r)
-	M(r) = calc_M(dm_profile, r)
-	integrand(r) = ρ(r) * G * M(r) * 4π/3 * r
+    ρ(r) = calc_ρ(stellar_profile, r)
+    M(r) = calc_M(dm_profile, r)
+    integrand(r) = ρ(r) * G * M(r) * 4π/3 * r
 
-	weighted_σ2 = (
-		integrate(integrand, R_min, R_max)
-	)
+    weighted_σ2 = (
+            integrate(integrand, R_min, R_max)
+    )
 
-	Mtot = calc_M(stellar_profile, R_max)
+    Mtot = calc_M(stellar_profile, R_max)
 
-	sqrt(weighted_σ2 / Mtot)
+    sqrt(weighted_σ2 / Mtot)
 end
