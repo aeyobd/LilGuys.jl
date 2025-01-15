@@ -10,6 +10,7 @@ tests = ["units", "utils",
          "physics", "gravity", 
          "scaling_relations",
          "centre_static", "analytic_profiles", 
+         "centre_output",
          "shrinking_spheres",
          "plots",
         ]

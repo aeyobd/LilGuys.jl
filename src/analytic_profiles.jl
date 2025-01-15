@@ -19,6 +19,7 @@ const RECOGNIZED_PROFILES = (
     :Exp2D,
     :Exp3D,
     :LogCusp2D,
+    :ExpCusp,
     :KingProfile,
     :NFW,
     :TruncNFW,
@@ -218,6 +219,23 @@ struct KingProfile <: SphericalProfile
     R_t::Float64 
 end
 
+
+@doc raw"""
+    ExpCusp(M, r_s)
+
+An exponential cusp profile in 3D. The density profile is given by
+
+```math
+\rho = \rho_0 \exp(-r/r_s) / (r/r_s)
+```
+where $M_{\rm tot} = 4\pi \rho_0 r_s^3$ is the total mass.
+"""
+@kwdef struct ExpCusp <: SphericalProfile
+    M::Float64 = 1
+    r_s::Float64 = 1
+end
+
+
 function KingProfile(;kwargs...)
     kwargs = Dict{Symbol, Any}(kwargs)
 
@@ -301,7 +319,7 @@ function scale(profile::Plummer, radius_scale::Real, mass_scale::Real=1)
 end
 
 
-
+############ Exp2D 
 function get_Σ_s(profile::Exp2D)
     return profile.M / (2π * profile.R_s^2)
 end
@@ -343,6 +361,7 @@ end
 # end
 
 
+############ Exp3D
 
 function get_ρ_s(profile::Exp3D)
     return profile.M / (8π * profile.r_s^3)
@@ -375,6 +394,7 @@ function scale(profile::Exp3D, radius_scale::Real, mass_scale::Real)
 end
 
 
+############ LogCusp2D
 
 function calc_ρ(profile::LogCusp2D, r::Real)
     M, r_s = profile.M, profile.R_s
@@ -411,6 +431,52 @@ function scale(profile::LogCusp2D, radius_scale::Real, mass_scale::Real)
 end
 
 
+############ ExpCusp
+
+function calc_ρ(profile::ExpCusp, r::Real)
+    r_s = profile.r_s
+    x = r / r_s
+    ρ_s = get_ρ_s(profile)
+    return ρ_s * exp(-x) / x
+end
+
+
+function get_ρ_s(profile::ExpCusp)
+    M, r_s = profile.M, profile.r_s
+    return M / (4π * r_s^3)
+end
+
+
+function calc_M(profile::ExpCusp, r::Real)
+    M, r_s = profile.M, profile.r_s
+    x = r / r_s
+    return M * (1 - (1 + x) * exp(-x))
+end
+
+function calc_r_circ_max(profile::ExpCusp)
+    α = 1.7932821329007609 # root of x^2 + x + 1 - exp(x)
+    return α * profile.r_s
+end
+
+function calc_v_circ_max(profile::ExpCusp)
+    rm = calc_r_circ_max(profile)
+    return calc_v_circ(profile, rm)
+end
+
+function calc_r_h(profile::ExpCusp)
+    α = 1.6783469900166605 # solution to 1/2 = 1 - (1 + x) exp(-x)
+    return α * profile.r_s
+end
+
+
+function scale(profile::ExpCusp, radius_scale::Real, mass_scale::Real)
+    return ExpCusp(
+        M = profile.M * mass_scale, 
+        r_s = profile.r_s * radius_scale
+    )
+end
+
+############ KingProfile
 
 function calc_Σ(profile::KingProfile, r::Real)
     if r > profile.R_t

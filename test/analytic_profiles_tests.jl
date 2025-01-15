@@ -20,7 +20,7 @@ function test_M_2D_tot(profile, M=profile.M, r=100)
     @test lguys.calc_M_2D(profile, r) ≈ M
 end
 
-function test_to_zero(profile; r=1000, atol=1e-8)
+function test_to_zero(profile; r=100000, atol=1e-8)
     @test lguys.calc_Σ(profile, r) ≈ 0 atol=atol
     @test lguys.calc_ρ(profile, r) ≈ 0 atol=atol
     @test lguys.calc_M(profile, 1/r) ≈ 0 atol=atol
@@ -96,6 +96,51 @@ end
     end
 
 end
+
+
+
+@testset "ExpCusp" begin
+    @testset "ρ" begin
+        profile = lguys.ExpCusp(1, 1)
+
+        @test lguys.calc_ρ(profile, 0) ≈ Inf
+        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 4π
+        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 2 / 4π
+        @test lguys.calc_ρ(profile, Inf) ≈ 0
+    end
+
+    @testset "M" begin
+        profile = lguys.ExpCusp(2.8, 1.11)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+
+    @testset "consistency" begin
+        profile = lguys.ExpCusp(0.22, 0.31)
+
+        test_r_h(profile)
+        test_M_tot(profile)
+        test_to_zero(profile)
+    end
+    
+    @testset "scale" begin
+        prof = lguys.ExpCusp(4.2, 12.3)
+        r_scale = 1.3
+        m_scale = π/2
+
+        prof_scaled = lguys.scale(prof, r_scale, m_scale)
+
+        x = 10 .^ LinRange(-1, 1, 30)
+
+        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+    end
+end
+
 
 @testset "Exp2D" begin
     @testset "Σ" begin
@@ -381,16 +426,12 @@ end
                 if profile == :KingProfile
                     kwargs["R_t"] = 10rand()
                     kwargs["k"] = rand()
-                end
-
-                if profile == :NFW
+                elseif profile == :NFW
                     kwargs = Dict()
                     kwargs["M_s"] = 10^randn()
                     kwargs["r_s"] = 10rand()
                     kwargs["c"] = 10rand()
-                end
-
-                if profile == :TruncNFW
+                elseif profile == :TruncNFW
                     kwargs = Dict()
                     kwargs["M_s"] = 10^randn()
                     kwargs["r_s"] = 10rand()
