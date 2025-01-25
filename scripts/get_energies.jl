@@ -49,13 +49,14 @@ function main()
     Φs = lguys.calc_radial_discrete_Φ(radii, masses)
     vs = lguys.calc_r(snap.velocities, cen.velocity)
     ϵs = @. -Φs - 1/2*vs^2
+    Φs_nbody = isnothing(snap.Φs) ? fill(NaN, length(Φs)) : snap.Φs
 
     snap_df = DataFrame(
         index = snap.index,
         radii = radii,
         mass = masses,
         psi = -Φs,
-        psi_nbody = -snap.Φs,
+        psi_nbody = Φs_nbody,
         eps = ϵs,
         filt = ϵs .> 0,
     )

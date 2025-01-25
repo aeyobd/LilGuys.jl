@@ -1,4 +1,45 @@
 abstract type GeneralNFW <: SphericalProfile end
+import SpecialFunctions: expint
+
+
+
+"""
+The virial radius, i.e. the radius where the mean inner density is 200 times 
+"""
+function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
+    f(r) = calc_ρ_mean(profile, r) - δ*ρ_crit
+
+    R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])
+
+    if abs(f(R200)) > tol
+        error("failed to solve for c")
+    end
+    
+    return R200
+end
+
+function calc_R200(profile::GeneralNFW)
+    return solve_R200(profile)
+end
+
+function calc_M200(profile::GeneralNFW)
+    return calc_M(profile, calc_R200(profile))
+end
+
+
+function solve_r_circ_max(profile::GeneralNFW)
+    r_max = find_zero(r -> 4π * r * calc_ρ(profile, r) - calc_M(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
+    return r_max
+end
+
+function calc_r_circ_max(profile::GeneralNFW)
+    return solve_r_circ_max(profile)
+end
+
+function calc_v_circ_max(profile::GeneralNFW)
+    r_max = calc_r_circ_max(profile)
+    return calc_v_circ(profile, r_max)
+end
 
 @doc raw"""
     NFW(M_s, r_s)
@@ -151,7 +192,7 @@ function calc_Φ(profile::NFW, r::Real)
 end
 
 
-function calc_v_circ_max(profile::GeneralNFW)
+function calc_v_circ_max(profile::NFW)
     r_max = calc_r_circ_max(profile)
     M = calc_M(profile, r_max)
 
@@ -159,7 +200,7 @@ function calc_v_circ_max(profile::GeneralNFW)
 end
 
 
-function calc_r_circ_max(profile::GeneralNFW)
+function calc_r_circ_max(profile::NFW)
     return α_nfw * profile.r_s
 end
 
@@ -168,14 +209,10 @@ end
 """
 NFW concentration parameter = r_s / r_200
 """
-function calc_c(profile::NFW; tol=1e-3)
-    f(c) = 200ρ_crit - calc_ρ_mean(profile, c * profile.r_s)
-    c = find_zero(f, [0.1, 1000])
+function calc_c(profile::GeneralNFW)
+    r200 = solve_R200(profile)
+    c = r200 / profile.r_s
 
-    if abs(f(c)) > tol
-        error("failed to solve for c")
-    end
-    
     return c
 end
 
@@ -186,22 +223,14 @@ end
 
 
 """
-Mean density instide radius
-"""
-function calc_ρ_mean(profile::NFW, r::Real)
-    return calc_M(profile, r) / (4π/3 * r^3)
-end
-
-
-"""
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
-function calc_R200(profile::GeneralNFW)
+function calc_R200(profile::NFW)
     return profile.r_s * profile.c
 end
 
 
-function calc_M200(profile::GeneralNFW)
+function calc_M200(profile::NFW)
     return A_NFW(profile.c) * profile.M_s
 end
 
@@ -276,4 +305,65 @@ function calc_Φ(profile::TruncNFW, r::Real)
 
     return Φ_in + Φ_out
 end
+
+
+
+@doc raw"""
+    CoredNFW(; r_c, kwargs...)
+
+@peñarrubia+2012 implementaation of a cored NFW profile. The density profile is given by
+
+```math
+\rho(r) = \rho_s (r_c / r_s + r / r_s)^{-1} (1 + r / r_s)^{-2}
+```
+
+where r_c is the core radius and r_s is the scale radius. 
+"""
+struct CoredNFW <: GeneralNFW
+    M_s::Float64
+    r_s::Float64
+    r_c::Float64
+    r_t::Float64
+    c::Union{Nothing, Float64}
+end
+
+function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s)
+    return CoredNFW(M_s, r_s, r_c, r_t, c)
+end
+
+function get_ρ_s(profile::CoredNFW)
+    M_s, r_s = profile.M_s, profile.r_s
+    V_s = 4π/3 * r_s^3 
+    return M_s / V_s
+end
+
+
+function calc_ρ(profile::CoredNFW, r::Real)
+    r_c, r_s = profile.r_c, profile.r_s
+    ρ_s = get_ρ_s(profile)
+    return ρ_s/3 * (r_c / r_s + r / r_s)^(-1) * (1 + r / r_s)^(-2) * exp(-r/profile.r_t)
+end
+
+function calc_M(profile::CoredNFW, r::Real)
+    # result from sagemath, maybe I will do this integral one day
+    c = profile.r_c
+    s = profile.r_s
+    t = profile.r_t
+    ρ_s = get_ρ_s(profile)
+    Ei(x) = -expint(-x)
+    M(r) =  4π * (ρ_s/3) * (
+             (c^2*r*s^3 + c^2*s^4)*t*Ei(-(c + r)/t)*exp(c/t)
+             - (c*s^5 - s^6)*t * exp(-r/t)
+             - (
+                (2*c*r*s^4 - s^6 + (2*c - r)*s^5)*t*Ei(-(r + s)/t) 
+                + (c*r*s^5 - s^7 + (c - r)*s^6)*Ei(-(r + s)/t)
+                )*exp(s/t)
+         )/(
+                     (c^2*r - (2*c - r)*s^2 + s^3 + (c^2 - 2*c*r)*s)*t
+                )
+
+    return M(r) - M(0)
+end
+
+
 

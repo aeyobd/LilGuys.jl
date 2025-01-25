@@ -23,6 +23,7 @@ const RECOGNIZED_PROFILES = (
     :KingProfile,
     :NFW,
     :TruncNFW,
+    :CoredNFW,
 )
 
 
@@ -71,11 +72,15 @@ function load_profile(params::Dict{String, <:Any})
 
     profile = profile_class(;dict_to_tuple(kwargs)...)
 
-	return profile
+    return profile
 end
 
 
 function load_profile(filename::String)
+    if !isfile(filename)
+        throw(ArgumentError("File $filename does not exist"))
+    end
+
     params = TOML.parsefile(filename)
     return load_profile(params)
 end
@@ -229,6 +234,8 @@ An exponential cusp profile in 3D. The density profile is given by
 \rho = \rho_0 \exp(-r/r_s) / (r/r_s)
 ```
 where $M_{\rm tot} = 4\pi \rho_0 r_s^3$ is the total mass.
+This is the asymptotic result of an NFW profile under heavy
+tidal stripping.
 """
 @kwdef struct ExpCusp <: SphericalProfile
     M::Float64 = 1
@@ -617,6 +624,14 @@ function get_r_s(profile::KingProfile)
     return profile.R_s / sqrt(2)
 end
 
+
+"""
+Mean density instide radius
+"""
+function calc_ρ_mean(profile::SphericalProfile, r::Real)
+    return calc_M(profile, r) / (4π/3 * r^3)
+end
+
 function calc_R_h(profile::KingProfile)
     r_s = get_r_s(profile)
     M0 = get_M_tot(profile)
@@ -651,6 +666,11 @@ function get_M_tot(profile::SphericalProfile)
         return calc_M(profile, Inf)
     end
 end
+
+function calc_Φ(profile::SphericalProfile, r::Real)
+    return calc_Φ_from_ρ(profile, r)
+end
+
 
 
 function calc_Φ_from_ρ(profile::SphericalProfile, r::Real; integrate_M=false)
@@ -690,3 +710,5 @@ function calc_σv_star_mean(dm_profile::SphericalProfile, stellar_profile::Spher
 
     sqrt(weighted_σ2 / Mtot)
 end
+
+

@@ -78,6 +78,23 @@ end
 end
 
 
+@testset "NFW properties" begin
+    nfw = lguys.NFW(r_s=3.9, M_s=0.42)
+
+    v1 = lguys.calc_v_circ_max(nfw)
+    r = lguys.solve_r_circ_max(nfw)
+    v2 = lguys.calc_v_circ(nfw, r)
+    @test v1 ≈ v2
+
+    r = lguys.calc_R200(nfw)
+    r1 = lguys.solve_R200(nfw)
+    @test r ≈ r1
+    M = lguys.calc_M200(nfw)
+    @test lguys.calc_M(nfw, r1) ≈ M
+
+    @test lguys.calc_M(nfw, r1) / (4/3 * π * r1^3) ≈ 200 * lguys.ρ_crit
+end
+
 @testset "v circ max" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
     r_max = lguys.calc_r_circ_max(nfw)
@@ -169,6 +186,51 @@ end
     end
 end
 
+
+@testset "CoredNFW" begin
+    @testset "simple" begin
+        halo = lguys.CoredNFW(r_s=1, M_s=1, r_t=2, r_c=0.1)
+
+        @test lguys.calc_ρ(halo, 0) ≈ 10 / (4π)
+        @test lguys.calc_ρ(halo, 1e-8) ≈ 10 / (4π) rtol=1e-5
+        @test lguys.calc_ρ(halo, 1e-6) ≈ 10 / (4π) rtol=1e-3
+
+        @test lguys.calc_ρ(halo, 1) ≈ 1/4π * 1/(1.1 * 2^2) * exp(-1/2)
+        @test lguys.calc_ρ(halo, 2) ≈ 1/4π * 1/(2.1 *3^2) * exp(-2/2)
+
+        @test lguys.calc_ρ(halo, 20) ≈ 0 atol=1e-6
+    end
+
+    @testset "M" begin
+        profile = lguys.CoredNFW(r_s=1.21, M_s=√π, r_t=5, r_c=0.3)
+        x = 10 .^ LinRange(-1, 2, 10)
+
+        M1 = lguys.calc_M.(profile, x)
+        M2 = lguys.calc_M_from_ρ.(profile, x)
+
+        @test M1 ≈ M2 rtol=1e-5
+    end
+
+    @testset "v circ max" begin
+        profile = lguys.CoredNFW(r_s=1.5, M_s=1/π, r_t=6, r_c=0.55)
+        r_max = lguys.calc_r_circ_max(profile)
+        v_max = lguys.calc_v_circ_max(profile)
+        @test lguys.calc_v_circ(profile, r_max) ≈ v_max
+        @test lguys.calc_v_circ(profile, r_max * (1.001)) < v_max
+        @test lguys.calc_v_circ(profile, r_max * (0.999)) < v_max
+    end
+
+    @testset "M200" begin
+        profile = lguys.CoredNFW(r_s=2.3, M_s=1/1.5π, r_t=8, r_c=0.03)
+        M200 = lguys.calc_M200(profile)
+        R200 = lguys.calc_R200(profile)
+
+        ρ_mean = M200 / (4/3 * π * R200^3)
+        @test ρ_mean ≈ 200*lguys.ρ_crit
+        @test lguys.calc_M(profile, R200) ≈ M200
+    end
+end
+
 @testset "literature datapoints" begin
 
     # Fornax (Borukhovetskaya et al. 2022)
@@ -181,3 +243,7 @@ end
     @test lguys.calc_M200(halo) ≈ 0.272 atol=0.01
     @test halo.c ≈ 13.6 atol=0.05
 end
+
+
+
+

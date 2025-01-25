@@ -47,7 +47,11 @@ function main()
     params = TOML.parsefile(args["params"])
     prof_out = LilGuys.load_profile(params)
 
-    m_scale = prof_out.M_s / prof_in.M_s
+    if prof_out isa LilGuys.ExpCusp
+        m_scale = prof_out.M / prof_in.M
+    else
+        m_scale = prof_out.M_s / prof_in.M_s
+    end
     r_scale = prof_out.r_s / prof_in.r_s
 
     scaled = LilGuys.rescale(snap, m_scale, r_scale)
