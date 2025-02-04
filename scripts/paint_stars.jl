@@ -1,6 +1,7 @@
 #!/usr/bin/env julia
 
 import LilGuys as lguys
+import LilGuys
 
 using DataFrames
 using HDF5
@@ -13,6 +14,8 @@ import DensityEstimators
 
 using ArgParse
 
+
+SCRIPT_VERSION = "v0.1.0"
 
 function get_args()
     s = ArgParseSettings(
@@ -60,6 +63,9 @@ end
 
 
 function main()
+    @info "script version $SCRIPT_VERSION"
+    @info "LilGuys version $(pkgversion(LilGuys))"
+
     args = get_args()
 
     profile = lguys.load_profile(args["profile"])

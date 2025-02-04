@@ -5,41 +5,51 @@ using ArgParse
 import TOML
 
 
+SCRIPT_VERSION = "0.1.0"
 
 function get_args()
-    s = ArgParseSettings(description="rescales a snapshot to a new NFW profile.")
+    s = ArgParseSettings(description="Rescales a snapshot in mass and radius accordint to the halo parameters.")
     @add_arg_table s begin
         "input"
-            help = "snapshot to rescale"
+            help = "Snapshot to rescale."
             required = true
         "--output", "-o"
-            help = "output snapshot"
+            help = "file to write snapshot to. Defaults to params"
             default = nothing
+            required = true
         "--params-in", "-n"
-            help = "reads a nfw profile from the file for the input. Defaults to M_s=1, r_s=1"
+            help = "TOML file containing the input halo parameters"
             default = nothing
+            required = true
         "--params", "-p"
-            help = "reads a nfw profile from the file for the output"
+            help = "TOML file containing the desired rescaled halo parameters."
             required = true
 
         "--max-radius", "-r"
-            help = "maximum radius to include"
+            help = "Truncate particles beyond this radius in the rescaled snapshot."
             default = nothing
             arg_type = Float64
     end
 
     args = parse_args(s)
 
-    if args["output"] === nothing
-        args["output"] = splitext(args["params-out"])[1] * ".hdf5"
-    end
-
     return args
 end
 
 
 function main()
+    @info "LilGuys $(pkgversion(LilGuys))"
+    @info "rescale_nfw.jl v$SCRIPT_VERSION"
+
     args = get_args()
+
+    if isfile(args["output"])
+        @info "Removing old output file $(args["output"])"
+        rm(args["output"], force=true)
+    end
+
+    outparams = splitext(args["params"])[1] * "-used.toml"
+    rm(outparams, force=true)
 
     snap = Snapshot(args["input"])
 
@@ -57,13 +67,15 @@ function main()
     scaled = LilGuys.rescale(snap, m_scale, r_scale)
 
     if args["max-radius"] !== nothing
-        scaled = scaled[get_r(scaled.positions) .< args["max-radius"]]
+        filt = get_r(scaled.positions) .< args["max-radius"]
+        @info "Removing $(sum(.!filt)) particles beyond $(args["max-radius"]) kpc"
+        scaled = scaled[filt]
     end
 
     LilGuys.save(args["output"], scaled)
 
-    outparams = splitext(args["params"])[1] * "-used.toml"
-    println("updating toml at $outparams")
+    @info "Writing used scales to $outparams"
+
     open(outparams, "w") do f
         df = Dict(
             "profile" => params,

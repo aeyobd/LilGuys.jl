@@ -8,6 +8,8 @@ import TOML
 
 include("bin_args.jl")
 
+SCRIPT_VERSION = "v0.1.0"
+
 function get_args()
     s = ArgParseSettings(
         description="""
@@ -53,6 +55,9 @@ end
 
 
 function main()
+    @info "$(@__FILE__) version: $SCRIPT_VERSION"
+    @info "LilGuys version: $(pkgversion(LilGuys))"
+
     args = get_args()
 
     bins = bins_from_args(args)

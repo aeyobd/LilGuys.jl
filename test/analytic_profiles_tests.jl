@@ -352,6 +352,37 @@ end
 end
 
 
+@testset "Sersic" begin
+    @testset "Σ" begin
+        profile = lguys.Sersic(n=1)
+        @test profile.r_h ≈ 1
+        @test profile.Σ_h ≈ 1
+        @test profile._b_n ≈ 1.6783469900166605
+
+        @test lguys.calc_Σ(profile, 0) ≈ 5.356693980033321 rtol=1e-4 # exp 1.6783469900166605
+        @test lguys.calc_Σ(profile, 1) ≈ 1.0
+
+        profile = lguys.Sersic(n=4)
+        @test lguys.calc_Σ(profile, 1) ≈ 1.0
+
+
+    end
+
+    @testset "b_n" begin
+        for n in [0.6, 0.85, 1, 2.5, 5.8, 10, 15]
+            profile = lguys.Sersic(n=n)
+            @test lguys.calc_Σ(profile, 1) ≈ 1.0
+            @test lguys.calc_M_2D(profile, 1) ≈ 0.5 * lguys.calc_M_2D(profile, 10 * max(1, n)^4) rtol=1e-3
+
+            if n > 8
+                @test profile._b_n ≈ 2n - 1/3 rtol=1e-3
+            end
+        end
+    end
+
+end
+
+
 
 
 @testset "load profile" begin
@@ -438,6 +469,15 @@ end
                     kwargs["c"] = 10rand()
 
                     kwargs["r_t"] = 10rand()
+                elseif profile == :CoredNFW
+                    kwargs = Dict()
+                    kwargs["M_s"] = 10^randn()
+                    kwargs["r_s"] = 10rand()
+                    kwargs["r_c"] = (1 + 5rand()) * kwargs["r_s"]
+                    kwargs["r_t"] = 10rand()
+                    kwargs["c"] = 10rand()
+                elseif profile == :Sersic
+                    kwargs["n"] = 0.3 + 10rand()
                 end
 
                 d = Dict("profile" => Dict(string(profile) => kwargs))

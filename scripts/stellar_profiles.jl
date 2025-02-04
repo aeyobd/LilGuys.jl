@@ -6,7 +6,7 @@ using LilGuys
 import DensityEstimators
 import TOML
 
-
+SCRIPT_VERSION = "v0.1.0"
 include("bin_args.jl")
 
 function get_args()
@@ -54,6 +54,8 @@ end
 
 
 function main()
+    @info "$(@__FILE__) version: $SCRIPT_VERSION"
+    @info "LilGuys version: $(pkgversion(LilGuys))"
     args = get_args()
     bins = bins_from_args(args)
     println("bins = ", bins)

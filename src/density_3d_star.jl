@@ -27,6 +27,9 @@ Represents a stellar density profile in 3D,
     "The break radius in kpc"
     r_break::F = NaN
 
+    "The total bound stellar mass"
+    bound_mass::F = NaN
+
     quantiles::Vector{F}
     r_quantile::Vector{F}
     time::F = NaN
@@ -84,6 +87,8 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
     r_break = calc_break_radius(σ_v_1d, delta_t)
     r_quantile = find_r_quantile_star(snap, quantiles)
 
+    bound_mass = sum(snap.weights[get_bound(snap)])
+
     return StellarProfile3D(
         sigma_vx=σ_v_1d, 
         rho=rho,
@@ -97,6 +102,7 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
         time = snap.time,
         delta_t = delta_t, 
         r_break = r_break,
+        bound_mass = bound_mass,
     )
 end
 

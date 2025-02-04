@@ -21,6 +21,7 @@ const DEFAULT_COLORS = [
 ]
 
 
+
 function get_args()
     s = ArgParseSettings(
          description="Animates the dark matter from a (projected) bird's eye view",

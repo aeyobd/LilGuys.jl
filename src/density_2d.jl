@@ -40,6 +40,9 @@ An observed 2D density profile
     Gamma_max::Vector{F}
     Gamma_max_err::Vector{F}
 
+    quantiles::Vector{F} = []
+    log_r_quantiles::Vector{F} = []
+
     time::F = NaN
 
     normalization::String = "mass"
@@ -73,6 +76,7 @@ function StellarProfile(rs;
         r_units="", 
         distance=NaN,
         sigma_v=NaN,
+        quantiles = [0.01, 0.02, 0.05, 0.10, 0.16, 0.25, 0.5, 0.75, 0.84, 0.9, 0.95, 0.98, 0.99],
         kwargs...
     )
 
@@ -129,6 +133,7 @@ function StellarProfile(rs;
     log_Σ = log10.(Σ)
     log_Σ[Σ .== 0] .= NaN
 
+    log_r_quantiles = log10.(quantile(rs, quantiles))
 
     prof = StellarProfile(;
         r_units = r_units,
@@ -152,6 +157,8 @@ function StellarProfile(rs;
         Gamma_max = value.(Γ_max),
         Gamma_max_err = nan_uncertainty(Γ_max),
         normalization = string(normalization),
+        quantiles = quantiles,
+        log_r_quantiles = log_r_quantiles,
         kwargs...
     )
 
@@ -226,6 +233,15 @@ function nan_uncertainty(v::AbstractVector{<:Measurement})
     return x
 end
 
+
+"""
+    nan_uncertainty(v)
+
+Returns the uncertainty of a value `v` with zero uncertainties as NaN.
+"""
+function nan_uncertainty(v::AbstractVector{<:Real})
+    return fill(NaN, length(v))
+end
 
 
 """

@@ -2,7 +2,7 @@
 
 
 import Base: @kwdef
-import SpecialFunctions: besselk
+import SpecialFunctions: besselk, gamma, gamma_inc
 import ForwardDiff: derivative
 import TOML
 import Roots: find_zero
@@ -24,6 +24,7 @@ const RECOGNIZED_PROFILES = (
     :NFW,
     :TruncNFW,
     :CoredNFW,
+    :Sersic,
 )
 
 
@@ -139,12 +140,6 @@ where M is the total mass and r_s is the scale radius.
     r_s::Float64 = 1
 end
 
-
-@kwdef struct Sersic <: SphericalProfile
-    M::Float64 = 1
-    r_s::Float64 = 1
-    n::Float64 = 1
-end
 
 
 
@@ -332,7 +327,8 @@ function get_Σ_s(profile::Exp2D)
 end
 
 function calc_R_h(profile::Exp2D)
-    return 1.67835 * profile.R_s
+    α = 1.6783469900166605 # solution to 1/2 = 1 - (1 + x) exp(-x)
+    return α * profile.R_s
 end
 
 function calc_r_h(profile::Exp2D)
@@ -645,6 +641,64 @@ function calc_r_h(profile::KingProfile)
     return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
 end
 
+
+
+
+@doc raw"""
+    Sersic(M, r_s, n)
+
+A Sérsic profile. The density profile is given by
+
+``math
+\Sigma(r) = \Sigma_h \exp(-b_n ((r/r_h)^{1/n} - 1))
+``
+
+where $\Sigma_h$ is the surface density at the half-light radius $r_h$.
+$b_n$ is a function of $n$, which is calculated as the solution to $\gamma(2n, b_n) = 1/2\Gamma(2n)$ where $\gamma$ is the lower incomplete gamma function and $\Gamma$ is the gamma function.
+"""
+struct Sersic <: SphericalProfile
+    Σ_h::Float64 
+    r_h::Float64
+    n::Float64
+    _b_n::Float64
+end
+
+function Sersic(;kwargs...)
+    kwargs = Dict{Symbol, Any}(kwargs)
+
+    r_h = get(kwargs, :r_h, 1)
+    n = get(kwargs, :n, 1)
+    Σ_h = get(kwargs, :Σ_h, 1)
+
+    _b_n = calc_b_n(n)
+
+    return Sersic(Σ_h, r_h, n, _b_n)
+end
+
+
+function calc_b_n(n::Real)
+    return find_zero(b_n -> gamma_inc(2n, b_n)[1] - 1/2, guess_b_n(n))
+end
+
+function guess_b_n(n::Real)
+    if n > 0.36
+        return 2n - 1/3 + 4/(405n) + 46/(25515n^2) + 131/(1148175n^3) - 2194697/(30690717750n^4)
+    else 
+        return 0.5
+    end
+end
+
+
+function calc_Σ(profile::Sersic, R::Real)
+    Σ_h, r_h, n = profile.Σ_h, profile.r_h, profile.n
+    b_n = 2n - 1/3 + 4/(405n) + 46/(25515n^2)
+    return Σ_h * exp(-b_n * ((R/r_h)^(1/n) - 1))
+end
+
+
+
+
+# General methods
 
 function calc_r_h(profile::SphericalProfile)
     M0 = get_M_tot(profile)

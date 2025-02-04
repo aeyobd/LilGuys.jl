@@ -85,23 +85,27 @@ Returns a vector same length of x with endpoints using linear approximation.
 Uses the 2nd order central difference method alla numpy.gradient.
 """
 function gradient(y::AbstractVector{T}, x::AbstractVector) where T<:Real
-	x = x
-	y = y
-	N = length(x)
+    x = x
+    y = y
+    N = length(x)
 
-	grad = Vector{T}(undef, N)
+    if N < 2
+        return fill(NaN, N)
+    end
 
-	grad[1] = (y[2] - y[1]) / (x[2] - x[1])
-	grad[end] = (y[end] - y[end-1]) / (x[end] - x[end-1])
-	for i in 2:(N-1)
-		hs = x[i] - x[i-1]
-		hd = x[i+1] - x[i]
+    grad = Vector{T}(undef, N)
 
-		numerator = hs^2 * y[i+1] + (hd^2 - hs^2) * y[i] - hd^2*y[i-1]
-		denom = hd*hs*(hd + hs)
-		grad[i] = numerator/denom
-	end
-	return grad
+    grad[1] = (y[2] - y[1]) / (x[2] - x[1])
+    grad[end] = (y[end] - y[end-1]) / (x[end] - x[end-1])
+    for i in 2:(N-1)
+            hs = x[i] - x[i-1]
+            hd = x[i+1] - x[i]
+
+            numerator = hs^2 * y[i+1] + (hd^2 - hs^2) * y[i] - hd^2*y[i-1]
+            denom = hd*hs*(hd + hs)
+            grad[i] = numerator/denom
+    end
+    return grad
 end
 
 

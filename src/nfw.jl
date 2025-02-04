@@ -27,6 +27,21 @@ function calc_M200(profile::GeneralNFW)
 end
 
 
+"""
+NFW concentration parameter = r_s / r_200
+"""
+function calc_c(profile::GeneralNFW)
+    r200 = solve_R200(profile)
+    c = r200 / profile.r_s
+
+    return c
+end
+
+
+function calc_c(M200::Real, r_s::Real)
+    return calc_R200(M200) / r_s
+end
+
 function solve_r_circ_max(profile::GeneralNFW)
     r_max = find_zero(r -> 4π * r * calc_ρ(profile, r) - calc_M(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
     return r_max
@@ -206,21 +221,6 @@ end
 
 
 
-"""
-NFW concentration parameter = r_s / r_200
-"""
-function calc_c(profile::GeneralNFW)
-    r200 = solve_R200(profile)
-    c = r200 / profile.r_s
-
-    return c
-end
-
-
-function calc_c(M200::Real, r_s::Real)
-    return calc_R200(M200) / r_s
-end
-
 
 """
 The virial radius, i.e. the radius where the mean inner density is 200 times 
@@ -328,6 +328,10 @@ struct CoredNFW <: GeneralNFW
 end
 
 function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s)
+    if c === nothing
+        c = calc_c(CoredNFW(M_s, r_s, r_c, r_t, nothing))
+    end
+
     return CoredNFW(M_s, r_s, r_c, r_t, c)
 end
 

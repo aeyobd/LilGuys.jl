@@ -4,15 +4,19 @@ using ArgParse
 
 using LilGuys
 
+SCRIPT_VERSION = "v0.1.0"
 
 function main()
+    @info "script version $SCRIPT_VERSION"
+    @info "LilGuys version $(pkgversion(LilGuys))"
+
     args = get_args()
     check_overwrite(args)
 
-    println("reading output")
+    @info "reading output"
     out = Output(args["input"])
 
-    println("calculating centres")
+    @info "calculating centres"
     statetype, kwargs = get_kwargs(args)
     cens = LilGuys.calc_centres(statetype, out; skip=args["skip"], kwargs...)
 
@@ -89,8 +93,8 @@ function get_args()
             help="Output file"
             default="centres.hdf5"
         "-v", "--verbose"
-            help="verbose"
-            action="store_true"
+            help="disable verbose output"
+            action="store_false"
         "-I", "--maxiter"
             help="Number of iterations"
             arg_type=Int
