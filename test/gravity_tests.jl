@@ -149,7 +149,7 @@ end
     rel_errs = [rel_err(pos) for pos in eachcol(pos_test)]
 
     idx_max = argmax(rel_errs)
-    println("max rel err: ", rel_errs[idx_max], " at r = ", r_test[idx_max])
+    @info "Radial Φ max relative error: $(rel_errs[idx_max]) at r = $(r_test[idx_max])"
     @test rel_errs[idx_max] < 0.03
  
 end

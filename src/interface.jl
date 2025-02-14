@@ -6,7 +6,7 @@ especially as Julia is still young.
 """
 module Interface
 
-export mean, std, midpoints, weights, StatsBase, quantile
+export mean, std, midpoints, weights, StatsBase, quantile, varience
 export erf, expinti
 
 export integrate, curve_fit, find_zero
@@ -278,6 +278,14 @@ Returns the weighted standard deviation of x with weights w
 """
 function std(x, w; kwargs...)
     return sb.std(x, sb.weights(w); kwargs...)
+end
+
+function variance(x; kwargs...)
+    return sb.var(x; corrected=true, kwargs...)
+end
+
+function variance(x, w; kwargs...)
+    return sb.var(x, w; corrected=true, kwargs...)
 end
 
 midpoints = sb.midpoints

@@ -20,6 +20,7 @@ function get_args()
     return parse_args(s)
 end
 
+
 function main()
     args = get_args()
 
@@ -34,6 +35,7 @@ function main()
     snap.header = LilGuys.make_gadget2_header(length(snap), m_header)
     LilGuys.save(args["output"], snap)
 end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()

@@ -266,6 +266,10 @@ function get_bound_recursive_1D(snap::Snapshot; maxiter=300)
     dN = sum(.!filt)
 
     for i in 1:maxiter
+        if sum(filt) == 0
+            break
+        end
+
         ϕ = calc_radial_discrete_Φ(r[filt], m[filt])
         ϵ = @. -1/2 * v[filt]^2 - ϕ
         filt_2 = ϵ .> 0

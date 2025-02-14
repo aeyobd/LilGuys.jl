@@ -1,4 +1,6 @@
 """
+    StellarProfile3D
+
 Represents a stellar density profile in 3D,
 """
 @kwdef struct StellarProfile3D
@@ -128,6 +130,7 @@ function scale(prof::StellarProfile3D, r_scale::Real, v_scale::Real, m_scale::Re
         quantiles=prof.quantiles,
         r_quantile=prof.r_quantile * r_scale,
         time=prof.time,
+        bound_mass=prof.bound_mass * m_scale,
     )
 end
 

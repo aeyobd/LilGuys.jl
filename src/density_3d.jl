@@ -1,5 +1,5 @@
 import TOML
-import LinearAlgebra: ×
+import LinearAlgebra: ×, ⋅
 
 
 """
@@ -255,6 +255,11 @@ function calc_v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=1
         m = m[filt]
     end
 
+    if sum(r) == 0
+        @warn "No bound particles in snapshot"
+        return zeros(0), zeros(0), zeros(0)
+    end
+
     idx = sortperm(r)
     m = snap.masses[idx]
     r = r[idx]
@@ -279,15 +284,16 @@ The fit is done on the top `q` quantile of the circular velocity, as th
 tails often extend strangely
 """
 function fit_v_r_circ_max(r::AbstractArray{<:Real}, v_circ::AbstractArray{<:Real}; q=0.9, p0=nothing)
-    if p0 == nothing
-        idx = argmax(v_circ)
-        p0 = [r[idx], v_circ[idx]]
-    end
-
     if length(r) != length(v_circ)
         throw(DimensionMismatch("r and v_circ must have the same length. Got $(length(r)) and $(length(v_circ))"))
     elseif length(r) < 2
-        throw(ArgumentError("r and v_circ must have at least 2 elements"))
+        @warn "r and v_circ must have at least 2 elements"
+        return (; r_circ_max=NaN, v_circ_max=NaN, fit=nothing, converged=false, r_min=NaN, r_max=NaN)
+    end
+
+    if p0 == nothing
+        idx = argmax(v_circ)
+        p0 = [r[idx], v_circ[idx]]
     end
 
 
@@ -393,4 +399,62 @@ function calc_M_in(snap::Snapshot, radius::Real)
     filt = get_bound(snap)
     rs = calc_r(snap)[filt]
     return sum(rs .<= radius)
+end
+
+
+"""
+    calc_β_prof(snap; r_bins)
+
+Computes the velocity dispersion and anisotropy profiles
+for the snapshot assuming spherical symmetry.
+Returns a tuple or radii bins, velocity dispersion, and anisotropy
+"""
+function calc_β_prof(snap; r_bins)
+    vel = snap.velocities .- snap.v_cen
+    pos = snap.positions .- snap.x_cen
+    N = size(vel, 2)
+
+    rs = calc_r(snap)
+    r_hat = pos ./ rs'
+    
+    ϕ_hat = hcat([r_hat[:, i] × [0,0,1] for i in 1:N]...)
+    ϕ_hat ./= calc_r(ϕ_hat)'
+    θ_hat = hcat([r_hat[:, i] × ϕ_hat[:, i] for i in 1:N]...)
+    θ_hat ./= calc_r(θ_hat)'
+
+    v_r = [vel[:, i] ⋅ r_hat[:, i] for i in 1:N]
+    v_ϕ = [vel[:, i] ⋅ ϕ_hat[:, i] for i in 1:N]
+    v_θ = [vel[:, i] ⋅ θ_hat[:, i] for i in 1:N]
+
+
+    Nb = length(r_bins) - 1
+    βs = zeros(Nb)
+    σ3d = zeros(Nb)
+
+    for i in 1:Nb
+        filt = rs .> r_bins[i]
+        filt .&= rs .<= r_bins[i+1]
+
+        σ2_r = std(v_r[filt])^2
+        σ2_t = std(v_θ[filt])^2 + std(v_ϕ[filt])^2
+
+        βs[i] = 1 - σ2_t / 2σ2_r
+        σ3d[i] = σ2_t^2 + σ2_r^2
+    end
+
+    return σ3d, βs
+end
+
+
+"""
+    cartesian_to_cylindrical(x, y, z)
+
+Converts cartesian coordinates to cylindrical coordinates
+"""
+function cartesian_to_cylindrical(x::T, y::T, z::T) where T <: Union{Real, AbstractVector}
+    R = sqrt.(x.^2 + y.^2)
+    z = z
+    ϕ = atan.(y, x)
+
+    return r, z, ϕ
 end

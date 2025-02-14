@@ -1,7 +1,7 @@
 name = "LilGuys"
 uuid = "1391d4f3-b950-46e7-ae93-86515cdc2b0b"
 authors = ["aeyobd <aeyobd@gmail.com>"]
-version = "0.1.2-DEV1"
+version = "0.1.2-DEV3"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

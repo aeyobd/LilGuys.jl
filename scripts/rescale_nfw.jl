@@ -5,7 +5,7 @@ using ArgParse
 import TOML
 
 
-SCRIPT_VERSION = "0.1.0"
+SCRIPT_VERSION = "0.1.1"
 
 function get_args()
     s = ArgParseSettings(description="Rescales a snapshot in mass and radius accordint to the halo parameters.")
@@ -56,6 +56,8 @@ function main()
     prof_in = LilGuys.load_profile(args["params-in"])
     params = TOML.parsefile(args["params"])
     prof_out = LilGuys.load_profile(params)
+
+    @assert typeof(prof_in) == typeof(prof_out) "Input and output profiles must be of the same type, got $(typeof(prof_in)) and $(typeof(prof_out)) respectively."
 
     if prof_out isa LilGuys.ExpCusp
         m_scale = prof_out.M / prof_in.M

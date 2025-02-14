@@ -140,13 +140,19 @@ end
         @test fit.v_circ_max ≈ 2.23
     end
 
+    @testset "no data" begin
+        fit = lguys.fit_v_r_circ_max([1.], [1.])
+        @test !fit.converged
+        @test fit.v_circ_max === NaN
+        @test fit.r_circ_max === NaN
+    end
+
     @testset "exceptions" begin
         r = [1.0, 2.0, 3.0]
         v = [1.0, 2.0]
 
         @test_throws DimensionMismatch lguys.fit_v_r_circ_max(r, v)
 
-        @test_throws ArgumentError lguys.fit_v_r_circ_max([1.], [1.])
     end
 end
 

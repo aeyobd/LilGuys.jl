@@ -212,6 +212,12 @@ function Base.print(io::IO, prof::StellarProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
+
+"""
+    StellarProfile(filename::String; kwargs...)
+
+Reads a StellarProfile from a TOML file.
+"""
 function StellarProfile(filename::String; kwargs...)
     t = TOML.parsefile(filename)
     t = merge(t, kwargs)
@@ -535,6 +541,8 @@ function scale(prof::StellarProfile, r_scale::Real, m_scale::Real)
         Gamma = prof.Gamma,
         Gamma_err = prof.Gamma_err,
         Gamma_max = prof.Gamma_max,
-        Gamma_max_err = prof.Gamma_max_err
+        Gamma_max_err = prof.Gamma_max_err,
+        quantiles = prof.quantiles,
+        log_r_quantiles = prof.log_r_quantiles .+ log10(r_scale),
     )
 end

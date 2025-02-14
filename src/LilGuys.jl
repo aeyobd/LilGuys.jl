@@ -47,6 +47,9 @@ include("density_3d.jl")
 include("density_2d.jl")
 include("density_3d_star.jl")
 
+include("orbits.jl")
+include("potentials.jl")
+
 include("centres/Centres.jl")
 
 
