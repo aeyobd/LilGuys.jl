@@ -7,21 +7,26 @@ import TOML
 abstract type CoordinateFrame end
 
 
-""" A cartesian coordinate representation.
+""" 
+A cartesian coordinate representation.
 
 Requires properties x, y, z, v_x, v_y, v_z
 """
 abstract type AbstractCartesian <: CoordinateFrame end
 
 
-""" A spherical (sky) coordinate representation.
+""" 
+A spherical (sky) coordinate representation.
 
-Requires properties ra, dec, distance, pmra, pmdec, radial_velocity"""
+Requires properties ra, dec, distance, pmra, pmdec, radial_velocity
+"""
 abstract type AbstractSkyCoord <: CoordinateFrame end
 
 
 """
-A type representing a 3D point
+    Point3D{R}(x, y, z)
+
+A type representing a 3D point with attributes x, y, z.
 """
 struct Point3D{F<:Real}
     x::F
@@ -29,15 +34,19 @@ struct Point3D{F<:Real}
     z::F
 end
 
+
 function Point3D(x::Real, y::Real, z::Real) 
     Point3D(promote(x, y, z)...)
 end
 
 
 """
-A type representing a 6D phase space point
+    Point6D{F}(x, y, z, v_x, v_y, v_z)
+
+A type representing a 6D phase space point 
+with attributes x, y, z, v_x, v_y, v_z.
 """
-struct Point6D{F}
+struct Point6D{F<:Real}
     x::F
     y::F
     z::F
@@ -168,6 +177,18 @@ end
 
 function ICRS{F}(; ra::F, dec::F, distance::F=NaN, pmra::F=NaN, pmdec::F=NaN, radial_velocity::F=NaN)
     return ICRS(SkyCoord{F}(ra, dec, distance, pmra, pmdec, radial_velocity))
+end
+
+
+"""
+    ICRS(dict)
+
+Create an ICRS object from a dictionary with keys ra, dec, distance, pmra, pmdec, radial_velocity.
+"""
+function ICRS(d::AbstractDict)
+    @assert all([haskey(d, k) for k in ["ra", "dec", "distance", "pmra", "pmdec", "radial_velocity"]])
+
+    return ICRS(; ra=d["ra"], dec=d["dec"], distance=d["distance"], pmra=d["pmra"], pmdec=d["pmdec"], radial_velocity=d["radial_velocity"])
 end
 
 
@@ -333,6 +354,48 @@ function Base.show(io::IO, pp::Cartesian{T}) where {T}
 end
 
 
+"""
+    sample_attribute(dict::AbstractDict, key)
+
+Sample an attribute from a dictionary with a given key.
+Uses the attributes key_err or key_em and key_ep if they exist.
+If key_em and key_ep exist, then uses a split gaussian.
+"""
+function sample_attribute(dict::AbstractDict, key)
+    m = dict[key]
+    if "$(key)_em" ∈ keys(dict) && "$(key)_ep" ∈ keys(dict)
+        em = dict["$(key)_em"]
+        ep = dict["$(key)_ep"]
+        err = max(em, ep)
+    elseif "$(key)_err" ∈ keys(dict)
+        err = dict["$(key)_err"]
+    else
+        @warn "No error found for $key"
+        err = 0.0
+    end
+
+    return m + randn() * err
+end
+
+
+"""
+    rand_coord(obs_props::AbstractDict)
+
+Generate a random coordinate based on the observed properties.
+Assums that the dictionary has keys ra, dec, distance_modulus, pmra, pmdec, radial_velocity and associated errors (e.g. key_err or key_em and key_ep).
+Returns an ICRS object.
+"""
+function rand_coord(obs_props::AbstractDict)
+    ra = sample_attribute(obs_props, "ra")
+    dec = sample_attribute(obs_props, "dec")
+    dm = sample_attribute(obs_props, "distance_modulus")
+    dist = dm_to_dist(dm)
+    pmra = sample_attribute(obs_props, "pmra")
+    pmdec = sample_attribute(obs_props, "pmdec")
+    rv = sample_attribute(obs_props, "radial_velocity")
+
+    return ICRS(ra=ra, dec=dec, distance=dist, pmra=pmra, pmdec=pmdec, radial_velocity=rv)
+end
 
 
 """
@@ -340,6 +403,7 @@ end
 
 Generate a random coordinate based on the observed coordinate and its error
 assumed to be normally distributed.
+Deprecated.
 """
 function rand_coord(obs::ICRS, err::ICRS)
     return ICRS(
@@ -365,41 +429,24 @@ end
 
 
 """
-    coord_from_file(filename::String)
+    rand_coords(dict::AbstractDict, N::Int)
 
-Given a TOML file with the following keys, return an ICRS object
+Generate N random coordinates based on the observed coordinate and its error
+assumed to be normally distributed. See `rand_coord(dict::AbstractDict)`.
 """
-function coord_from_file(filename::String)
-    args = TOML.parsefile(filename)
-
-    labels = ["ra", "dec", "pmra", "pmdec", "radial_velocity", "distance"]
-
-    kwargs = Dict{Symbol, Float64}()
-    for label in labels
-        if haskey(args, label)
-            kwargs[Symbol(label)] = args[label]
-        end
-    end
-
-    return ICRS(;kwargs...)
+function rand_coords(dict::AbstractDict, N::Int)
+    return [rand_coord(dict) for _ in 1:N]
 end
 
 
-function coord_err_from_file(filename::String)
+"""
+    coord_from_file(filename::String)
+
+Given a TOML file with the following keys, return an ICRS object.
+"""
+function coord_from_file(filename::String)
     args = TOML.parsefile(filename)
-
-    labels = ["ra_err", "dec_err", "pmra_err", "pmdec_err", "radial_velocity_err", "distance_err"]
-
-    kwargs = Dict{Symbol, Float64}()
-
-    for label in labels
-        if haskey(args, label)
-            k = replace(label, "_err" => "")
-            kwargs[Symbol(k)] = args[label]
-        end
-    end
-
-    return ICRS(;kwargs...)
+    return ICRS(args)
 end
 
 
@@ -407,7 +454,8 @@ end
 """
     coords_from_df(df::DataFrame, coord::AbstractSkyCoord=ICRS)
 
-Given a dataframe with columns ra, dec, pmra, pmdec, radial_velocity, distance, return an array of SkyCoord objects with the given frame.
+Given a dataframe with columns ra, dec, pmra, pmdec, radial_velocity, distance, 
+return an array of SkyCoord objects with the given frame.
 """
 function coords_from_df(df::DataFrame, coord::AbstractSkyCoord=ICRS)
     for sym in [:ra, :dec, :pmra, :pmdec, :radial_velocity, :distance]

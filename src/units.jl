@@ -63,3 +63,13 @@ Converts a proper motion (mas/yr) at a given distance (kpc) to the tangental vel
 function pm_to_kms(pm::Real, distance::Real)
     return pm * distance * kms_per_kpc_mas_per_yr
 end
+
+
+"""
+    dm_to_dist(dm::Real)
+
+Converts a distance modulus to a distance in kpc
+"""
+function dm_to_dist(dm::Real)
+    return 10 .^ (dm / 5 + 1 - 3)
+end

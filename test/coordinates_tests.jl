@@ -1,3 +1,42 @@
+@testset "Point3D" begin 
+    x, y, z = 1, 2, 3
+    p = lguys.Point3D(x, y, z)
+
+    @test p.x == x
+    @test p.y == y
+    @test p.z == z
+
+    @testset "promotion" begin
+        p1 = lguys.Point3D(25, 0.2, π)
+        @test typeof(p1) == lguys.Point3D{Float64}
+        @test p1.x == 25.0
+        @test p1.y == 0.2
+        @test p1.z ≈ π
+    end
+end
+
+
+@testset "Point6D" begin
+    p = lguys.Point6D(1, 2, 3, 4, 5, 6)
+    @test p.x == 1
+    @test p.y == 2
+    @test p.z == 3
+    @test p.v_x == 4
+    @test p.v_y == 5
+    @test p.v_z == 6
+
+    @testset "promotion" begin
+        p1 = lguys.Point6D(25, 0.2, π, 1//2, 10, Inf)
+        @test typeof(p1) == lguys.Point6D{Float64}
+        @test p1.x == 25.0
+        @test p1.y == 0.2
+        @test p1.z ≈ π
+        @test p1.v_x == 0.5
+        @test p1.v_y == 10.0
+        @test p1.v_z === Inf
+    end
+end
+
 
 
 @testset "cartesian initialization" begin
@@ -117,6 +156,50 @@ end
     @test lguys.std([c.pmdec for c in coords]) ≈ err.pmdec atol=0.01
     @test lguys.std([c.radial_velocity for c in coords]) ≈ err.radial_velocity atol=0.4
 end
+
+
+@testset "rand_split_gaussian" begin
+
+end
+
+
+@testset "rand_coords" begin
+    N = 1000
+    df = Dict(
+        "ra" => 15,
+        "ra_err" => 0.1,
+        "dec" => -33,
+        "dec_err" => 0.1,
+        "distance_modulus" => 18,
+        "distance_modulus_err" => 0.3,
+        "pmra" => -0.1,
+        "pmra_err" => 0.01,
+        "pmdec" => 0.2,
+        "pmdec_err" => 0.01,
+        "radial_velocity" => 50,
+        "radial_velocity_err" => 0.4
+       )
+
+    dist = lguys.dm_to_dist(df["distance_modulus"])
+    dist_err = dist * df["distance_modulus_err"] / 5 * log(10)
+    coords = lguys.rand_coords(df, N)
+
+    @test length(coords) == N
+    @test lguys.mean([c.ra for c in coords]) ≈ df["ra"] atol=0.1
+    @test lguys.mean([c.dec for c in coords]) ≈ df["dec"] atol=0.1
+    @test lguys.mean([c.distance for c in coords]) ≈ dist atol=1
+    @test lguys.mean([c.pmra for c in coords]) ≈ df["pmra"] atol=0.01
+    @test lguys.mean([c.pmdec for c in coords]) ≈ df["pmdec"] atol=0.01
+    @test lguys.mean([c.radial_velocity for c in coords]) ≈ df["radial_velocity"] atol=0.4
+
+    @test lguys.std([c.ra for c in coords]) ≈ df["ra_err"] atol=0.1
+    @test lguys.std([c.dec for c in coords]) ≈ df["dec_err"] atol=0.1
+    @test lguys.std([c.distance for c in coords]) ≈ dist_err atol=1
+    @test lguys.std([c.pmra for c in coords]) ≈ df["pmra_err"] atol=0.01
+    @test lguys.std([c.pmdec for c in coords]) ≈ df["pmdec_err"] atol=0.01
+    @test lguys.std([c.radial_velocity for c in coords]) ≈ df["radial_velocity_err"] atol=0.4
+end
+
 
 
 @testset "coords from file" begin

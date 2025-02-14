@@ -42,8 +42,20 @@ end
     end
 end
 
+
 @testset "pm_to_kms" begin
     @test LilGuys.pm_to_kms(1, 1) ≈ 4.74047 rtol=1e-5
     @test LilGuys.pm_to_kms(3, 1) ≈ 3*4.74047 rtol=1e-5
     @test LilGuys.pm_to_kms(3, 0.5) ≈ 3 * 0.5 * 4.74047 rtol=1e-5
+end
+
+
+@testset "dm_to_dist" begin
+    @test LilGuys.dm_to_dist(0) ≈ 0.01
+    @test LilGuys.dm_to_dist(5.0) ≈ 0.1
+    @test LilGuys.dm_to_dist(25) ≈ 1000
+    @test LilGuys.dm_to_dist(-5) ≈ 0.001
+    @test LilGuys.dm_to_dist(-Inf) ≈ 0.0
+    @test LilGuys.dm_to_dist(Inf) ≈ Inf
+    @test LilGuys.dm_to_dist(NaN) === NaN
 end
