@@ -4,6 +4,7 @@ authors = ["aeyobd <aeyobd@gmail.com>"]
 version = "0.1.2-DEV4"
 
 [deps]
+Arya = "415bc928-4679-4905-9aff-233f9524af88"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DensityEstimators = "6a64a12f-920b-4cea-9d97-f6c2170ce0ee"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
@@ -13,6 +14,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
@@ -22,7 +24,6 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-Arya = "415bc928-4679-4905-9aff-233f9524af88"
 
 [weakdeps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
@@ -33,3 +34,4 @@ MakieExt = "Makie"
 [compat]
 Logging = "1.11.0"
 Makie = "0.21.9"
+NearestNeighbors = "0.4.21"

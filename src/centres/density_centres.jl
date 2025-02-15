@@ -1,19 +1,19 @@
 function ϕ_eff(positions, velocities, masses; h=0.08)
-	N = length(masses)
-	ϕ = zeros(N)
+    N = length(masses)
+    ϕ = zeros(N)
 
-	for i in 1:N
-		if i % 100 == 0
-			print("\r $i / $N")
-		end
+    for i in 1:N
+        if i % 100 == 0
+            print("\r $i / $N")
+        end
 
-		ϕ_g = @. -masses / sqrt(calc_r(positions[:, i], positions)^2 + h^2)
-		ϕ_v =  1/N * 1/2 * calc_r(velocities[:, i], velocities).^2
-			
-		ϕ[i] = sum(min.(ϕ_g .+ ϕ_v, 0))
-		
-	end
-	return ϕ
+        ϕ_g = @. -masses / sqrt(calc_r(positions[:, i], positions)^2 + h^2)
+        ϕ_v =  1/N * 1/2 * calc_r(velocities[:, i], velocities).^2
+            
+        ϕ[i] = sum(min.(ϕ_g .+ ϕ_v, 0))
+        
+    end
+    return ϕ
 
 end
 

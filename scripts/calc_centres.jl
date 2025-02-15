@@ -4,7 +4,7 @@ using ArgParse
 
 using LilGuys
 
-SCRIPT_VERSION = "v0.1.0"
+SCRIPT_VERSION = "v0.1.1"
 
 function main()
     @info "script version $SCRIPT_VERSION"
@@ -33,7 +33,9 @@ function main()
         "snapshots" => idx,
         "times" => out.times[idx],
         "positions" => positions,
-        "velocities" => velocities
+        "position_errs" => [cen.position_err for cen in cens],
+        "velocities" => velocities,
+        "velocity_errs" => [cen.velocity_err for cen in cens],
     )
 
     println("writing centres")

@@ -13,6 +13,6 @@ module Centres
     include("static_centres.jl")
     include("centre_output.jl")
     include("shrinking_spheres.jl")
-    #include("centre_fuzzy.jl")
+    include("centre_fuzzy.jl")
 
 end
