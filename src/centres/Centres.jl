@@ -1,7 +1,7 @@
 module Centres
     
-    export SS_State, calc_centre, calc_centres, StaticState
-    export calc_centre!
+    export Centre, SS_State, StaticState
+    export calc_centre, calc_centres, calc_centre!
     export shrinking_spheres
 
     using ..LilGuys

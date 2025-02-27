@@ -371,25 +371,6 @@ function _v_circ_max_model(r, param)
 end
 
 
-
-"""
-    calc_M_in(out, radius; idxs=(1:10:length(output)))
-
-Calculates the number of bound particles within a given radius for a set of snapshots.
-"""
-function calc_M_in(output::Output, radius::Real; idxs=(1:10:length(output)))
-	N = length(idxs)
-	M = Vector{Float64}(undef, N)
-	
-	for i in eachindex(idxs)
-		snap = output[idxs[i]]
-        M[i] = calc_M_in(snap, radius)
-	end
-
-	return M
-end
-
-
 """
     calc_M_in(snap::Snapshot, radius::Real)
 

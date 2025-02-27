@@ -10,7 +10,6 @@ import Base: @kwdef
     dx_rtol::Float64 = NaN
     dN_min::Int = 0
     x0::Vector{Float64} # see constructor
-    verbose::Bool = false
     mode::Symbol = :quantile
     r_min::Float64 = 0
     r_max::Float64 = Inf
@@ -103,15 +102,14 @@ function calc_centre!(state::SS_State, snap)
 
     filt_bound = _bound_particles(state, snap)
     if sum(filt_bound) < params.N_min
-        println("Too few particles are bound. ")
+        @info "Too few particles are bound. "
         filt_bound .= true
     end
 
     state.filt[state.filt] .= filt_bound
 
-    if params.verbose
-        println("Cut unbound particles: ", sum( @. !filt_bound))
-    end
+    Ncut = sum( @. !filt_bound)
+    @info "Cut unbound particles: $Ncut" 
 
     state.centre = mean_centre(snap, state.filt)
 
@@ -163,8 +161,6 @@ minimum number of particles or approximate convergence).
 - `dx_rtol::Real=NaN`: Stop if the relative change in the centroid is below this value.
 - `dN_min::Int=1`: Stop if the number of particles removed in a step is below this value.
 - `mode::Symbol=:quantile`: The mode for determining the cutoff radius. Either :quantile or :ratio.
-- `verbose::Bool=false`: Print status information each iteration.
-
 """
 function shrinking_spheres(positions::AbstractMatrix{T}; kwargs...) where T<:Real
     params = _ShrinkingSpheresParams(positions; kwargs...)
@@ -200,9 +196,7 @@ function _shrinking_spheres(positions, params::_ShrinkingSpheresParams)
         dN = sum( @. !filt_r)
         
 
-        if params.verbose
-            _print_status(i, x0, N, dx, dN, r_cut)
-        end
+        _print_status(i, x0, N, dx, dN, r_cut)
 
         status = _is_complete(params, x0, N, dx, dN, r_cut)
 
@@ -267,6 +261,6 @@ end
 
 
 function _print_status(i, x0, N, dx, dN, r_cut)
-    println("i=$i, $x0, N=$N, dx=$dx, dN=$dN, r_cut=$r_cut")
+    @info "i=$i, $x0, N=$N, dx=$dx, dN=$dN, r_cut=$r_cut"
 end
 

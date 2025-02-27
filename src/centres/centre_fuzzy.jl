@@ -1,5 +1,6 @@
-    # A work in progress method for bayesian centre finding for the 
+# A work in progress method for bayesian centre finding for the 
 # time series of snapshots, so especially for outputs.
+
 import NearestNeighbors as nn
 import SpecialFunctions: gamma
 

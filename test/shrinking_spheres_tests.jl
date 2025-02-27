@@ -73,7 +73,7 @@ end
     snap.Φs = [0.]
     snap.accelerations = [0.;0.;0.;;]
 
-    state = lguys.SS_State(snap, verbose=true)
+    state = lguys.SS_State(snap)
     
 
     lguys.Centres.calc_centre!(state, snap)
@@ -86,3 +86,59 @@ end
 
 
 
+
+@testset "shrinking spheres NFW" begin
+    # check converges for many different initial positions
+
+
+    @testset "shifted centre" begin
+        @test false broken = true 
+    end
+
+    @testset "stopping criteria rmin" begin
+        @test false broken = true 
+    end
+
+    @testset "stopping criteria Nmin" begin
+    @test false broken = true 
+    end
+
+    @testset "stopping criteria itermax" begin
+    @test false broken = true 
+    end
+end
+
+
+@testset "shrinking spheres small perturbation" begin
+    @test false broken = true 
+
+end
+
+
+@testset "multimodal" begin
+    # check finds main peak even if initially centred on smaller peak
+    @test false broken = true 
+end
+
+
+@testset "pathological" begin
+    # no particles, nans, infs
+    @test false broken = true 
+end
+
+
+@testset "tidal" begin
+    # check that it can find the main peak even if many unbound particles
+    @test false broken = true 
+end
+
+
+@testset "other codes" begin
+    # make notebooks to compare against other codes
+    @test false broken = true 
+end
+
+@testset "runtime scaling" begin
+    # make notebooks to time e.g. 1e4-1e6 particles
+    @test false broken = true 
+end

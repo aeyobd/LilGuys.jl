@@ -35,14 +35,16 @@ import Roots: find_zero
 import DataFrames: DataFrame
 
 
+midpoints = sb.midpoints
+
 """
   curve_fit(model, xdata, ydata, p0) -> fit
   curve_fit(model, xdata, ydata, weights, p0) -> fit
 
 Fit the model to the data using the initial guess `p0`. weights are optional. Returns the best fit (Least Squares) parameters and the estimated covariance matrix.
 """
-function curve_fit(args...)
-    fit = LsqFit.curve_fit(args...)
+function curve_fit(args...; kwargs...)
+    fit = LsqFit.curve_fit(args...; kwargs...)
 
     if !fit.converged
         @warn "LSq fit did not converge"
@@ -277,18 +279,27 @@ end
 Returns the weighted standard deviation of x with weights w
 """
 function std(x, w; kwargs...)
-    return sb.std(x, sb.weights(w); kwargs...)
+    return sb.std(x, sb.weights(w); corrected=false, kwargs...)
 end
 
+"""
+    variance(x; kwargs...)
+
+Returns the (bias corrected) variance of a vector of real numbers.
+"""
 function variance(x; kwargs...)
     return sb.var(x; corrected=true, kwargs...)
 end
 
+"""
+    variance(x, w; kwargs...)
+
+Returns the weighted variance of x with weights w
+"""
 function variance(x, w; kwargs...)
-    return sb.var(x, w; corrected=true, kwargs...)
+    return sb.var(x, sb.weights(w); corrected=false, kwargs...)
 end
 
-midpoints = sb.midpoints
 
 
 

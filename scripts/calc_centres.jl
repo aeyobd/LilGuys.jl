@@ -4,7 +4,7 @@ using ArgParse
 
 using LilGuys
 
-SCRIPT_VERSION = "v0.1.1"
+SCRIPT_VERSION = "v0.1.2"
 
 function main()
     @info "script version $SCRIPT_VERSION"
@@ -62,14 +62,12 @@ function get_kwargs(args)
         statetype = LilGuys.SS_State
         kwargs[:r_factor] = args["quantile"] 
         kwargs[:f_min] = args["f_min"]
-        kwargs[:verbose] = args["verbose"]
         kwargs[:dx_atol] = args["atol"]
         kwargs[:r_max] = args["r_max"]
     elseif args["method"] == "MostBound"
         statetype = LilGuys.MostBoundState
         kwargs[:percen] = args["percentile"]
         kwargs[:f_min] = args["f_min"]
-        kwargs[:verbose] = args["verbose"]
     elseif args["method"] == "Potential"
         statetype = LilGuys.StaticState
         kwargs[:method] = "potential"
@@ -94,9 +92,6 @@ function get_args()
         "-o", "--output"
             help="Output file"
             default="centres.hdf5"
-        "-v", "--verbose"
-            help="disable verbose output"
-            action="store_false"
         "-I", "--maxiter"
             help="Number of iterations"
             arg_type=Int

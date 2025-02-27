@@ -135,9 +135,9 @@ A Plummer profile. The density profile is given by
 
 where M is the total mass and r_s is the scale radius. 
 """
-@kwdef struct Plummer <: SphericalProfile
-    M::Float64 = 1
-    r_s::Float64 = 1
+@kwdef struct Plummer{F<:Real} <: SphericalProfile
+    M::F = 1
+    r_s::F = 1
 end
 
 
@@ -154,9 +154,13 @@ An exponential disk profile in 2D. The density profile is given by
 
 where M is the total mass and R_s is the scale radius, and Σ_0 = M / (2π * R_s^2)
 """
-@kwdef struct Exp2D <: SphericalProfile
-    M::Float64 = 1
-    R_s::Float64 = 1
+@kwdef struct Exp2D{F<:Real} <: SphericalProfile
+    M::F = 1
+    R_s::F = 1
+end
+
+function Exp2D(M::Real, R_s::Real)
+    return Exp2D(promote(M, R_s)...)
 end
 
 
@@ -171,9 +175,13 @@ An exponential disk profile in 3D. The density profile is given by
 
 where M is the total mass and r_s is the scale radius, and ρ_0 = M / (8π * r_s^3)
 """
-@kwdef struct Exp3D <: SphericalProfile
-    M::Float64 = 1
-    r_s::Float64 = 1
+@kwdef struct Exp3D{F<:Real} <: SphericalProfile
+    M::F = 1
+    r_s::F = 1
+end
+
+function Exp3D(M::Real, r_s::Real)
+    return Exp3D(promote(M, r_s)...)
 end
 
 
@@ -186,11 +194,14 @@ A logarithmic cusp profile in 2D. The density profile is given by
 \Sigma(r) = \Sigma_0\, 
 ``
 """
-@kwdef struct LogCusp2D <: SphericalProfile
-    M::Float64 = 1
-    R_s::Float64 = 1
+@kwdef struct LogCusp2D{F<:Real} <: SphericalProfile
+    M::F = 1
+    R_s::F = 1
 end
 
+function LogCusp2D(M::Real, R_s::Real)
+    return LogCusp2D(promote(M, R_s)...)
+end
 
 
 @doc raw"""
@@ -213,12 +224,15 @@ the tidal radius.
 - `k::Real`: the density scaling. One of `M` or `k` must be specified
 
 """
-struct KingProfile <: SphericalProfile
-    k::Float64
-    R_s::Float64
-    R_t::Float64 
+struct KingProfile{F<:Real} <: SphericalProfile
+    k::F
+    R_s::F
+    R_t::F 
 end
 
+function KingProfile(k::Real, R_s::Real, R_t::Real)
+    return KingProfile(promote(k, R_s, R_t)...)
+end
 
 @doc raw"""
     ExpCusp(M, r_s)
@@ -232,11 +246,14 @@ where $M_{\rm tot} = 4\pi \rho_0 r_s^3$ is the total mass.
 This is the asymptotic result of an NFW profile under heavy
 tidal stripping.
 """
-@kwdef struct ExpCusp <: SphericalProfile
-    M::Float64 = 1
-    r_s::Float64 = 1
+@kwdef struct ExpCusp{F<:Real} <: SphericalProfile
+    M::F = 1
+    r_s::F = 1
 end
 
+function ExpCusp(M::Real, r_s::Real)
+    return ExpCusp(promote(M, r_s)...)
+end
 
 function KingProfile(;kwargs...)
     kwargs = Dict{Symbol, Any}(kwargs)
@@ -656,23 +673,36 @@ A Sérsic profile. The density profile is given by
 where $\Sigma_h$ is the surface density at the half-light radius $r_h$.
 $b_n$ is a function of $n$, which is calculated as the solution to $\gamma(2n, b_n) = 1/2\Gamma(2n)$ where $\gamma$ is the lower incomplete gamma function and $\Gamma$ is the gamma function.
 """
-struct Sersic <: SphericalProfile
-    Σ_h::Float64 
-    r_h::Float64
-    n::Float64
-    _b_n::Float64
+struct Sersic{F<:Real} <: SphericalProfile
+    Σ_h::F 
+    R_h::F
+    n::F
+    _b_n::F
+end
+
+_sersic_allowed_kwargs = (:Σ_h, :R_h, :n, :_b_n)
+
+function Sersic(Σ_h::Real, R_h::Real, n::Real, _b_n::Real)
+    return Sersic(promote(Σ_h, R_h, n, _b_n)...)
 end
 
 function Sersic(;kwargs...)
     kwargs = Dict{Symbol, Any}(kwargs)
 
-    r_h = get(kwargs, :r_h, 1)
+    if any(k -> k ∉ _sersic_allowed_kwargs, keys(kwargs))
+        throw(ArgumentError("Only the following kwargs are allowed: $_sersic_allowed_kwargs"))
+    end
+
+    R_h = get(kwargs, :R_h, 1)
     n = get(kwargs, :n, 1)
     Σ_h = get(kwargs, :Σ_h, 1)
+    if :_b_n in keys(kwargs)
+        _b_n = kwargs[:_b_n]
+    else
+        _b_n = calc_b_n(n)
+    end
 
-    _b_n = calc_b_n(n)
-
-    return Sersic(Σ_h, r_h, n, _b_n)
+    return Sersic(Σ_h, R_h, n, _b_n)
 end
 
 
@@ -680,6 +710,11 @@ function calc_b_n(n::Real)
     return find_zero(b_n -> gamma_inc(2n, b_n)[1] - 1/2, guess_b_n(n))
 end
 
+"""
+    guess_b_n(n)
+
+Returns a guess for the value of $b_n$ given $n$.
+"""
 function guess_b_n(n::Real)
     if n > 0.36
         return 2n - 1/3 + 4/(405n) + 46/(25515n^2) + 131/(1148175n^3) - 2194697/(30690717750n^4)
@@ -690,9 +725,8 @@ end
 
 
 function calc_Σ(profile::Sersic, R::Real)
-    Σ_h, r_h, n = profile.Σ_h, profile.r_h, profile.n
-    b_n = 2n - 1/3 + 4/(405n) + 46/(25515n^2)
-    return Σ_h * exp(-b_n * ((R/r_h)^(1/n) - 1))
+    Σ_h, R_h, n = profile.Σ_h, profile.R_h, profile.n
+    return Σ_h * exp(-profile._b_n * ((R/R_h)^(1/n) - 1))
 end
 
 

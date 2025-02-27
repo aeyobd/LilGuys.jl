@@ -187,6 +187,7 @@ function extract(out::Output, symbol::Symbol, idx=(:); group="PartType1")
     result = Array{F}(undef, Np, Nt)
 
     index_0 = sort(out[1].index)
+
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
         index = h5f["$group/$(h5vectors[:index])"][:]
@@ -242,12 +243,14 @@ function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")
     Nt = length(out)
     result = Array{F}(undef, 3, Np, Nt)
 
+    index_0 = sort(out[1].index)[idx]
+
     for i in 1:Nt
         h5f = out.h5file[out.index[i]]
         index = h5f["$group/$(h5vectors[:index])"][:]
         idx_sort = sortperm(index)[idx]
 
-        @assert idx == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
+        @assert index_0 == index[idx_sort] "index not found in snapshot or snapshot not permuation index"
         for j in eachindex(idx_sort)
             result[:, j, i] .= h5f["$group/$(h5vectors[symbol])"][:, idx_sort[j]]
         end

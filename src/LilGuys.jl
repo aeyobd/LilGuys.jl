@@ -17,6 +17,10 @@ export calc_ρ, calc_M, calc_r_circ_max, calc_v_circ_max, calc_v_circ
 export M2MSUN, R2KPC, V2KMS, T2GYR
 export ICRS, HelioRest, Galactocentric, transform
 
+# orbits
+export Orbit
+public to_frame, resample, leap_frog
+
 
 
 include("units.jl")
@@ -54,6 +58,7 @@ include("centres/Centres.jl")
 
 
 # Empty function definitions for MakieExt
+
 public plot_xyz, plot_xyz!
 public projecteddensity, projecteddensity!
 public hide_grid!, cmd_axis

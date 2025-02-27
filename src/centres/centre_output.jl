@@ -1,16 +1,17 @@
 """
-    calc_centres(StateType, out::Output; kwargs...)
+    calc_centres(StateType, out::Output; reinit_state=false, skip=1, kwargs...)
 
 Calculates the centres for each snapshot in the output.
 The details of the implementation are based on the given StateType.
+Reinit_state causes a new instance of the state to be reinitialised for each snapshot (instead of using information from previous snapshot). Skip sets the interval between snapshots to calculate the centres.
 """
-function calc_centres(StateType::Type, out::Output; reinit_state=false, verbose=false, skip=1, kwargs...)
+function calc_centres(StateType::Type, out::Output; reinit_state=false, skip=1, kwargs...)
 
     out_idx = 1:skip:length(out)
 
     centres = Vector{Centre}(undef, length(out_idx))
 
-    state = StateType(out[1]; verbose=verbose, kwargs...)
+    state = StateType(out[1]; kwargs...)
 
     calc_centre!(state, out[1])
     centres[1] = state.centre
@@ -26,13 +27,11 @@ function calc_centres(StateType::Type, out::Output; reinit_state=false, verbose=
         update_prior!(state, dt)
         cen = state.centre
 
-        if verbose
-            @info "using prior: $(cen.position)"
-            @info "error : $(cen.position_err)"
-        end
+        @info "using prior: $(cen.position)"
+        @info "error : $(cen.position_err)"
 
         if reinit_state
-            state = StateType(snap; verbose=verbose, kwargs...)
+            state = StateType(snap; kwargs...)
             state.centre = cen
             calc_centre!(state, snap)
         else
@@ -42,9 +41,7 @@ function calc_centres(StateType::Type, out::Output; reinit_state=false, verbose=
        
         centres[ii] = state.centre
 
-        if verbose
-            println("completed snapshot $i")
-        end
+        @info "completed snapshot $i"
     end
 
     return centres
@@ -65,13 +62,22 @@ function calc_centre(StateType, snap::Snapshot; kwargs...)
 end
 
 
+"""
+    update_prior!(state, dt::Real)
 
+Updates the state's centre using the leapfrog method.
+"""
 function update_prior!(state::AbstractState, dt::Real)
     state.centre = leapfrog(state.centre, dt)
 end
 
 
-function leapfrog(centre, dt)
+"""
+    leapfrog(centre, dt)
+
+Updates the centres position and velocity using the leapfrog method.
+"""
+function leapfrog(centre::Centre, dt::Real)::Centre
     position = centre.position .+ centre.velocity * dt / 2
     velocity = centre.velocity .+ centre.acceleration * dt
     position .+= centre.velocity * dt / 2

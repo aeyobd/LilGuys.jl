@@ -311,7 +311,7 @@ macro savefig(name, fig=nothing)
 
         if isdefined(@__MODULE__, :FIGSUFFIX)
             suffix = (@__MODULE__).FIGSUFFIX
-            filename *= "_$(suffix)"
+            filename *= "$(suffix)"
         end
 
         @info "Saving figure to $filename.pdf and $filename.png"

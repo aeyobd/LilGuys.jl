@@ -1,4 +1,5 @@
 import Base: -, reverse
+import CSV
 
 """
 Represents an Orbit. All quantities are in code units.
@@ -20,10 +21,10 @@ Base.@kwdef struct Orbit
     stresses::Union{Matrix{F}, Nothing} = nothing
 
     "pericentre with respect to origin"
-    pericenter::F = minimum(calc_r(position))
+    pericenter::F = minimum(calc_r(positions))
 
     "apocentre with respect to origin"
-    apocenter::F = maximum(calc_r(position))
+    apocenter::F = maximum(calc_r(positions))
 end
 
 
@@ -38,7 +39,7 @@ function Orbit(filename::String)
     stresses = haskey(df, "da_xx") ? hcat(df.da_xx, df.da_yy, df.da_zz, df.da_xy, df.da_yz, df.da_zx) : nothing
 
     return Orbit(
-        time = df.time,
+        times = df.times,
         positions = positions,
         velocities = velocities,
         accelerations = accelerations,
@@ -50,13 +51,13 @@ end
 """ Converts an orbit to a DataFrame """
 function to_frame(a::Orbit)
     df = DataFrame(
-        time = a.time,
+        t = a.times,
         x = a.positions[1, :],
         y = a.positions[2, :],
         z = a.positions[3, :],
-        v_x = a.velocity[1, :],
-        v_y = a.velocity[2, :],
-        v_z = a.velocity[3, :]
+        v_x = a.velocities[1, :],
+        v_y = a.velocities[2, :],
+        v_z = a.velocities[3, :]
     )
 
     if a.accelerations !== nothing
@@ -77,6 +78,8 @@ function to_frame(a::Orbit)
             da_zx = a.stresses[6, :]
         ))
     end
+
+    return df
 end
 
 """ Writes an orbit to a CSV file """
@@ -90,7 +93,7 @@ end
 function (-)(a::Orbit, b::Orbit)
     @assert isapprox(a.time, b.time, rtol=1e-6)
 
-    return Orbit(time=a.time, positions=a.positions - b.positions, velocity=a.velocity - b.velocity)
+    return Orbit(times=a.times, positions=a.positions - b.positions, velocities=a.velocities - b.velocities)
 end
 
 
@@ -102,10 +105,10 @@ Reverses the order in time of an orbit
 function reverse(a::Orbit)
     time = reverse(a.time)
     positions = reverse(a.positions, dims=2)
-    velocity = reverse(a.velocity, dims=2)
+    velocities = reverse(a.velocities, dims=2)
     acceleration = a.accelerations === nothing ? nothing : reverse(a.accelerations, dims=2)
     stresses = a.stresses === nothing ? nothing : reverse(a.stresses, dims=2)
-    return Orbit(time=time, positions=positions, velocity=velocity, acceleration=acceleration, stresses=stresses)
+    return Orbit(times=time, positions=positions, velocities=velocities, accelerations=accelerations, stresses=stresses)
 end
 
 
@@ -120,11 +123,11 @@ function resample(a::Orbit, time::AbstractVector{<:Real})
     x = LilGuys.lerp(a.time, a.positions[1, :]).(time)
     y = LilGuys.lerp(a.time, a.positions[2, :]).(time)
     z = LilGuys.lerp(a.time, a.positions[3, :]).(time)
-    v_x = LilGuys.lerp(a.time, a.velocity[1, :]).(time)
-    v_y = LilGuys.lerp(a.time, a.velocity[2, :]).(time)
-    v_z = LilGuys.lerp(a.time, a.velocity[3, :]).(time)
+    v_x = LilGuys.lerp(a.time, a.velocities[1, :]).(time)
+    v_y = LilGuys.lerp(a.time, a.velocities[2, :]).(time)
+    v_z = LilGuys.lerp(a.time, a.velocities[3, :]).(time)
 
-    return Orbit(time=time, positions=[x y z]', velocity=[v_x v_y v_z]')
+    return Orbit(time=time, positions=[x y z]', velocities=[v_x v_y v_z]')
 end
 
 
@@ -210,7 +213,7 @@ function leap_frog(gc, acceleration;
     positions_matrix = hcat(positions...)
     velocities_matrix = hcat(velocities...)
     accelerations_matrix = hcat(accelerations...)
-    return Orbit(time=times, positions=positions_matrix, velocity=velocities_matrix, acceleration=accelerations_matrix)
+    return Orbit(times=times, positions=positions_matrix, velocities=velocities_matrix, acceleration=accelerations_matrix)
 end
 
 
