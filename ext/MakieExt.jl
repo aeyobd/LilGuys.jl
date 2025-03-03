@@ -289,6 +289,10 @@ If `fig` is not provided, it defaults to the current figure (assumed to be `fig`
 `FIGDIR` may be defined as the path where figures are saved.
 `FIGSUFFIX` may be defined as the suffix for figures (e.g. notebook name).
 Saves figures with the basename name and in both pdf and png formats.
+Returns the figure object.
+
+# Notes
+Will make the FIGDIR if this does not exist (but will not mkpath).
 """
 macro savefig(name, fig=nothing)
     if isnothing(fig)
@@ -299,24 +303,32 @@ macro savefig(name, fig=nothing)
 
 
     return quote
-        local dir, filename
+        local dir, filepath, filename
 
         if isdefined(@__MODULE__, :FIGDIR)
             dir = (@__MODULE__).FIGDIR
+            if !isdir(dir)
+                @info "Creating figure directory $dir"
+                mkdir(dir)
+            end
         else
             dir = ""
         end
 
-        filename = joinpath(dir, $name)
-
+        filename = $(esc(name))
         if isdefined(@__MODULE__, :FIGSUFFIX)
             suffix = (@__MODULE__).FIGSUFFIX
             filename *= "$(suffix)"
         end
 
-        @info "Saving figure to $filename.pdf and $filename.png"
-        Makie.save(filename * ".pdf", $fig)
-        Makie.save(filename * ".png", $fig)
+        filepath = joinpath(dir, filename)
+
+
+        @info "Saving figure to $filename.pdf and ---.png in $dir"
+        Makie.save(filepath * ".pdf", $fig)
+        Makie.save(filepath * ".png", $fig)
+
+        $fig
     end 
 end
 
