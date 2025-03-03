@@ -710,7 +710,7 @@ function calc_b_n(n::Real)
     return find_zero(b_n -> gamma_inc(2n, b_n)[1] - 1/2, guess_b_n(n))
 end
 
-"""
+@doc raw"""
     guess_b_n(n)
 
 Returns a guess for the value of $b_n$ given $n$.

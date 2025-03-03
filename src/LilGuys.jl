@@ -56,6 +56,7 @@ include("potentials.jl")
 
 include("centres/Centres.jl")
 
+using .Centres
 
 # Empty function definitions for MakieExt
 
@@ -74,7 +75,13 @@ function hide_grid! end
 macro savefig end
 
 
+# Empty functions for AgamaExt
+public AgamaPotential
+public sample_potential
+function AgamaPotential end
+function sample_potential end
 
-using .Centres
+
+
 
 end # module LilGuys

@@ -1,3 +1,5 @@
+using Logging
+
 @testset "shrinking spheres params: initialization" begin
     positions = randn(3, 100)
     x0 = lguys.centroid(positions)
@@ -89,35 +91,149 @@ end
 
 @testset "shrinking spheres NFW" begin
     # check converges for many different initial positions
+    r_s=3.0
+    M_s=0.8
+
+    N = 10_000
+    v_s = sqrt(M_s / r_s)
+    nfw = LilGuys.TruncNFW(r_s=r_s,  M_s=M_s, trunc=10)
+    snap = LilGuys.sample_potential(nfw, N)
+
+    snap.Φs = LilGuys.calc_radial_discrete_Φ(snap)
+
+    # TODO; these sem reasonable but not sure how to properly quantify this
+    dx = r_s * 0.23 / sqrt(100)
+    dv = v_s * 0.025 / sqrt(100)
+
+    @testset  "zeroed" begin
+        test_logger = TestLogger()
+
+        state = lguys.SS_State(snap)
+
+        with_logger(test_logger) do
+            LilGuys.Centres.calc_centre!(state, snap)
+        end
+        cen = state.centre
+
+        @test cen.position ≈ [0.,0.,0.] atol=0.5
+        @test cen.velocity ≈ [0.,0.,0.] atol=0.005
+        @test cen.position_err ≈ dx rtol=0.5
+        @test cen.velocity_err ≈ dv rtol=0.5
+    end
 
 
     @testset "shifted centre" begin
-        @test false broken = true 
+        state = lguys.SS_State(snap)
+        state.centre.position .= [3.0, -0.4, 4.2]
+        state.centre.velocity .= [0.03, -0.09, 0.01]
+        LilGuys.Centres.calc_centre!(state, snap)
+        cen = state.centre
+
+        @test cen.position ≈ [0.,0.,0.] atol=0.5
+        @test cen.velocity ≈ [0.,0.,0.] atol=0.005
+
+
+        snap1 = lguys.deepcopy(snap)
+        delta_x = [82.3, -100.5, 391.]
+        delta_v = [0.292, -0.051, 0.130]
+        snap1.positions .+= delta_x
+        snap1.velocities .+= delta_v
+
+        state = lguys.SS_State(snap1)
+        LilGuys.Centres.calc_centre!(state, snap1)
+        cen = state.centre
+        @test cen.position ≈ delta_x atol=0.5
+        @test cen.velocity ≈ delta_v atol=0.005
+        @test cen.position_err ≈ dx rtol=0.5
+        @test cen.velocity_err ≈ dv rtol=0.5
     end
 
-    @testset "stopping criteria rmin" begin
-        @test false broken = true 
+    @testset "stopping criteria rmax" begin
+        state = lguys.SS_State(snap, r_max=3)
+        @test_logs (:info, r".*completed with status r") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
+        r_max = maximum(calc_r(snap.positions[:, state.filt], state.centre.position))
+        @test r_max ≈ 3 rtol=0.05
+
+        state = lguys.SS_State(snap, r_max=8.5)
+        @test_logs (:info, r".*completed with status r") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
+        r_max = maximum(calc_r(snap.positions[:, state.filt], state.centre.position))
+        @test r_max ≈ 8.5 rtol=0.05
     end
 
     @testset "stopping criteria Nmin" begin
-    @test false broken = true 
+        state = lguys.SS_State(snap, N_min = 300, dx_atol=0, r_factor=0.95)
+        @test_logs (:info, r".*completed with status N") match_mode=:any  LilGuys.Centres.calc_centre!(state, snap)
+        @test sum(state.filt) ≈ 300 rtol=0.1
+
+        state = lguys.SS_State(snap, N_min = 765, dx_atol=0, r_factor=0.95)
+        @test_logs (:info, r".*completed with status N") match_mode=:any LilGuys.Centres.calc_centre!(state, snap) 
+        @test sum(state.filt) ≈ 765 rtol=0.1
     end
 
     @testset "stopping criteria itermax" begin
-    @test false broken = true 
+        state = lguys.SS_State(snap, dx_atol=1e-12, r_factor=1, itermax=10)
+        test_logger = TestLogger()
+
+        with_logger(test_logger) do
+            LilGuys.Centres.calc_centre!(state, snap)
+        end
+        @test occursin("itermax", test_logger.logs[end-1].message)
+        @test occursin("i=10", test_logger.logs[end-2].message)
+
+        state = lguys.SS_State(snap, dx_atol=0, r_factor=1, itermax=27)
+        test_logger = TestLogger()
+
+        with_logger(test_logger) do
+            LilGuys.Centres.calc_centre!(state, snap)
+        end
+        @test occursin("itermax", test_logger.logs[end-1].message)
+        @test occursin("i=27", test_logger.logs[end-2].message)
+    end
+
+
+    @testset "stopping criteria dx_rel" begin
+        state = lguys.SS_State(snap, dx_atol=1e-12, dx_rtol=0.1)
+        @test_logs (:info, r".*completed with status dx_rel") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
+    end
+
+    @testset "stopping criteria dx" begin
+        state = lguys.SS_State(snap, dx_atol=0.1, dx_rtol=0.0001)
+        @test_logs (:info, r".*completed with status dx") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
+    end
+
+    @testset "stopping criteria dN" begin
+        state = lguys.SS_State(snap, dx_atol=0.00001, dN_min=10, r_factor=0.92)
+        @test_logs (:info, r".*completed with status dN") (:info, r".*, dN=[0-9],.*")  match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
     end
 end
 
 
-@testset "shrinking spheres small perturbation" begin
-    @test false broken = true 
-
-end
 
 
 @testset "multimodal" begin
-    # check finds main peak even if initially centred on smaller peak
-    @test false broken = true 
+    halo1 = LilGuys.TruncNFW(r_s=2.0,  M_s=0.6, trunc=10)
+    halo2 = LilGuys.TruncNFW(r_s=1.0,  M_s=0.1, trunc=10)
+    snap1 = LilGuys.sample_potential(halo1, 10000)
+    snap2 = LilGuys.sample_potential(halo2, 1000)
+    x1 = [0.5, 0.8, 0.12]
+    x2 = [-0.2, 1.5, -1.2]
+    v1 = [0.05, -0.08, 0.18]
+    v2 = [0.02, 0.01, -0.03]
+
+    snap1.positions .+= x1
+    snap1.velocities .+= v1
+    snap2.positions .+= x2
+    snap2.velocities .+= v2
+
+    snap_combined = LilGuys.Snapshot(hcat(snap1.positions, snap2.positions), hcat(snap1.velocities, snap2.velocities), vcat(snap1.masses, snap2.masses))
+    snap_combined.Φs = LilGuys.calc_radial_discrete_Φ(snap_combined)
+
+    state = lguys.SS_State(snap_combined, x0=x2)
+    LilGuys.Centres.calc_centre!(state, snap_combined)
+    cen = state.centre
+
+    @test cen.position ≈ x1 atol=0.4
+    @test cen.velocity ≈ v1 atol=0.05 # higher because snapshots overlap
 end
 
 
@@ -128,8 +244,9 @@ end
 
 
 @testset "tidal" begin
-    # check that it can find the main peak even if many unbound particles
-    @test false broken = true 
+    nfw = LilGuys.TruncNFW(r_s=5.5,  M_s=0.8, trunc=12)
+    snap = LilGuys.sample_potential(nfw, 8259)
+
 end
 
 

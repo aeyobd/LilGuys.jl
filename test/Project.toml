@@ -1,4 +1,5 @@
 [deps]
+Agama = "c9d1a974-9120-43da-b5b1-d69fd551855f"
 Arya = "415bc928-4679-4905-9aff-233f9524af88"
 DensityEstimators = "6a64a12f-920b-4cea-9d97-f6c2170ce0ee"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"

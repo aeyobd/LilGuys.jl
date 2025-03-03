@@ -55,8 +55,14 @@ function main()
     snap_idx = eachindex(out)[1:args["skip"]:end]
     for i in snap_idx
         @info "computing profile for snapshot $i"
-        prof = LilGuys.MassProfile3D(out[i], bins=bins)
-        push!(profiles, string(i) => prof)
+        try
+            prof = LilGuys.MassProfile3D(out[i], bins=bins)
+            push!(profiles, string(i) => prof)
+        catch e
+            @warn "failed to compute profile for snapshot $i"
+            @warn e
+            break
+        end
     end
 
 

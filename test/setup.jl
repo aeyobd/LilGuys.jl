@@ -1,5 +1,6 @@
 using Test
 using Makie # need for makie ext
+import Agama
 import LilGuys as lguys
 
 using LilGuys
@@ -10,7 +11,6 @@ import Random
 import Distributions: Chisq, quantile
 
 import Logging
-Logging.disable_logging(Logging.Info)
 
 Random.seed!(1234)
 

@@ -4,6 +4,7 @@ authors = ["aeyobd <aeyobd@gmail.com>"]
 version = "0.1.2-DEV4"
 
 [deps]
+Agama = "c9d1a974-9120-43da-b5b1-d69fd551855f"
 Arya = "415bc928-4679-4905-9aff-233f9524af88"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -18,7 +19,6 @@ Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
@@ -27,12 +27,16 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [weakdeps]
+Agama = "c9d1a974-9120-43da-b5b1-d69fd551855f"
+Arya = "415bc928-4679-4905-9aff-233f9524af88"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [extensions]
-MakieExt = "Makie"
+AgamaExt = "Agama"
+MakieExt = ["Makie", "Arya"]
 
 [compat]
+Agama = "1.0.0"
 CSV = "0.10.15"
 Logging = "1.11.0"
 Makie = "0.21.9"

@@ -1,4 +1,5 @@
 import Base: @kwdef
+import LinearAlgebra: norm
 
 
 @kwdef struct _ShrinkingSpheresParams
@@ -13,6 +14,7 @@ import Base: @kwdef
     mode::Symbol = :quantile
     r_min::Float64 = 0
     r_max::Float64 = Inf
+    filter_unbound::Bool = true
 
     N::Int
 end
@@ -69,8 +71,11 @@ end
     SS_State(snap, kwargs...)
 
 Given a snapshot, initialize a shrinking spheres state. 
+Sets the initial centre to be from `centre_potential_percen` (i.e. using the 
+centroid of the 5% most bound particles). 
 
-See also [`shrinking_spheres`](@ref)
+See [`shrinking_spheres`](@ref) for arguments.
+
 """
 function SS_State(snap::Snapshot; kwargs...)
     q0 = 0.05
@@ -83,9 +88,12 @@ end
 
 
 """
+    calc_centre!(state::SS_State, snap::Snapshot)
+
 Finds the centre using the shrinking sphere method
 """
 function calc_centre!(state::SS_State, snap)
+    # rearrange filter to match with snapshot's index (used for multiple iterations)
     idx = sortperm(snap.index)
     idx_r = invperm(idx)
     state.filt = state.filt[idx_r]
@@ -93,25 +101,15 @@ function calc_centre!(state::SS_State, snap)
     params = _ShrinkingSpheresParams(snap.positions[:, state.filt]; state.kwargs...)
 
 
-    x_cen, filt = _shrinking_spheres(snap.positions[:, state.filt],
+    _, filt = _shrinking_spheres(snap.positions[:, state.filt],
         params)
 
     state.filt[state.filt] .= filt
 
     state.centre = mean_centre(snap, state.filt)
 
-    filt_bound = _bound_particles(state, snap)
-    if sum(filt_bound) < params.N_min
-        @info "Too few particles are bound. "
-        filt_bound .= true
-    end
+    _filt_unbound!(state, snap, params)
 
-    state.filt[state.filt] .= filt_bound
-
-    Ncut = sum( @. !filt_bound)
-    @info "Cut unbound particles: $Ncut" 
-
-    state.centre = mean_centre(snap, state.filt)
 
     state.filt = state.filt[idx]
     return state
@@ -119,12 +117,24 @@ end
 
 
 
+"""
+    calc_next_centre!(state::SS_State, snap::Snapshot)
+
+Finds the centre using the shrinking sphere method
+"""
 function calc_next_centre!(state::SS_State, snap::Snapshot)
     return calc_centre!(state, snap)
 end
 
 
 
+"""
+    _bound_particles(state::SS_State, snap::Snapshot)
+
+Retrieves a bitvector of particles that are bound with respect to the 
+centre of the shrinking spheres state. 
+Assumes that the potential of the snapshot is the real potential.
+"""
 function _bound_particles(state::SS_State, snap::Snapshot)
     v = calc_r(snap.velocities[:, state.filt] .- state.centre.velocity)
 
@@ -135,6 +145,29 @@ function _bound_particles(state::SS_State, snap::Snapshot)
     return filt_bound
 end
 
+
+"""
+    _filt_unbound!(state::SS_State, snap::Snapshot, params::_ShrinkingSpheresParams)
+
+Filters out unbound particles from the state.
+"""
+function _filt_unbound!(state::SS_State, snap::Snapshot, params::_ShrinkingSpheresParams)
+    if !params.filter_unbound
+        return
+    end
+    filt_bound = _bound_particles(state, snap)
+    if sum(filt_bound) < params.N_min
+        @info "Too few particles are bound. "
+        return
+    end
+
+    state.filt[state.filt] .= filt_bound
+
+    Ncut = sum( @. !filt_bound)
+    @info "Cut unbound particles: $Ncut" 
+
+    state.centre = mean_centre(snap, state.filt)
+end
 
 
 
@@ -148,19 +181,23 @@ al. (2003, §2.5). The algorithm calculates the centroid and then removes
 particles that are beyond a cutoff radius. The cutoff radius is decreased by a
 fixed factor each step until the stopping criterion is met (reaching below a 
 minimum number of particles or approximate convergence).
+The final step removes unbound particles (if set) and recalculates the centre.
 
 # Arguments
 - `positions::AbstractMatrix{<:Real}`: The positions of the particles, with shape (3, N).
-- `x0::AbstractVector{<:Real}`: The initial guess for the centroid.
-- `r_cut_0::Real`: The initial cutoff radius. Defaults to maximum radius.
-- `r_factor::Real=0.975`: The factor by which the cutoff radius is decreased each iteration.
+- `x0::AbstractVector{<:Real}`: The initial guess for the centroid. Defaults to the centroid of the positions using the state's filter
+- `r_cut_0::Real`: The initial cutoff radius. Defaults to maximum radius of particles
+- `r_factor::Real=0.975`: The factor by which the cutoff radius is decreased each iteration. `r_factor_` is interpreted as the quantile of particles to keep (if mode is quantile) or the ratio by which`r_max` decreases (if mode is ratio).
+- `r_max::Real=Inf` Continue until the cutoff radius is below this value, ignoring other stopping criteria. Ignored if set to infinity.
+- `r_min::Real=0`: Stop if the cutoff radius is below this value.
 - `f_min::Real=0.001`: Stop if the number of particles is below f_min * N.
 - `N_min::Int=100`: Stop if the number of particles is below N_min.
 - `itermax::Int=100`: Maximum number of iterations.
 - `dx_atol::Real=1e-6`: Stop if the absolute change in the centroid is below this value.
 - `dx_rtol::Real=NaN`: Stop if the relative change in the centroid is below this value.
-- `dN_min::Int=1`: Stop if the number of particles removed in a step is below this value.
+- `dN_min::Int=0`: Stop if the number of particles removed in a step is below this value.
 - `mode::Symbol=:quantile`: The mode for determining the cutoff radius. Either :quantile or :ratio.
+- `filter_unbound::Bool=true`: If true, remove unbound particles after each iteration. Uses precomputed potentials.
 """
 function shrinking_spheres(positions::AbstractMatrix{T}; kwargs...) where T<:Real
     params = _ShrinkingSpheresParams(positions; kwargs...)
@@ -239,10 +276,12 @@ function _is_complete(params::_ShrinkingSpheresParams, x0, N, dx, dN, r_cut)
         return "N"
     end
 
-    if r_cut > params.r_max
-        return nothing
-    elseif params.r_max < Inf 
-        return "r_max"
+    if params.r_max < Inf 
+        if r_cut < params.r_max
+            return "r_max"
+        else
+            return nothing
+        end
     end
 
     if dN < params.dN_min
