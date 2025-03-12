@@ -275,9 +275,9 @@ version = "0.17.4"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates"]
-git-tree-sha1 = "2ec417fc319faa2d768621085cc1feebbdee686b"
+git-tree-sha1 = "3bab2c5aa25e7840a4b065805c0cdfc01f3068d2"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.23"
+version = "0.9.24"
 weakdeps = ["Mmap", "Test"]
 
     [deps.FilePathsBase.extensions]
@@ -347,9 +347,9 @@ version = "0.17.2"
 
 [[deps.HDF5_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "OpenSSL_jll", "TOML", "Zlib_jll", "libaec_jll"]
-git-tree-sha1 = "87bd95f99219dc3b86d4ee11a9a7bfa6075000a9"
+git-tree-sha1 = "e94f84da9af7ce9c6be049e9067e511e17ff89ec"
 uuid = "0234f1f7-429e-5d53-9886-15a909be8d59"
-version = "1.14.5+0"
+version = "1.14.6+0"
 
 [[deps.Hwloc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -511,9 +511,9 @@ version = "0.15.0"
 
 [[deps.MPICH_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "e7159031670cee777cc2840aef7a521c3603e36c"
+git-tree-sha1 = "3aa3210044138a1749dbd350a9ba8680869eb503"
 uuid = "7cb0a576-ebde-5e09-9194-50597f1243b4"
-version = "4.3.0+0"
+version = "4.3.0+1"
 
 [[deps.MPIPreferences]]
 deps = ["Libdl", "Preferences"]
@@ -523,9 +523,9 @@ version = "0.1.11"
 
 [[deps.MPItrampoline_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML"]
-git-tree-sha1 = "97aac4a518b6f01851f8821272780e1ba56fe90d"
+git-tree-sha1 = "ff91ca13c7c472cef700f301c8d752bc2aaff1a8"
 uuid = "f1f71cc9-e9ae-5b93-9b94-4fe0e1ad3748"
-version = "5.5.2+0"
+version = "5.5.3+0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "72aebe0b5051e5143a079a4685a46da330a40472"
@@ -543,14 +543,15 @@ uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
 [[deps.Measurements]]
-deps = ["Calculus", "LinearAlgebra", "Printf", "Requires"]
-git-tree-sha1 = "bdcde8ec04ca84aef5b124a17684bf3b302de00e"
+deps = ["Calculus", "LinearAlgebra", "Printf"]
+git-tree-sha1 = "3019b28107f63ee881f5883da916dd9b6aa294c1"
 uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-version = "2.11.0"
+version = "2.12.0"
 
     [deps.Measurements.extensions]
     MeasurementsBaseTypeExt = "BaseType"
     MeasurementsJunoExt = "Juno"
+    MeasurementsMakieExt = "Makie"
     MeasurementsRecipesBaseExt = "RecipesBase"
     MeasurementsSpecialFunctionsExt = "SpecialFunctions"
     MeasurementsUnitfulExt = "Unitful"
@@ -558,6 +559,7 @@ version = "2.11.0"
     [deps.Measurements.weakdeps]
     BaseType = "7fbed51b-1ef5-4d67-9085-a4a9b26f478c"
     Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
+    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
     RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
     SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
@@ -616,9 +618,9 @@ version = "0.8.1+2"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
-git-tree-sha1 = "6c1cf6181ffe0aa33eb33250ca2a60e54a15ea66"
+git-tree-sha1 = "da913f03f17b449951e0461da960229d4a3d1a8c"
 uuid = "fe0851c0-eecd-5654-98d4-656369965a5c"
-version = "5.0.7+0"
+version = "5.0.7+1"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -694,9 +696,9 @@ version = "1.3.0"
 
 [[deps.QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
-git-tree-sha1 = "cda3b045cf9ef07a08ad46731f5a3165e56cf3da"
+git-tree-sha1 = "9da16da70037ba9d701192e27befedefb91ec284"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.11.1"
+version = "2.11.2"
 
     [deps.QuadGK.extensions]
     QuadGKEnzymeExt = "Enzyme"
@@ -726,10 +728,14 @@ uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
 
 [[deps.Revise]]
-deps = ["CodeTracking", "Distributed", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
-git-tree-sha1 = "470f48c9c4ea2170fd4d0f8eb5118327aada22f5"
+deps = ["CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "REPL", "Requires", "UUIDs", "Unicode"]
+git-tree-sha1 = "9bb80533cb9769933954ea4ffbecb3025a783198"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.6.4"
+version = "3.7.2"
+weakdeps = ["Distributed"]
+
+    [deps.Revise.extensions]
+    DistributedExt = "Distributed"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -745,9 +751,9 @@ version = "0.5.1+0"
 
 [[deps.Roots]]
 deps = ["Accessors", "CommonSolve", "Printf"]
-git-tree-sha1 = "8e3694d669323cdfb560e344dc872b984de23b71"
+git-tree-sha1 = "442b4353ee8c26756672afb2db81894fc28811f3"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "2.2.2"
+version = "2.2.6"
 
     [deps.Roots.extensions]
     RootsChainRulesCoreExt = "ChainRulesCore"
@@ -800,9 +806,9 @@ version = "1.11.0"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
-git-tree-sha1 = "2f5d4697f21388cbe1ff299430dd169ef97d7e14"
+git-tree-sha1 = "64cca0c26b4f31ba18f13f6c12af7c85f478cfde"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
-version = "2.4.0"
+version = "2.5.0"
 
     [deps.SpecialFunctions.extensions]
     SpecialFunctionsChainRulesCoreExt = "ChainRulesCore"
@@ -846,10 +852,10 @@ uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 version = "1.7.0"
 
 [[deps.StatsBase]]
-deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "5cf7606d6cef84b543b483848d4ae08ad9832b21"
+deps = ["AliasTables", "DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
+git-tree-sha1 = "29321314c920c26684834965ec2ce0dacc9cf8e5"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.3"
+version = "0.34.4"
 
 [[deps.StatsFuns]]
 deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]

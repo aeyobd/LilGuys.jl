@@ -35,9 +35,3 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 AgamaExt = "Agama"
 MakieExt = ["Makie", "Arya"]
 
-[compat]
-Agama = "1.0.0"
-CSV = "0.10.15"
-Logging = "1.11.0"
-Makie = "0.21.9"
-NearestNeighbors = "0.4.21"
