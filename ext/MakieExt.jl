@@ -3,6 +3,7 @@ module MakieExt
 using Makie
 using StatsBase
 
+import Makie: convert_arguments
 using LilGuys
 import LilGuys: @assert_3vector
 import LinearAlgebra: norm, dot
@@ -13,12 +14,12 @@ using Arya
 import LilGuys: plot_xyz, plot_xyz!
 import LilGuys: cmd_axis
 import LilGuys: projecteddensity, projecteddensity!
-import LilGuys: hide_grid!
+import LilGuys: hide_grid!, plot_density_prof!
 import LilGuys: @savefig
 
 
 
-const log_r_label = L"\log\,(r\, /\, \mathrm{kpc})"
+const log_R_label = L"\log\,(r\, /\, \mathrm{kpc})"
 const log_rho_label = L"\log\,(\rho\, /\, 10^{10}\mathrm{M}_\odot\mathrm{pc}^{-3})"
 const v_circ_label = L"{v}_\mathrm{circ}\, /\, \mathrm{km\, s}^{-1}"
 const xi_arcmin_label = L"\xi\, /\, \mathrm{arcmin}"
@@ -325,11 +326,31 @@ macro savefig(name, fig=nothing)
 
 
         @info "Saving figure to $filename.pdf and ---.png in $dir"
-        Makie.save(filepath * ".pdf", $fig)
-        Makie.save(filepath * ".png", $fig)
+        Makie.save(filepath * ".pdf", $fig, pt_per_unit=1)
+        Makie.save(filepath * ".png", $fig, pt_per_unit=1)
 
         $fig
     end 
+end
+
+
+function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarProfile)
+    return (h.log_R, h.log_Sigma)
+end
+
+function convert_arguments(p::Type{<:Lines}, h::LilGuys.StellarProfile)
+	return (midpoints(h.bins), h.values)
+end
+
+
+"""
+    plot_density_prof!(ax, p; kwargs...)
+
+Plots a density profile from a LilGuys.StellarProfile.
+kwargs passed to Arya.errorscatter!
+"""
+function plot_density_prof!(ax, p::LilGuys.StellarProfile; kwargs...)
+    errorscatter!(ax, p.log_R, p.log_Sigma, yerror=collect(zip(p.log_Sigma_em, p.log_Sigma_ep)); kwargs...)
 end
 
 end # module 

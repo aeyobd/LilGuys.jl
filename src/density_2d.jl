@@ -11,163 +11,222 @@ F = Float64
 
 """
 An observed 2D density profile
+
+TODO: likely simplify this class, many vectors are simple
+to calculate from others
 """
 @kwdef mutable struct StellarProfile
-    r_units::String
-    distance::F = NaN
+    R_units::String
     mass_units::String = ""
+
+    "heliocentric distance to system. optional (annotation/normalization)"
+    distance::F = NaN
+    "line of sight velocity dispersion. optional annotation"
     sigma_v::F = NaN
 
-    log_r::Vector{F}
-    log_r_bins::Vector{F}
-    counts::Vector{F}
+    log_R::Vector{F}
+    log_R_bins::Vector{F}
+    counts::Vector{F} = []
 
-    mass_in_annulus::Vector{F}
-    mass_in_annulus_err::Vector{F}
+    mass_per_annulus::Vector{F} = []
+    mass_per_annulus_err::Vector{F} = []
 
-    M_in::Vector{F}
-    M_in_err::Vector{F}
+    M_in::Vector{F} = []
+    M_in_err::Vector{F} = []
 
-    Sigma::Vector{F}
-    Sigma_err::Vector{F}
-    Sigma_m::Vector{F}
-    Sigma_m_err::Vector{F}
+    Sigma::Vector{F} = []
+    Sigma_err::Vector{F} = []
+    Sigma_m::Vector{F} = []
+    Sigma_m_err::Vector{F} = []
     log_Sigma::Vector{F}
-    log_Sigma_err::Vector{F}
+    log_Sigma_em::Vector{F}
+    log_Sigma_ep::Vector{F}
 
-    Gamma::Vector{F}
-    Gamma_err::Vector{F}
-    Gamma_max::Vector{F}
-    Gamma_max_err::Vector{F}
+    Gamma::Vector{F} = []
+    Gamma_err::Vector{F} = []
+    Gamma_max::Vector{F} = []
+    Gamma_max_err::Vector{F} = []
 
     quantiles::Vector{F} = []
-    log_r_quantiles::Vector{F} = []
+    log_R_quantiles::Vector{F} = []
 
     time::F = NaN
 
-    normalization::String = "mass"
+    normalization::String = "none"
+    "log mass shift used for normalization"
+    log_m_scale::F = 0.
+    "log radius shift used for normalization"
+    log_R_scale::F = 0.
 end
 
+
+# TODO: implementation like below
+# """
+# An observed 2D density profile
+# 
+# TODO: likely simplify this class, many vectors are simple
+# to calculate from others
+# """
+# @kwdef mutable struct StellarDensityProfile
+#     R_units::String
+#     mass_units::String = ""
+# 
+#     log_R::Vector{F}
+#     log_R_bins::Vector{F}
+#     counts::Vector{F} = []
+# 
+#     log_Sigma::Vector{F}
+#     log_Sigma_em::Vector{F}
+#     log_Sigma_ep::Vector{F}
+# 
+#     Gamma::Vector{F} = []
+#     Gamma_err::Vector{F} = []
+# 
+#     time::F = NaN
+#     distance::F = NaN
+# 
+#     normalization::String = "none"
+#     "log mass shift used for normalization"
+#     log_m_scale::F = 0.
+#     "log radius shift used for normalization"
+#     log_R_scale::F = 0.
+# end
+# 
+# 
+# """
+# An observed 2D mass profile (cumulative)
+# 
+# TODO: likely simplify this class, many vectors are simple
+# to calculate from others
+# """
+# @kwdef mutable struct StellarMassProfile
+#     R_units::String
+#     mass_units::String = ""
+# 
+#     log_R::Vector{F}
+#     M::Vector{F}
+# 
+#     time::F = NaN
+#     distance::F = NaN
+# 
+#     normalization::String = "none"
+#     "log mass shift used for normalization"
+#     log_m_scale::F = 0.
+#     "log radius shift used for normalization"
+#     log_R_scale::F = 0.
+# end
 
 
 """
     StellarProfile(radii; arguments...)
 
-Calculate the properties of a density profile given the radii `rs` and the units of the radii `r_units`.
+Calculate the properties of a density profile given the radii `Rs` and the units of the radii `R_units`.
 
 
 # Arguments
 - `weights`: The weights of the radii.
 - `bins`: Passed to Arya.histogram. Bins in log r for histogram.
+- `errors`: Passed to Arya.histogram. Histogram error method. May be :bernoulli, :poisson, :weighted, or :none. Defaults to :weighted.
 - `normalization`: The normalization of the profile.
     - :mass: normalizes the profile by the total mass.
-    - :central: normalizes the profile by the mass within a central radius, r_centre
+    - :central: normalizes the profile by the mass within a central radius, R_centre
     - :none: no normalization.
-- `r_centre`: The central radius for normalization if `normalization=:central`.
+- `bins_centre`: The number of bins to use for centre normalization.
 - `distance`: distance (optional)
 - `sigma_v`: velocity dispersion (just as an annotation)
-- `r_units`: The units of the radii, entirely for self-documentation currently.
+- `R_units`: The units of the radii, entirely for self-documentation currently.
 """
-function StellarProfile(rs; 
+function StellarProfile(Rs; 
         weights=nothing, 
         bins=nothing, 
-        normalization=:mass,
-        r_centre=30,
-        r_units="", 
+        normalization=:none,
+        bins_centre=3,
+        R_units="", 
         distance=NaN,
         sigma_v=NaN,
         quantiles = [0.01, 0.02, 0.05, 0.10, 0.16, 0.25, 0.5, 0.75, 0.84, 0.9, 0.95, 0.98, 0.99],
+        errors=:weighted,
         kwargs...
     )
 
     if weights === nothing
-        weights = ones(length(rs))
+        weights = ones(length(Rs))
     end
 
-    if any(rs .< 0)
+    if any(Rs .< 0)
         throw(DomainError("Radii must be positive."))
     end
 
-    if length(rs) < 2
+    if length(Rs) < 2
         throw(ArgumentError("Radii must have at least 2 elements."))
     end
 
-    rs, weights = Interface.filter_nans(rs, weights)
+    Rs, weights = Interface.filter_nans(Rs, weights)
 
-    log_r_bin, values, err = histogram(log10.(rs), bins, weights=weights, normalization=:none) # counting histograms
+    log_R_bin, values, err = histogram(log10.(Rs), bins, weights=weights, normalization=:none, errors=errors) # counting histograms
     err[isnan.(err)] .= 0
-    log_r = midpoints(log_r_bin)
-    δ_log_r = diff(log_r_bin) ./ 2
+    log_R = midpoints(log_R_bin)
+    δ_log_R = diff(log_R_bin) ./ 2
 
 
     mass_per_annulus = values .± err
-    _, counts, _ = histogram(log10.(rs), log_r_bin, normalization=:none)
+    _, counts, _ = histogram(log10.(Rs), log_R_bin, normalization=:none)
 
     # approximate error for no particles in bin
     err[isnan.(err)] .= 1
 
     err[counts .== 0] .= 1
 
-    if normalization isa String
-        normalization = Symbol(normalization)
-    end
 
-    if normalization == :mass
-        mass_per_annulus = mass_per_annulus ./ sum(value.(mass_per_annulus))
-    elseif normalization == :central
-        filt_cen = log_r .< log10(r_centre)
-        Σ_m_cen = sum(value.(mass_per_annulus[filt_cen])) ./ (π * r_centre^2)
-        mass_per_annulus = mass_per_annulus ./ Σ_m_cen
-    elseif normalization == :none
-        mass_per_annulus = mass_per_annulus
-    else
-        error("normalization not implemented: $normalization")
-    end
-
-    Σ = calc_Σ_from_hist(log_r_bin, mass_per_annulus)
+    Σ = calc_Σ_from_hist(log_R_bin, mass_per_annulus)
     M_in = cumsum(mass_per_annulus)
-    Σ_m = calc_Σ_mean_from_hist(log_r_bin, M_in)
-    Γ = calc_Γ(log_r, Σ)
+    Σ_m = calc_Σ_mean_from_hist(log_R_bin, M_in)
+    Γ = calc_Γ(log_R, Σ)
     Γ_max = calc_Γ_max(Σ, Σ_m)
 
-    log_Σ = log10.(Σ)
+    log_Σ = value.(log10.(Σ))
     log_Σ[Σ .== 0] .= NaN
 
-    log_r_quantiles = log10.(quantile(rs, quantiles))
+    log_R_quantiles = log10.(quantile(Rs, quantiles))
+
+    Sigma = value.(Σ)
+    Sigma_err = nan_uncertainty(Σ)
 
     prof = StellarProfile(;
-        r_units = r_units,
+        R_units = R_units,
         distance = distance,
         sigma_v = sigma_v,
-        log_r = value.(log_r),
-        log_r_bins = log_r_bin,
+        log_R = value.(log_R),
+        log_R_bins = log_R_bin,
         counts = counts,
         M_in = value.(M_in),
         M_in_err = nan_uncertainty(M_in),
-        mass_in_annulus = value.(mass_per_annulus),
-        mass_in_annulus_err = nan_uncertainty(mass_per_annulus),
-        Sigma = value.(Σ),
-        Sigma_err = nan_uncertainty(Σ),
+        mass_per_annulus = value.(mass_per_annulus),
+        mass_per_annulus_err = nan_uncertainty(mass_per_annulus),
+        Sigma = Sigma,
+        Sigma_err = Sigma_err,
         Sigma_m = value.(Σ_m),
         Sigma_m_err = nan_uncertainty(Σ_m),
-        log_Sigma = value.(log_Σ),
-        log_Sigma_err = nan_uncertainty(log_Σ),
+        log_Sigma = log_Σ,
+        log_Sigma_em = log_Σ .- log10.(max.(Sigma .- Sigma_err, 0)),
+        log_Sigma_ep = log10.(Sigma .+ Sigma_err) .- log_Σ,
         Gamma = value.(Γ),
         Gamma_err = nan_uncertainty(Γ),
         Gamma_max = value.(Γ_max),
         Gamma_max_err = nan_uncertainty(Γ_max),
         normalization = string(normalization),
         quantiles = quantiles,
-        log_r_quantiles = log_r_quantiles,
+        log_R_quantiles = log_R_quantiles,
         kwargs...
     )
 
+    prof = normalize(prof, normalization, bins_centre=bins_centre)
     return prof
 end
 
 
 """
-    StellarProfile(snap::Snapshot; r_units="kpc", x_vec=[1, 0, 0], y_vec=[0, 1, 0], kwargs...)
+    StellarProfile(snap::Snapshot; R_units="kpc", x_vec=[1, 0, 0], y_vec=[0, 1, 0], kwargs...)
 
 Creates a StellarProfile from a snapshot. 
 If the units is set to kpc, than the profile is calculated in the xy plane defined
@@ -175,13 +234,13 @@ by the vectors x_vec and y_vec. Otherwise, the snapshot is projected as is to th
 of the on-sky tangent plane. Kwarguments are passed to the StellarProfile constructor for a list of radii.
 """
 function StellarProfile(snap::Snapshot;
-        r_units = "kpc",
+        R_units = "kpc",
         x_vec = [1, 0, 0],
         y_vec = [0, 1, 0],
         kwargs...
     )
 
-    if r_units == "kpc"
+    if R_units == "kpc"
         N = size(snap.positions, 2)
         ra = [dot(snap.positions[:, i], x_vec) for i in 1:N]
         dec = [dot(snap.positions[:, i], y_vec) for i in 1:N]
@@ -189,7 +248,7 @@ function StellarProfile(snap::Snapshot;
         weights = snap.weights
         ra0 = snap.x_cen ⋅ x_vec
         dec0 = snap.x_cen ⋅ y_vec
-    elseif r_units ∈ ["arcmin", "arcsec", "deg"]
+    elseif R_units ∈ ["arcmin", "arcsec", "deg"]
         projected = to_gaia(snap, add_centre=true) # centre has zero weight
         ra = projected.ra
         dec = projected.dec
@@ -197,13 +256,13 @@ function StellarProfile(snap::Snapshot;
         dec0 = projected.dec[1]
         weights = projected.weights
     else
-        throw(ArgumentError("r_units not implemented: $r_units"))
+        throw(ArgumentError("R_units not implemented: $R_units"))
     end
 
     xi, eta = to_tangent(ra, dec, ra0, dec0)
     r = sqrt.(xi .^ 2 + eta .^ 2)
 
-    return StellarProfile(r; r_units=r_units, weights=weights, time=snap.time, kwargs...)
+    return StellarProfile(r; R_units=R_units, weights=weights, time=snap.time, kwargs...)
 end
 
 
@@ -263,12 +322,12 @@ end
 
 # Density methods
 """
-    calc_Σ_from_hist(log_r_bin, mass_per_annulus)
+    calc_Σ_from_hist(log_R_bin, mass_per_annulus)
 
-Calculate the surface density given the radii `log_r_bin` and the mass per annuli `mass_per_annulus`.
+Calculate the surface density given the radii `log_R_bin` and the mass per annuli `mass_per_annulus`.
 """
-function calc_Σ_from_hist(log_r_bin::AbstractVector{<:Real}, mass_per_annulus::AbstractVector{<:Real})
-    r = 10. .^ log_r_bin
+function calc_Σ_from_hist(log_R_bin::AbstractVector{<:Real}, mass_per_annulus::AbstractVector{<:Real})
+    r = 10. .^ log_R_bin
     As = π * diff(r .^ 2)
 
     Σ = mass_per_annulus ./ As 
@@ -277,12 +336,12 @@ end
 
 
 """
-    calc_Σ_from_1D_density(log_r_bin, density1d)
+    calc_Σ_from_1D_density(log_R_bin, density1d)
 
-Calculate the surface density given the radii `log_r_bin` and the 1D density `density1d`.
+Calculate the surface density given the radii `log_R_bin` and the 1D density `density1d`.
 """
-function calc_Σ_from_1D_density(log_r_bin::AbstractVector{<:Real}, density1d::AbstractVector{<:Real})
-    r = 10 .^ log_r_bin
+function calc_Σ_from_1D_density(log_R_bin::AbstractVector{<:Real}, density1d::AbstractVector{<:Real})
+    r = 10 .^ log_R_bin
     As = π * diff(r .^ 2)
 
     Σ = density ./ (2π * log(10) * r .^ 2)
@@ -291,25 +350,25 @@ end
 
 
 """
-    calc_Γ(log_rs, Σs)
+    calc_Γ(log_Rs, Σs)
 
-Calculate the logarithmic slope of the density profile given the radii `log_rs` and the surface densities `Σs`.
+Calculate the logarithmic slope of the density profile given the radii `log_Rs` and the surface densities `Σs`.
 """
-function calc_Γ(log_rs::AbstractVector{<:Real}, Σs::AbstractVector{<:Real})
-    d_log_r = gradient(log_rs)
+function calc_Γ(log_Rs::AbstractVector{<:Real}, Σs::AbstractVector{<:Real})
+    d_log_R = gradient(log_Rs)
     d_log_Σ = gradient(log10.(Σs))
 
-    return d_log_Σ ./ d_log_r
+    return d_log_Σ ./ d_log_R
 end
 
 
 """
-    calc_Σ_mean_from_hist(log_r_bin, M_in)
+    calc_Σ_mean_from_hist(log_R_bin, M_in)
 
 Calculates the mean surface density from the interior mass to each bin
 """
-function calc_Σ_mean_from_hist(log_r_bin::AbstractVector{<:Real}, M_in::AbstractVector{<:Real})
-    r = 10 .^ log_r_bin[2:end]
+function calc_Σ_mean_from_hist(log_R_bin::AbstractVector{<:Real}, M_in::AbstractVector{<:Real})
+    r = 10 .^ log_R_bin[2:end]
     Areas = @. π * r^2
     Σ_bar = M_in ./ Areas
     return Σ_bar
@@ -331,11 +390,11 @@ end
 
 
 """
-    calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing, centre="mean", units="arcmin")
+    calc_R_ell_sky(ra, dec, a, b, PA; weights=nothing, centre="mean", units="arcmin")
 
 Given a set of sky coordinates (ra, dec), computes the elliptical radius of each point with respect to the centre of the ellipse defined by the parameters (a, b, PA).
 """
-function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
+function calc_R_ell_sky(ra, dec, a, b, PA; weights=nothing,
         centre="mean",
         units="arcmin"
     )
@@ -343,49 +402,49 @@ function calc_r_ell_sky(ra, dec, a, b, PA; weights=nothing,
 
     x, y = to_tangent(ra, dec, ra0, dec0)
 
-    r_ell = calc_r_ell(x, y, a, b, PA)
+    R_ell = calc_R_ell(x, y, a, b, PA)
 
 
     if units == "arcmin"
-        r_ell = 60r_ell
+        R_ell = 60R_ell
     elseif units == "arcsec"
-        r_ell = 3600r_ell
+        R_ell = 3600R_ell
     elseif units == "deg"
-        r_ell = 1r_ell
+        R_ell = 1R_ell
     else
         error("units not implemented: $units")
     end
 
-    return r_ell
+    return R_ell
 end
 
 
-function calc_r_ell_sky(ra, dec, ell, PA; kwargs...)
+function calc_R_ell_sky(ra, dec, ell, PA; kwargs...)
     aspect = ellipticity_to_aspect(ell)
     b = sqrt(aspect)
     a = 1/b
-    return calc_r_ell_sky(ra, dec, a, b, PA; kwargs...)
+    return calc_R_ell_sky(ra, dec, a, b, PA; kwargs...)
 end
 
 
-function calc_r_ell_sky(ra, dec; kwargs...)
-    return calc_r_ell_sky(ra, dec, 0, 0; kwargs...)
+function calc_R_ell_sky(ra, dec; kwargs...)
+    return calc_R_ell_sky(ra, dec, 0, 0; kwargs...)
 end
 
 
 """
-    calc_r_ell(x, y, a, [b, ]PA)
+    calc_R_ell(x, y, a, [b, ]PA)
 
 computes the elliptical radius of a point (x, y) with respect to the center (0, 0) and the ellipse parameters (a, b, PA).
 If using sky coordinates, x and y should be tangent coordinates.
 
 Note that the position angle is the astronomy definition, i.e. measured from the North to the East (clockwise) in xi / eta.
 """
-function calc_r_ell(x, y, args...)
+function calc_R_ell(x, y, args...)
     x_p, y_p = shear_points_to_ellipse(x, y, args...)
 
-	r_sq = @. (x_p)^2 + (y_p)^2
-	return sqrt.(r_sq)
+    R_sq = @. (x_p)^2 + (y_p)^2
+    return sqrt.(R_sq)
 end
 
 
@@ -510,39 +569,75 @@ end
 
 
 """
-    scale(prof::StellarProfile, r_scale::Real, m_scale::Real)
+    normalize(prof::StellarProfile, normalization=:none)
 
-Scales the profile by a factor of `r_scale` in radius and `m_scale` in mass,
+Returns a normalized version of the stellar profile.
+Options are
+- `:mass` normalizes profile by total mass
+
+"""
+function normalize(prof::StellarProfile, normalization=:none; bins_centre=3)
+    if normalization isa String
+        normalization = Symbol(normalization)
+    end
+
+    @assert prof.log_m_scale == 0. "can only normalize profile once"
+
+    if normalization == :mass
+        m_scale = 1/ sum(value.(prof.mass_per_annulus))
+    elseif normalization == :central
+        filt_cen = 1:bins_centre
+        R_centre = prof.log_R_bins[bins_centre+1]
+
+        Σ_m_cen = sum(value.(prof.mass_per_annulus[filt_cen])) ./ (π * R_centre^2)
+        m_scale = 1 / Σ_m_cen
+    elseif normalization == :none
+        m_scale = 1
+    else
+        error("normalization not implemented: $normalization")
+    end
+
+    return scale(prof, 1.0, m_scale; _normalization=string(normalization))
+end
+
+"""
+    scale(prof::StellarProfile, R_scale::Real, m_scale::Real)
+
+Scales the profile by a factor of `R_scale` in radius and `m_scale` in mass,
 returning a new profile.
 """
-function scale(prof::StellarProfile, r_scale::Real, m_scale::Real)
+function scale(prof::StellarProfile, R_scale::Real, m_scale::Real; _normalization=prof.normalization)
     if prof.normalization == "mass"
         if m_scale != 1
-            @warn "Normalization is mass, but mass scale is not 1."
+            @warn "Profile is mass noramlized, but mass scale is not 1."
         end
     end
 
     return StellarProfile(
-        r_units = prof.r_units,
+        normalization = _normalization,
+        R_units = prof.R_units,
         distance = prof.distance,
-        log_r = prof.log_r .+ log10(r_scale),
-        log_r_bins = prof.log_r_bins .+ log10(r_scale),
+        log_R = prof.log_R .+ log10(R_scale),
+        log_R_bins = prof.log_R_bins .+ log10(R_scale),
         counts = prof.counts,
         M_in = prof.M_in * m_scale,
         M_in_err = prof.M_in_err * m_scale,
-        mass_in_annulus = prof.mass_in_annulus * m_scale,
-        mass_in_annulus_err = prof.mass_in_annulus_err * m_scale,
-        Sigma = prof.Sigma * m_scale / r_scale^2,
-        Sigma_err = prof.Sigma_err * m_scale / r_scale^2,
-        Sigma_m = prof.Sigma_m * m_scale / r_scale^2,
-        Sigma_m_err = prof.Sigma_m_err * m_scale / r_scale^2,
-        log_Sigma = prof.log_Sigma .+ log10(m_scale) .- 2log10(r_scale),
-        log_Sigma_err = prof.log_Sigma_err,
+        mass_per_annulus = prof.mass_per_annulus * m_scale,
+        mass_per_annulus_err = prof.mass_per_annulus_err * m_scale,
+        Sigma = prof.Sigma * m_scale / R_scale^2,
+        Sigma_err = prof.Sigma_err * m_scale / R_scale^2,
+        Sigma_m = prof.Sigma_m * m_scale / R_scale^2,
+        Sigma_m_err = prof.Sigma_m_err * m_scale / R_scale^2,
+        log_Sigma = prof.log_Sigma .+ log10(m_scale) .- 2log10(R_scale),
+        log_Sigma_ep = prof.log_Sigma_ep,
+        log_Sigma_em = prof.log_Sigma_em,
         Gamma = prof.Gamma,
         Gamma_err = prof.Gamma_err,
         Gamma_max = prof.Gamma_max,
         Gamma_max_err = prof.Gamma_max_err,
         quantiles = prof.quantiles,
-        log_r_quantiles = prof.log_r_quantiles .+ log10(r_scale),
+        log_R_quantiles = prof.log_R_quantiles .+ log10(R_scale),
+        log_R_scale = prof.log_R_scale .+ log10(R_scale),
+        log_m_scale = prof.log_m_scale .+ log10(m_scale),
     )
 end

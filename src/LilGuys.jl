@@ -66,6 +66,7 @@ public hide_grid!, cmd_axis
 
 function plot_xyz end
 function plot_xyz! end
+function plot_density_prof! end
 function cmd_axis end
 
 function projecteddensity end

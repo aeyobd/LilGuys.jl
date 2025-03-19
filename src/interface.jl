@@ -77,8 +77,9 @@ Compute the histogram of `x` with `bins` bins, returning the bins, values, and p
 If `bins` is not provided, it defaults to the rule provided by `default_bins`.
 If `weights` are provided, they are used to weight the histogram.
 If `normalization` is `:none`, the histogram is normalized to the total number of observations.
+Kwargs passed to bins
 """
-function histogram(x, bins=bins_default; 
+function histogram(x, bins=bins_default; errors=:poisson,
         weights=nothing, normalization=:none, kwargs...)
 
     x, weights = filter_nans(x, weights)
@@ -91,7 +92,7 @@ function histogram(x, bins=bins_default;
         @info "Using default bins of size = $(length(bins))"
     end
 
-    h = DensityEstimators.histogram(x, bins, weights=weights, normalization=normalization)
+    h = DensityEstimators.histogram(x, bins, weights=weights, normalization=normalization, errors=errors)
 
     return h.bins, h.values, h.err
 end
