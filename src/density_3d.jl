@@ -117,7 +117,7 @@ function MassProfile3D(snap::Snapshot;
 
     log_r_snap = log10.(calc_r(snap))
 
-    bins, hist, err = histogram(log_r_snap, bins, weights=snap.masses)
+    bins, hist, err = histogram(log_r_snap, bins, weights=snap.masses, errors=:weighted)
     log_r_bins = bins
     mass_in_shell = hist 
     mass_in_shell_err  = err

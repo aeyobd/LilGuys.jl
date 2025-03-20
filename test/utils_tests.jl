@@ -300,8 +300,8 @@ end
     @testset "constant" begin
         f(x) = 1
         N = 1000
-        log_r = log10.(LinRange(0, 1, N))
-        r = lguys.sample_Σ(f, N, log_r=log_r)
+        log_R = log10.(LinRange(0, 1, N))
+        r = lguys.sample_Σ(f, N, log_R=log_R)
         @test minimum(r) ≈ 0 atol=0.03
         @test maximum(r) ≈ 1 atol=0.03
         @test lguys.mean(r) ≈ 2/3 atol=0.03

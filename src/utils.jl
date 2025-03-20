@@ -36,8 +36,39 @@ Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 """
 general method to convert a struct to a dictionary
 """
-function struct_to_dict(S)
-    return Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
+function struct_to_dict(S, split_errors=true)
+    d = Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
+
+    if split_errors
+        for (key, val) in d
+            if val isa AbstractArray{<:Measurement}
+                m = LilGuys.value.(val)
+                errs = LilGuys.ci_of.(val)
+                em = first.(errs)
+                ep = last.(errs)
+                d[key] = m
+                d[Symbol(string(key) * "_em")] = em
+                d[Symbol(string(key) * "_ep")] = ep
+            end
+        end
+    end
+
+    return d
+end
+
+function collapse_errors(d::Dict)
+    d_new = deepcopy(d)
+    ks = keys(d) 
+    for (key, val) in d
+        if [key * "_em", key*"_ep"] ⊆ ks
+            em = pop!(d_new, key*"_em")
+            ep = pop!(d_new, key*"_ep")
+            d_new[key] = Measurement.(d_new[key], em, ep)
+        end
+
+    end
+
+    return d_new
 end
 
 
@@ -273,17 +304,17 @@ end
 
 
 """
-    sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
+    sample_Σ(f::Function, N::Integer = 1; log_R=nothing)
 
 Randomly draws N samples from a Density profile given by the finction f.
 """
-function sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
-    if log_r == nothing
-        log_r = LinRange(-5, 5, 1000)
+function sample_Σ(f::Function, N::Integer = 1; log_R=nothing)
+    if log_R == nothing
+        log_R = LinRange(-5, 5, 1000)
     end
 
-    r = exp10.(log_r)
-    Σ = f.(r)
+    R = exp10.(log_R)
+    Σ = f.(R)
 
     if any(Σ .< 0)
         throw(ArgumentError("Σ must be positive"))
@@ -293,10 +324,10 @@ function sample_Σ(f::Function, N::Integer = 1; log_r=nothing)
     end
 
 
-    M = cumsum(Σ .* π .* r .* gradient(r))
+    M = cumsum(Σ .* π .* R .* gradient(R))
     M = M ./ M[end]
 
-    l = lerp([0; M], [0; r])
+    l = lerp([0; M], [0; R])
 
     probs = rand(N)
     return l.(probs)

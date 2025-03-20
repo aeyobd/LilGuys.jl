@@ -334,12 +334,8 @@ macro savefig(name, fig=nothing)
 end
 
 
-function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarProfile)
-    return (h.log_R, h.log_Sigma)
-end
-
-function convert_arguments(p::Type{<:Lines}, h::LilGuys.StellarProfile)
-	return (midpoints(h.bins), h.values)
+function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarMassProfile)
+    return (h.log_R, LilGuys.value.(h.log_Sigma))
 end
 
 
@@ -349,8 +345,8 @@ end
 Plots a density profile from a LilGuys.StellarProfile.
 kwargs passed to Arya.errorscatter!
 """
-function plot_density_prof!(ax, p::LilGuys.StellarProfile; kwargs...)
-    errorscatter!(ax, p.log_R, p.log_Sigma, yerror=collect(zip(p.log_Sigma_em, p.log_Sigma_ep)); kwargs...)
+function plot_density_prof!(ax, p::LilGuys.StellarMassProfile; kwargs...)
+    errorscatter!(ax, p.log_R, value.(p.log_Sigma), yerr= LilGuys.ci_of.(p.log_Sigma); kwargs...)
 end
 
 end # module 

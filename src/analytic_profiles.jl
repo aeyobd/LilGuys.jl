@@ -136,8 +136,8 @@ A Plummer profile. The density profile is given by
 where M is the total mass and r_s is the scale radius. 
 """
 @kwdef struct Plummer{F<:Real} <: SphericalProfile
-    M::F = 1
-    r_s::F = 1
+    M::F = 1.
+    r_s::F = 1.
 end
 
 

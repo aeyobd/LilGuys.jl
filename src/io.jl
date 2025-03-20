@@ -1,59 +1,7 @@
-import FITSIO: FITS
 import DataFrames: DataFrame
 import HDF5
 
 h5open = HDF5.h5open
-
-
-"""
-    read_fits(filename; hdu=2)
-
-Load a FITS file and return a DataFrame using the specified HDU.
-"""
-function read_fits(filename::String; hdu=2)
-    local df
-    FITS(filename, "r") do f
-        df = DataFrame(f[hdu])
-    end
-
-    return df
-end
-
-
-"""
-    write_fits(filename, dataframe; overwrite=false, verbose=false)
-
-Write a DataFrame to a FITS file.
-"""
-function write_fits(filename::String, frame::DataFrame;
-        overwrite=false, verbose=false
-    )
-
-    if overwrite
-        rm(filename, force=true)
-    end
-    df = to_dict(frame)
-
-    try 
-        column_names = ascii.(keys(df))
-    catch e
-        if isa(e, ArgumentError)
-            throw(ArgumentError("Column names must be ASCII"))
-        else
-            rethrow(e)
-        end
-    end
-
-
-    FITS(filename, "w") do f
-        write(f, df)
-    end
-
-    if verbose
-        println("written to $filename")
-    end
-end
-
 
 
 """

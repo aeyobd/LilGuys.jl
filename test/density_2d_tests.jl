@@ -1,14 +1,14 @@
 
 
 @testset "calc_Σ" begin
-    log_r = [-Inf, 0]
+    log_R = [-Inf, 0]
     mass = [1]
-    Σ = LilGuys.calc_Σ_from_hist(log_r, mass)
+    Σ, e = LilGuys.calc_Σ_from_hist(log_R, mass, sqrt.(mass))
     @test Σ ≈ [1/π]
 
-    log_r = [-1, 0, 1, 1.5]
+    log_R = [-1, 0, 1, 1.5]
     mass = [1, 2, 0]
-    Σ = LilGuys.calc_Σ_from_hist(log_r, mass)
+    Σ, e = LilGuys.calc_Σ_from_hist(log_R, mass, sqrt.(mass))
     @test Σ ≈ [1 / (0.99π), 2 / (99π), 0]
 end
 
@@ -17,27 +17,29 @@ end
 end
 
 @testset "calc_Σ_mean" begin
-    log_r = [-Inf, 0]
-    mass = [1]
-    Σ = LilGuys.calc_Σ_mean_from_hist(log_r, mass)
-    @test Σ ≈ [1/π]
+    log_R = [-1., 0.]
+    mass = cumsum([0, 1])
 
-    log_r = [-1, 0, 1, 1.5]
+    Σ = LilGuys.calc_Σ_mean_from_hist(log_R, mass)
+    @test Σ ≈ [0, 1/π]
+
+    log_R = [0, 1, 1.5]
     mass = [1, 2, 0]
     mass = cumsum(mass)
-    Σ = LilGuys.calc_Σ_mean_from_hist(log_r, mass)
+    Σ = LilGuys.calc_Σ_mean_from_hist(log_R, mass)
     @test Σ ≈ [1 / (π), 3 / (100π), 3 / (1000π)]
 end
 
 
 @testset "stellar profile" begin
-    @test_throws DomainError LilGuys.StellarProfile([-1, 2, 3])
-    @test_throws ArgumentError LilGuys.StellarProfile([1])
+    @test_throws DomainError LilGuys.StellarDensityProfile([-1, 2, 3])
+    @test_throws ArgumentError LilGuys.StellarDensityProfile([1])
 
     @testset "normalization" begin
         radii = [1, 3, 4, 4.5, 6, 10]
         bins = log10.([0, 3.5, 7, 11, 20])
         r_bins = 10 .^ bins
+        r_m = LilGuys.midpoints(bins)
         # 2 count in first bin (area π(3.5)^2)
         # 3 counts in second bin (area πr^2 - π(3.5)^2)
         # 1 count in third bin (area π11^2 - π7^2)
@@ -47,46 +49,34 @@ end
         mass_in_annulus_unnormed = [2,3,1,0]
         counts = [2,3,1, 0]
         mass_in_annulus_err = sqrt.(counts)
-        M_in_unnormed = [2,5,6,6]
-        M_in_err = sqrt.(M_in_unnormed)
-
-        Sigma_unnormed = [2,3,1,0] ./ areas
+        Sigma = [2,3,1,0] ./ areas
         Sigma_err = mass_in_annulus_err ./ areas
-        Sigma_m = M_in_unnormed ./ (π * r_bins[2:end] .^ 2)
-        Sigma_m_err = M_in_err ./ (π * r_bins[2:end] .^ 2)
+
+        log_Sigma = log10.(Sigma)
+        log_Sigma_em = log_Sigma .- log10.(Sigma .- Sigma_err)
 
 
-        prof = LilGuys.StellarProfile(radii, bins=bins, normalization=:none)
-        @test prof.M_in ≈ M_in_unnormed
-        @test prof.M_in_err ≈ M_in_err
-        @test prof.Sigma ≈ Sigma_unnormed
-        @test prof.Sigma_err[1:3] ≈ Sigma_err[1:3]
-        @test prof.Sigma_m ≈ Sigma_m
-        @test prof.Sigma_m_err ≈ Sigma_m_err
+        # default is no normalization
+        prof = LilGuys.StellarDensityProfile(radii, bins=bins)
+        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma nans=true
+        e = first.(LilGuys.ci_of.(prof.log_Sigma))
+        @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
-        # default is mass normalization
-        prof = LilGuys.StellarProfile(radii, bins=bins)
+        prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:mass)
         Mtot = 6
-        @test prof.M_in ≈ M_in_unnormed ./ Mtot
-        @test prof.M_in_err ≈ M_in_err ./ Mtot
-        @test prof.Sigma ≈ Sigma_unnormed ./ Mtot
-        @test prof.Sigma_err[1:3] ≈ Sigma_err[1:3] ./ Mtot
-        @test prof.Sigma_m ≈ Sigma_m ./ Mtot
-        @test prof.Sigma_m_err ≈ Sigma_m_err ./ Mtot
+        e = first.(LilGuys.ci_of.(prof.log_Sigma))
+        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
+        @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
-        # default is mass normalization
-        prof = LilGuys.StellarProfile(radii, bins=bins, normalization=:central, r_centre=3.5)
+        prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:central, bins_centre=1)
         Mtot = 2 / (π * 3.5^2)
-        @test prof.M_in ≈ M_in_unnormed ./ Mtot
-        @test prof.M_in_err ≈ M_in_err ./ Mtot
-        @test prof.Sigma ≈ Sigma_unnormed ./ Mtot
-        @test prof.Sigma_err[1:3] ≈ Sigma_err[1:3] ./ Mtot
-        @test prof.Sigma_m ≈ Sigma_m ./ Mtot
-        @test prof.Sigma_m_err ≈ Sigma_m_err ./ Mtot
+        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
+        e = first.(LilGuys.ci_of.(prof.log_Sigma)) 
+        @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
-        @test_throws Exception LilGuys.StellarProfile(radii, bins=bins, normalization=:jaberwocky)
+        @test_throws Exception LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:jaberwocky)
     end
 
 
@@ -103,40 +93,50 @@ end
         snap = LilGuys.Snapshot(positions, velocities, ones(4))
         snap.weights = masses
 
-        prof = LilGuys.StellarProfile(snap)
+        prof = LilGuys.StellarDensityProfile(snap)
 
-        prof = LilGuys.StellarProfile(snap, x_vec = [0, 1, 0], y_vec = [0, 0, 1])
+        prof = LilGuys.StellarDensityProfile(snap, x_vec = [0, 1, 0], y_vec = [0, 0, 1])
 
-        prof = LilGuys.StellarProfile(snap, r_units="arcmin")
+        prof = LilGuys.StellarDensityProfile(snap, R_units="arcmin")
 
-        prof = LilGuys.StellarProfile(snap, normalization=:none)
+        prof = LilGuys.StellarDensityProfile(snap, normalization=:none)
         @test false broken=true
     end
 end
 
 
 @testset "integration with exp profile unweighted" begin
-    Σ(r) = exp(-r)/2π
+    Σ(R) = exp(-R)/2π
     N = 10_000
-    r = LilGuys.sample_Σ(Σ, N, log_r=LinRange(-5, 5, 1000))
+    R = LilGuys.sample_Σ(Σ, N, log_R=LinRange(-5, 5, 1000))
 
-    obs = LilGuys.StellarProfile(r, normalization=:none)
+    obs = LilGuys.StellarDensityProfile(R, normalization=:none)
+    
+    Σs = 10 .^ LilGuys.value.(obs.log_Sigma)
+    mass_per_annulus = sum(Σs .* diff(π * 10 .^ 2obs.log_R_bins))
 
-    @test sum(obs.mass_in_annulus) ≈ N
-    @test obs.M_in[end] ≈ N
-    @test issorted(obs.log_r)
+    @test sum(mass_per_annulus) ≈ N
+    @test issorted(obs.log_R)
     @test sum(obs.counts) ≈ N
 
-    r = 10 .^ obs.log_r
-    sigma_exp = N * Σ.(r)
-    @test_χ2 obs.Sigma obs.Sigma_err sigma_exp
+    R = 10 .^ obs.log_R
+    sigma_exp = N * Σ.(R)
+    log_sigma_exp = log10.(sigma_exp)
+    
+    err = maximum.(LilGuys.ci_of.(obs.log_Sigma))
+    @test_χ2 LilGuys.value.(obs.log_Sigma) err log_sigma_exp
 
-    Gamma_exp = -r
-    @test_χ2 obs.Gamma obs.Gamma_err Gamma_exp
+    Gamma_exp = -R
+    err = maximum.(LilGuys.ci_of.(obs.Gamma))
+    filt = isfinite.(err)
+    @test sum(filt) > 10
 
-    r = 10 .^ obs.log_r_bins[2:end]
-    M_exp = @. N * (1 - exp(-r) - r*exp(-r))
-    @test_χ2 obs.M_in obs.M_in_err M_exp
+    x2 = (LilGuys.value.(obs.Gamma)[filt]  .- Gamma_exp[filt]) ./ err[filt]
+    @info obs.Gamma[filt][argmax(x2)]
+    @info err[filt][argmax(x2)]
+    @info Gamma_exp[filt][argmax(x2)]
+
+    @test_χ2 LilGuys.value.(obs.Gamma)[filt] err[filt]  Gamma_exp[filt]
 
 
     @testset "read/write" begin
@@ -147,16 +147,18 @@ end
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.StellarProfile(filename)
+        obs2 = LilGuys.StellarDensityProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)
             if v isa String
                 @test getproperty(obs2, name) == v
+            elseif v isa Dict
+                @test getproperty(obs2, name) == v
             elseif v isa Real
-                @test v ≈ getproperty(obs2, name) nans=true
+                @test v ≈  getproperty(obs2, name) nans=true
             else    
-                @test v ≈ getproperty(obs2, name) nans=true
+                @test all(isapprox.(v,  getproperty(obs2, name), nans=true))
             end
         end
     end
@@ -341,28 +343,29 @@ end
 @testset "integration with exp profile" begin
     Σ(r) = exp(-r)/2π
     N = 10_000
-    r = LilGuys.sample_Σ(Σ, N, log_r=LinRange(-5, 5, 1000))
+    r = LilGuys.sample_Σ(Σ, N, log_R=LinRange(-5, 5, 1000))
 
     mass = 0.5 .+ 0.5rand(N)
     M = sum(mass)
 
-    obs = LilGuys.StellarProfile(r, normalization=:none, weights=mass)
+    obs = LilGuys.StellarDensityProfile(r, normalization=:none, weights=mass)
 
-    @test sum(obs.mass_in_annulus) ≈ sum(mass)
-    @test obs.M_in[end] ≈ sum(mass)
-    @test issorted(obs.log_r)
+    mass_per_annulus = 10 .^ obs.log_Sigma .* diff(π * 10 .^ 2obs.log_R_bins)
+    @test sum(LilGuys.value.(mass_per_annulus)) ≈ sum(mass)
+
+    @test issorted(obs.log_R)
     @test sum(obs.counts) ≈ N
 
-    r = 10 .^ obs.log_r
+    r = 10 .^ obs.log_R
     sigma_exp = M * Σ.(r)
-    @test_χ2 obs.Sigma obs.Sigma_err sigma_exp
+
+    err = maximum.(LilGuys.ci_of.(obs.log_Sigma))
+    @test_χ2 LilGuys.value.(obs.log_Sigma) err log10.(sigma_exp)
 
     Gamma_exp = -r
-    @test_χ2 obs.Gamma obs.Gamma_err Gamma_exp
+    err = maximum.(LilGuys.ci_of.(obs.Gamma))
+    @test_χ2 LilGuys.value.(obs.Gamma) err  Gamma_exp
 
-    r = 10 .^ obs.log_r_bins[2:end]
-    M_exp = @. M * (1 - exp(-r) - r*exp(-r))
-    @test_χ2 obs.M_in obs.M_in_err M_exp
 
 
     @testset "read/write" begin
@@ -373,16 +376,18 @@ end
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.StellarProfile(filename)
+        obs2 = LilGuys.StellarDensityProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)
             if v isa String
                 @test getproperty(obs2, name) == v
+            elseif v isa Dict
+                @test getproperty(obs2, name) == v
             elseif v isa Real
                 @test v ≈ getproperty(obs2, name) nans=true
             else    
-                @test v ≈ getproperty(obs2, name) nans=true
+                @test all(isapprox.(v, getproperty(obs2, name), nans=true))
             end
         end
     end
@@ -390,20 +395,20 @@ end
 
 
 
-@testset "calc_r_ell" begin
+@testset "calc_R_ell" begin
     N = 100
     @testset "circular" begin
         x = randn(N)
         y = randn(N)
         r = sqrt.(x.^2 + y.^2)
-        r_ell = LilGuys.calc_r_ell(x, y, 0, 23.425)
+        r_ell = LilGuys.calc_R_ell(x, y, 0, 23.425)
 
         @test r_ell ≈ r
 
         a = rand(N)
         b = a
         PA = 360rand(N)
-        r_ell = LilGuys.calc_r_ell.(x, y, a, b, PA)
+        r_ell = LilGuys.calc_R_ell.(x, y, a, b, PA)
         @test r_ell ≈ r ./ a
     end
 
@@ -415,12 +420,12 @@ end
 
         # PA of zero points north, so major axis is y
         r = @. sqrt(x^2/b^2 + y^2/a^2)
-        r_ell = LilGuys.calc_r_ell.(x, y, a, b, 0.)
+        r_ell = LilGuys.calc_R_ell.(x, y, a, b, 0.)
         @test r_ell ≈ r
 
         # PA of 90 points east, so major axis is x
         r = @. sqrt(x^2/a^2 + y^2/b^2)
-        r_ell = LilGuys.calc_r_ell.(x, y, a, b, 90.)
+        r_ell = LilGuys.calc_R_ell.(x, y, a, b, 90.)
         @test r_ell ≈ r
     end
 
@@ -431,12 +436,12 @@ end
         PA = 360rand(N)
 
         r = zeros(N)
-        r_ell = LilGuys.calc_r_ell.(x, y, ell, PA)
+        r_ell = LilGuys.calc_R_ell.(x, y, ell, PA)
         @test r_ell ≈ r
 
         a = rand(N)
         b = rand(N)
-        r_ell = LilGuys.calc_r_ell.(x, y, a, b, PA)
+        r_ell = LilGuys.calc_R_ell.(x, y, a, b, PA)
         @test r_ell ≈ r
     end
 
@@ -447,21 +452,21 @@ end
         b = rand(N)
         PA = 360rand(N)
 
-        r1 = LilGuys.calc_r_ell.(x, y, a, b, PA)
-        r2 = LilGuys.calc_r_ell.(x, y, a, b, PA .+ 360)
-        r2 = LilGuys.calc_r_ell.(x, y, a, b, PA .+ 180)
-        r3 = LilGuys.calc_r_ell.(x, y, a, b, PA .- 360)
-        r4 = LilGuys.calc_r_ell.(x, y, a, b, PA .+ 720)
+        r1 = LilGuys.calc_R_ell.(x, y, a, b, PA)
+        r2 = LilGuys.calc_R_ell.(x, y, a, b, PA .+ 360)
+        r2 = LilGuys.calc_R_ell.(x, y, a, b, PA .+ 180)
+        r3 = LilGuys.calc_R_ell.(x, y, a, b, PA .- 360)
+        r4 = LilGuys.calc_R_ell.(x, y, a, b, PA .+ 720)
         @test r1 ≈ r2
         @test r1 ≈ r3
         @test r1 ≈ r4
     end
 
     @testset "exceptions" begin
-        @test_throws DomainError LilGuys.calc_r_ell(1., 2, 0, 0, 90)
-        @test_throws DomainError LilGuys.calc_r_ell(1., 2, 0, 1, 90)
-        @test_throws DomainError LilGuys.calc_r_ell(1., 2, 1, 0, 90)
-        @test_throws DomainError LilGuys.calc_r_ell(1., 2, 1, -1, 90)
+        @test_throws DomainError LilGuys.calc_R_ell(1., 2, 0, 0, 90)
+        @test_throws DomainError LilGuys.calc_R_ell(1., 2, 0, 1, 90)
+        @test_throws DomainError LilGuys.calc_R_ell(1., 2, 1, 0, 90)
+        @test_throws DomainError LilGuys.calc_R_ell(1., 2, 1, -1, 90)
     end
 end
 
@@ -490,45 +495,45 @@ end
 end
 
 
-@testset "calc_r_ell_sky" begin
-    # this function integrates calc_r_ell, to_tangent, and calc_centre2D
+@testset "calc_R_ell_sky" begin
+    # this function integrates calc_R_ell_sky, to_tangent, and calc_centre2D
     #
     r0 = 0.01
     ra = [0., 1, 0, -1, 0] .* r0 .+ 34
     dec = [0., 0, 1, 0, -1] .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90)
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec, 1, 1, 90)
     @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec)
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec)
     @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 0, 45)
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec, 0, 45)
     @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 3, 1, 90, units="deg")
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec, 3, 1, 90, units="deg")
     @test r_ell ≈ [0., 1/3, 1, 1/3, 1]  .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 0.5, 0, units="deg")
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec, 0.5, 0, units="deg")
     @test r_ell ≈ [0., 2, 1, 2, 1] / sqrt(2)  .* r0
 
-    r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, -24, centre=(34 - 2r0, 0), units="deg")
+    r_ell = LilGuys.calc_R_ell_sky(ra, dec, 1, 1, -24, centre=(34 - 2r0, 0), units="deg")
     @test r_ell ≈ [2., 3., √5, 1, √5]  .* r0 rtol=1e-6
 
 
     @testset "units" begin
 
-        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90, units="arcmin")
+        r_ell = LilGuys.calc_R_ell_sky(ra, dec, 1, 1, 90, units="arcmin")
         @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 .* r0
 
-        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 23, units="arcsec")
+        r_ell = LilGuys.calc_R_ell_sky(ra, dec, 1, 1, 23, units="arcsec")
         @test r_ell ≈ [0., 1, 1, 1, 1] .* 60 * 60 .* r0
 
-        r_ell = LilGuys.calc_r_ell_sky(ra, dec, 1, 1, -234, units="deg")
+        r_ell = LilGuys.calc_R_ell_sky(ra, dec, 1, 1, -234, units="deg")
         @test r_ell ≈ [0., 1, 1, 1, 1]  .* r0
 
-        @test_throws Exception LilGuys.calc_r_ell_sky(ra, dec, 1, 1, 90, units="jabberwocky")
+        @test_throws Exception LilGuys.calc_R_ell_sky(ra, dec, 1, 1, 90, units="jabberwocky")
     end
 end
 
@@ -616,22 +621,25 @@ end
     m = rand(N)
 
     bins = LinRange(-1, 1, 5)
-    prof_1 = LilGuys.StellarProfile(r, weights=m, bins=bins, normalization=:none)
+    prof_1 = LilGuys.StellarDensityProfile(r, weights=m, bins=bins, normalization=:none)
 
     M_scale = 0.232
     r_scale = 1.992
     prof_1 = LilGuys.scale(prof_1, r_scale, M_scale)
 
-    prof_2 = LilGuys.StellarProfile(r * r_scale, weights=m * M_scale, bins=bins .+ log10(r_scale), normalization=:none)
+    prof_2 = LilGuys.StellarDensityProfile(r * r_scale, weights=m * M_scale, bins=bins .+ log10(r_scale), normalization=:none)
 
     for key in fieldnames(typeof(prof_1))
         v1 = getproperty(prof_1, key)
         v2 = getproperty(prof_2, key)
+        if key ∈ [:log_R_scale, :log_m_scale]
+            continue
+        end
         
         if v1 isa Real
             @test v2 ≈ v1 nans=true
         elseif v1 isa AbstractVector
-            @test v1 ≈ v2 nans=true
+            @test all(isapprox.(v1, v2, nans=true, rtol=1e-10))
         end
     end
 end

@@ -29,7 +29,7 @@ end
 
 @testset "Plummer" begin
     @testset "Σ" begin
-        profile = lguys.Plummer(1, 1)
+        profile = lguys.Plummer(1., 1.)
         @test lguys.calc_Σ(profile, 0) ≈ 1 / π
         @test lguys.calc_Σ(profile, 1) ≈ 1 / (4π)
         @test lguys.calc_Σ(profile, 2) ≈ 1 / (25π)
@@ -355,7 +355,7 @@ end
 @testset "Sersic" begin
     @testset "Σ" begin
         profile = lguys.Sersic(n=1)
-        @test profile.r_h ≈ 1
+        @test profile.R_h ≈ 1
         @test profile.Σ_h ≈ 1
         @test profile._b_n ≈ 1.6783469900166605
 

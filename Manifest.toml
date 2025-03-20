@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "633f27752c57fb6b3f7d608f3b7dd73c327985c4"
+project_hash = "10a1d8b7de3c5e1d6c4c8c45824828abd4d2ff85"
 
 [[deps.Accessors]]
 deps = ["CompositionsBase", "ConstructionBase", "Dates", "InverseFunctions", "MacroTools"]
@@ -89,29 +89,11 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
-[[deps.CFITSIO]]
-deps = ["CFITSIO_jll"]
-git-tree-sha1 = "fc0abb338eb8d90bc186ccf0a47c90825952c950"
-uuid = "3b1b4be9-1499-4b22-8d78-7db3344d1961"
-version = "1.4.2"
-
-[[deps.CFITSIO_jll]]
-deps = ["Artifacts", "JLLWrappers", "LibCURL_jll", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "b90d32054fc88f97dd926022f554180e744e4d7d"
-uuid = "b3e40c51-02ae-5482-8a39-3ace5868dcf4"
-version = "4.4.0+0"
-
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
 git-tree-sha1 = "deddd8725e5e1cc49ee205a1964256043720a6c3"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 version = "0.10.15"
-
-[[deps.Calculus]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "9cb23bbb1127eefb022b022481466c0f1127d430"
-uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
-version = "0.5.2"
 
 [[deps.CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
@@ -266,12 +248,6 @@ version = "0.9.3"
 deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 version = "1.6.0"
-
-[[deps.FITSIO]]
-deps = ["CFITSIO", "Printf", "Reexport", "Tables"]
-git-tree-sha1 = "8b68d078e8ec3660b7e95528f1a888c5222d2fb4"
-uuid = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
-version = "0.17.4"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates"]
@@ -542,28 +518,6 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
-[[deps.Measurements]]
-deps = ["Calculus", "LinearAlgebra", "Printf"]
-git-tree-sha1 = "3019b28107f63ee881f5883da916dd9b6aa294c1"
-uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-version = "2.12.0"
-
-    [deps.Measurements.extensions]
-    MeasurementsBaseTypeExt = "BaseType"
-    MeasurementsJunoExt = "Juno"
-    MeasurementsMakieExt = "Makie"
-    MeasurementsRecipesBaseExt = "RecipesBase"
-    MeasurementsSpecialFunctionsExt = "SpecialFunctions"
-    MeasurementsUnitfulExt = "Unitful"
-
-    [deps.Measurements.weakdeps]
-    BaseType = "7fbed51b-1ef5-4d67-9085-a4a9b26f478c"
-    Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
-    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-    RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
-    SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
-    Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-
 [[deps.MicrosoftMPI_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bc95bf4149bf535c09602e3acdf950d9b4376227"
@@ -614,7 +568,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]

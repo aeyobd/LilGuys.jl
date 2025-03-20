@@ -24,6 +24,7 @@ public to_frame, resample, leap_frog
 
 
 include("units.jl")
+include("measurements.jl")
 include("interface.jl")
 using .Interface
 
@@ -58,6 +59,8 @@ include("centres/Centres.jl")
 
 using .Centres
 
+
+
 # Empty function definitions for MakieExt
 
 public plot_xyz, plot_xyz!
@@ -82,6 +85,17 @@ public sample_potential
 function AgamaPotential end
 function sample_potential end
 
+
+# empty functions for AstroPyExt
+"""
+import PythonCall to use this method
+"""
+function read_fits end
+
+"""
+import PythonCall to use this method
+"""
+function write_fits end
 
 
 

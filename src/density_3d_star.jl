@@ -57,7 +57,7 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
 
     log_r_snap = log10.(calc_r(snap))
 
-    bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights)
+    bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights, errors=:weighted)
     log_r_bins = bins
     mass_in_shell = hist 
     mass_in_shell_err  = err

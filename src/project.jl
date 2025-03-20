@@ -63,7 +63,7 @@ function to_gaia(snap::Snapshot;
     end
 
     df[!, :xi], df[!, :eta] = to_tangent(df.ra, df.dec, obs_cen.ra, obs_cen.dec)
-    df[!, :r_ell] = 60*calc_r_ell(df.xi, df.eta, 0, 0)
+    df[!, :r_ell] = 60*calc_R_ell(df.xi, df.eta, 0, 0)
 
 
     if filt_wrong_hemisphere
