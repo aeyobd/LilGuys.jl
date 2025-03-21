@@ -61,10 +61,6 @@ function (-)(a::Measurement, b::Measurement)
 end
 
 
-function (*)(a::Measurement, b::Measurement)
-    return Measurement(a.value+b.value, a.em+b.em, a.ep+b.ep, a.note * "; " * b.note)
-end
-
 function log10(a::Measurement)
     m = log10(a.value)
     l = log10(a.value - a.em)

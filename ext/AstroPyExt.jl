@@ -8,28 +8,34 @@ import LilGuys: read_fits, write_fits
 using PythonCall
 const AstroPyTable = Ref{Py}()
 const Numpy = Ref{Py}()
+const Pandas = Ref{Py}()
+
 
 function __init__()
     AstroPyTable[] = pyimport("astropy.table")
     Numpy[] = pyimport("numpy")
+    Pandas[] = pyimport("pandas")
 end
 
+
+function pycol_to_vec(col)
+    dtype = col.dtype
+end
 
 """
     read_fits(filename; hdu=2)
 
-Load a FITS file and return a DataFrame using the specified HDU.
+Load a FITS file and return a DataFrame using the specified HDU (1-indexed).
 
 NOTE. This function used to use FITSIO. However, this package 
 still is not fully mature and has a tendency to segfault do to poor management
 of c-pointers (not easy in julia).
 Now, fits are read in using astropy.
 """
-function read_fits(filename::String; hdu=2, columns=nothing)
+function read_fits(filename::String; hdu=2, columns=nothing, kwargs...)
     df = DataFrame()
-    np = Numpy[]
 
-    table = AstroPyTable[].Table.read(filename; hdu=hdu, format="fits")
+    table = AstroPyTable[].Table.read(filename; hdu=hdu-1, format="fits", kwargs...).to_pandas()
 
     all_columns = pyconvert(Vector{String}, table.columns)
 
@@ -41,32 +47,51 @@ function read_fits(filename::String; hdu=2, columns=nothing)
         end
     end
 
-    for colname in pyconvert(Vector{String}, (columns))
-        coldat = np.array(table[colname])
-        @debug "reading $colname"
-        @debug "col[0] $(coldat[0])"
-        dtype = coldat.dtype
-        local x
+    size_filter = [length(table[col].shape) <= 1 for col in columns]
+    if sum(.!size_filter) > 0
+        @warn "skipping multidimensional columns: $(columns[.!size_filter])"
+    end
+    columns = columns[size_filter]
 
-        if pyconvert(Bool, np.issubdtype(dtype, np.bytes_))
-            coldat = coldat.astype(np.str_)
-            @debug "reading as bytes"
-            x = pyconvert(Vector{String}, coldat)
-        elseif pyconvert(Bool, np.issubdtype(dtype, np.floating))
-            @debug "reading as float"
-            x = pyconvert(Vector{Float64}, coldat)
-        elseif pyconvert(Bool, np.issubdtype(dtype, np.integer))
-            @debug "reading as float"
-            x = pyconvert(Vector{Int}, coldat)
-        else
-            @debug "reading as other"
-            x = pyconvert(Vector, coldat)
-        end
 
-        df[!, colname] = x
+
+    for colname in columns
+        @debug colname
+        @debug table[colname].dtype
+        @debug table[colname].shape
+
+        df[!, colname] = read_pandas_column(table[colname])
+        table.drop(columns = colname) # free memory as we go
     end
 
     return df
+end
+
+
+"""
+    read_pandas_column(column)
+
+Reads in a pandas series 
+"""
+function read_pandas_column(column)
+    if pyisinstance(column.dtype, Numpy[].dtypes.ObjectDType) && hasproperty(column, :str)
+        @debug "reading as bytes"
+        col = column.str.decode("ascii") # fits is ascii only
+        coldat = map(col) do x
+            if pyisinstance(x, pybuiltins.str)
+                return pyconvert(String, x)
+            elseif pyconvert(Bool, pybool(Numpy[].isnan(x)))
+                return NaN
+            else
+                @error "type $(pybuiltins.type(x)) not implemented for bytes"
+            end
+        end
+
+    else
+        coldat = pyconvert(Vector, column)
+    end
+
+    return coldat
 end
 
 
@@ -76,7 +101,7 @@ end
 Write a DataFrame to a FITS file.
 """
 function write_fits(filename::String, frame::DataFrame;
-        overwrite=false, verbose=false
+        overwrite=false, verbose=false, kwargs...
     )
 
     if overwrite
@@ -105,7 +130,14 @@ function write_fits(filename::String, frame::DataFrame;
     end
 
 
-    table = AstroPyTable[].Table(PyDict(df))
+    table = AstroPyTable[].Table(PyDict(df); kwargs...)
+
+    for col in table.columns.keys()
+        @debug col
+        @debug table[key].dtype
+        @debug table[key].shape
+    end
+
     table.write(filename)
 
     if verbose

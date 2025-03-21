@@ -1,7 +1,7 @@
 name = "LilGuys"
 uuid = "1391d4f3-b950-46e7-ae93-86515cdc2b0b"
 authors = ["aeyobd <aeyobd@gmail.com>"]
-version = "0.1.2-DEV4"
+version = "0.1.3-DEV"
 
 [deps]
 Agama = "c9d1a974-9120-43da-b5b1-d69fd551855f"
