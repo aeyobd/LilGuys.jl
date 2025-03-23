@@ -10,7 +10,6 @@ export mean, std, midpoints, weights, StatsBase, quantile, varience
 export erf, expinti
 
 export integrate, curve_fit, find_zero
-export ±, uncertainty, value, Measurement
 
 export histogram, effective_sample_size, bins_default, bins_equal_number, bins_both, bins_equal_width
 export default_bin_width, default_n_per_bin
@@ -28,7 +27,6 @@ import SpecialFunctions: erf, expinti
 import QuadGK: quadgk
 import LsqFit
 
-using Measurements: ±, value, uncertainty, Measurement
 import DensityEstimators
 
 import Roots: find_zero
