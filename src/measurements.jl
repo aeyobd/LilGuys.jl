@@ -1,141 +1,168 @@
 import Base: +, *, ^, -, /, log10, <
 
 """
-    Measurement(val, em, ep)
+    Measurement(middle, lower, upper, kind)
 
 A type representing an asymmetric error bar with lower and upper errors.
 This type propogates errors linearly (worst case).
+
+`kind` is a note to self. Recommended to be formatted like
+- normal
+- 0.16_quantile or 0.05_quantile
+- 0.16_mode_hdi
+Will warn if annotations do not match when combining measurements.
 """
 Base.@kwdef struct Measurement{T<:Real} <: Real
-    value::T
-    em::T
-    ep::T
-    note::String = ""
+    middle::T
+    lower::T
+    upper::T
+    kind::String = ""
 end
 
-function Measurement(value)
-    return Measurement(value, zero(value), zero(value))
+function Measurement(middle)
+    return Measurement(middle, zero(middle), zero(middle))
 end
 
-function Measurement{T}(value) where T <: Real
-    return Measurement{T}(value, zero(value), zero(value))
-end
-
-
-function Measurement(value, uncertainty, note::String="")
-    return Measurement(value, uncertainty, uncertainty, note)
-end
-
-function Measurement{T}(value, uncertainty, note::String="") where T<:Real
-    return Measurement{T}(value, uncertainty, uncertainty, note)
-end
-
-function Measurement(value, em::Real, ep::Real, note::String="")
-    return Measurement(value, em, ep, note)
-end
-
-function Measurement{T}(value, em::Real, ep::Real) where T <: Real
-    return Measurement{T}(value, em, ep, "")
+function Measurement{T}(middle) where T <: Real
+    return Measurement{T}(middle, zero(middle), zero(middle))
 end
 
 
-function value(x::Measurement)
-    return x.value
+function Measurement(middle, uncertainty, kind::String="")
+    return Measurement(middle, uncertainty, uncertainty, kind)
+end
+
+function Measurement{T}(middle, uncertainty, kind::String="") where T<:Real
+    return Measurement{T}(middle, uncertainty, uncertainty, kind)
+end
+
+function Measurement(middle, lower::Real, upper::Real, kind::String="")
+    return Measurement(middle, lower, upper, kind)
+end
+
+function Measurement{T}(middle, lower::Real, upper::Real) where T <: Real
+    return Measurement{T}(middle, lower, upper, "")
+end
+
+
+function middle_of(x::Measurement)
+    return x.middle
 end
 
 """
-    ci_of(x::Measurement)
+    interval(x::Measurement)
 
-Returns the confidence interval of x.
+Returns the confidence/credibility interval of x.
 """
-function ci_of(x::Measurement)
-    return x.em, x.ep
+function interval(x::Measurement)
+    return x.lower, x.upper
 end
+
+function lower(x::Measurement)
+    return x.lower
+end
+
+function upper(x::Measurement)
+    return x.upper
+end
+
+function common_kind(a::Measurement, b::Measurement)
+    if a.kind == b.kind
+        kind = a.kind
+    else
+        @warn "measurement kinds do not match" 
+        kind = ""
+    end
+
+    return kind
+
+end
+
 
 function (+)(a::Measurement, b::Measurement)
-    return Measurement(a.value+b.value, a.em+b.em, a.ep+b.ep, a.note * "; " * b.note)
+    return Measurement(a.middle+b.middle, a.lower+b.lower, a.upper+b.upper, common_kind(a, b))
 end
 
 function (-)(a::Measurement, b::Measurement)
-    return Measurement(a.value-b.value, a.em+b.em, a.ep+b.ep, a.note * "; " * b.note)
+    return Measurement(a.middle-b.middle, a.lower+b.lower, a.upper+b.upper, common_kind(a, b))
 end
 
 
 function log10(a::Measurement)
-    m = log10(a.value)
-    l = log10(a.value - a.em)
-    h = log10(a.value + a.em)
-    return Measurement(m, m-l, h-m, a.note)
+    m = log10(a.middle)
+    l = log10(a.middle - a.lower)
+    h = log10(a.middle + a.lower)
+    return Measurement(m, m-l, h-m, a.kind)
 end
 
 
 function (^)(b::Real, a::Measurement)
-    m = b^(a.value)
-    l = b^(a.value - a.em)
-    h = b^(a.value + a.em)
-    return Measurement(m, m-l, h-m, a.note)
+    m = b^(a.middle)
+    l = b^(a.middle - a.lower)
+    h = b^(a.middle + a.lower)
+    return Measurement(m, m-l, h-m, a.kind)
 end
 
 
 function (+)(x::Measurement, y::Real)
-    return Measurement(x.value+y, x.em, x.ep, x.note)
+    return Measurement(x.middle+y, x.lower, x.upper, x.kind)
 end
 
 function (-)(x::Measurement, y::Real)
-    return Measurement(x.value-y, x.em, x.ep, x.note)
+    return Measurement(x.middle-y, x.lower, x.upper, x.kind)
 end
 
 function (*)(x::Measurement, y::Real)
-    return Measurement(x.value*y, x.em*y, x.ep*y, x.note)
+    return Measurement(x.middle*y, x.lower*y, x.upper*y, x.kind)
 end
 
 function (*)(x::Measurement, y::Measurement)
-    m = x.value*y.value
-    l = (x.value - x.em) * (y.value - y.em)
-    u = (x.value + x.em) * (y.value + y.em)
+    m = x.middle*y.middle
+    l = (x.middle - x.lower) * (y.middle - y.lower)
+    u = (x.middle + x.lower) * (y.middle + y.lower)
 
-    return Measurement(m, m-l, u-m)
+    return Measurement(m, m-l, u-m, common_kind(x, y))
 end
 
 function (/)(x::Measurement, y::Real)
-    return Measurement(x.value/y, x.em/y, x.ep/y, x.note)
+    return Measurement(x.middle/y, x.lower/y, x.upper/y, x.kind)
 end
 
 function (/)(x::Measurement, y::Measurement)
 
-    m = x.value/y.value
-    l = (x.value - x.em) / (y.value + y.em)
-    u = (x.value + x.em) / (y.value - y.em)
+    m = x.middle/y.middle
+    l = (x.middle - x.lower) / (y.middle + y.lower)
+    u = (x.middle + x.lower) / (y.middle - y.lower)
 
-    return Measurement(m, m-l, u-m)
+    return Measurement(m, m-l, u-m, common_kind(x, y))
 end
 
 Base.promote_rule(::Type{<:Real}, ::Type{Measurement{T}}) where {T<:Real} = Measurement{T}
 
 
 function Base.print(io::IO, x::Measurement)
-    print(io, "$(x.value) + $(x.ep) - $(x.em)")
+    print(io, "$(x.middle) + $(x.upper) - $(x.lower)")
 end
 
 function Base.isapprox(a::Measurement, b::Measurement; kwargs...)
     return (
-        isapprox(a.value, b.value; kwargs...) && 
-        isapprox(a.em, b.em; kwargs...) && 
-        isapprox(a.ep, b.ep; kwargs...)
+        isapprox(a.middle, b.middle; kwargs...) && 
+        isapprox(a.lower, b.lower; kwargs...) && 
+        isapprox(a.upper, b.upper; kwargs...)
        )
 end
 
 function Base.isfinite(a::Measurement)
-    return (isfinite.(a.value) && isfinite.(a.em) && isfinite.(a.ep))
+    return (isfinite.(a.middle) && isfinite.(a.lower) && isfinite.(a.upper))
 end
 
 function (<)(a::Measurement, b::Measurement)
-    return a.value < b.value
+    return a.middle < b.middle
 end
 function (<)(a::Measurement, b::Real)
-    return a.value < b
+    return a.middle < b
 end
 
 function (-)(a::Measurement)
-    return Measurement(-a.value, a.em, a.ep, a.note)
+    return Measurement(-a.middle, a.lower, a.upper, a.kind)
 end

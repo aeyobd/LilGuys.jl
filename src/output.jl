@@ -1,7 +1,7 @@
 """
     Output
 
-A simulation output structure. 
+A simulation output structure. Represents a timeseries of snapshots
 """
 Base.@kwdef struct Output <: AbstractArray{Snapshot, 1}
     """ The hdf5 file containing the snapshots """
@@ -123,7 +123,7 @@ end
 """
     extract(snap::Snapshot, symbol::Symbol, idx::Int)
 
-Extract the value of a field from a snapshot (at a given index). Returns a list as sorted by index
+Extract the value of a field from a snapshot (at a given index) and return a list as sorted by index.
 """
 function extract(snap::Snapshot, symbol, idx=(:))
     idx_sort = sortperm(snap.index)
@@ -136,7 +136,7 @@ end
 """
     extract_vector(snap::Snapshot, symbol::Symbol, idx)
 
-Extract the value of a field from a snapshot (at a given index). Returns a list as sorted by index
+Extract the value of a field from a snapshot (at a given index) and returns a list as sorted by index.
 """
 function extract_vector(snap::Snapshot, symbol, idx=(:))
     idx_sort = sortperm(snap.index)
@@ -151,7 +151,7 @@ end
 """
     extract(out::Output, symbol::Symbol, idx::Int)
 
-Extracts the given symbol from the output at the given index
+Extract the given symbol from the output at the given index.
 
 Note that if the index is just an integer, the implementation simply 
 finds the index by searching through the snapshot. However, if the index
@@ -265,6 +265,7 @@ end
     peris_apos(out::Output; verbose::Bool=false)
 
 Calculate the pericentre and apocentre of the system.
+
 Returns a dataframe with the columns
 - `index` the index of the particle
 - `peris` the pericentre of the particle

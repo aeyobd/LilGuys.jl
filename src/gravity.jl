@@ -58,10 +58,11 @@ end
 
 
 """
-given a centered snapshot, returns a interpolated potential a a function 
-of r
+    Φ_spherical_func(positions, masses)
+
+Return a function which computes the spherical potential at a given radius.
 """
-function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where {T <: Real}
+function Φ_spherical_func(radii::AbstractVector{T}, masses::AbstractVector) where {T <: Real}
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -81,14 +82,14 @@ function calc_radial_Φ(radii::AbstractVector{T}, masses::AbstractVector) where 
 end
 
 
-function calc_radial_Φ(positions::AbstractMatrix{<:Real}, masses::AbstractVector{<:Real}) 
+function Φ_spherical_func(positions::AbstractMatrix{<:Real}, masses::AbstractVector{<:Real}) 
     radii = calc_r(positions)
-    return calc_radial_Φ(radii, masses)
+    return Φ_spherical_func(radii, masses)
 end
 
 
-function calc_radial_Φ(snap::Snapshot)
-    return calc_radial_Φ(snap.positions, snap.masses)
+function Φ_spherical_func(snap::Snapshot)
+    return Φ_spherical_func(snap.positions, snap.masses)
 end
 
 
@@ -116,7 +117,7 @@ The potential is calculated as
 Φ(r) = -G M(r) / r - \\int_r^\\infty G dm/dr(r') / r' dr'
 ```
 """
-function calc_radial_discrete_Φ(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
+function Φ_spherical(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -213,34 +214,34 @@ end
 
 
 """
-    calc_F_grav(positions, masses, x_vec)
+    F_grav(positions, masses, x_vec)
 
 Force of gravity from masses at given positions evaluated at x_vec
 """
-function calc_F_grav(positions::AbstractMatrix, masses::AbstractVector, x_vec)
+function F_graF_grav(positions::AbstractMatrix, masses::AbstractVector, x_vec)
     dr = x_vec .- positions
     rs = calc_r(dr)
     r_hat = dr ./ rs
-    force =  sum(calc_F_point.(rs, masses) .* r_hat, dims=2)
+    force =  sum(F_grav_point.(rs, masses) .* r_hat, dims=2)
     force[:, rs .== 0] .= 0  # remove divergences
     return force
 end
 
 
 
-function calc_F_grav(snap::Snapshot, x_vec)
-    return calc_F_grav(snap.masses, snap.positions, x_vec)
+function F_grav(snap::Snapshot, x_vec)
+    return F_grav(snap.masses, snap.positions, x_vec)
 end
 
 
 """
-    calc_F_point(radius, mass)
+    F_grav_point(radius, mass)
 
 Force of gravity from a point mass at given radius
     
 F = -G m / r^2
 """
-function calc_F_point(radius::Real, mass::Real)
+function F_grav_point(radius::Real, mass::Real)
     if radius == 0
         return 0
     end

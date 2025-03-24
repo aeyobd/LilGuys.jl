@@ -2,7 +2,7 @@ using Printf
 import Base: @kwdef
 
 
-"""A map of the HDF5 columns to the snapshot fields"""
+"A map of the HDF5 columns to the snapshot fields"
 const h5vectors = Dict(
     :Φs=>"Potential",
     :Φs_ext=>"ExtPotential",
@@ -22,16 +22,16 @@ const snap_vectors = [:masses, :Φs, :Φs_ext, :index]
 A snapshot of a gadget simulation. Units are all code units.
 """
 @kwdef mutable struct Snapshot 
-    """The positions of the particles"""
+    "The positions of the particles"
     positions::Matrix{F}
 
-    """The velocities of the particles"""
+    "The velocities of the particles"
     velocities::Matrix{F}
 
-    """The masses of the particles"""
+    "The masses of the particles"
     masses::Union{Vector, ConstVector}
 
-    """The particle IDs"""
+    "The particle IDs"
     index::Vector{Int}  
 
     """The accelerations of the particles"""
@@ -61,6 +61,7 @@ A snapshot of a gadget simulation. Units are all code units.
     """The (stellar) weights of the particles"""
     weights::Union{Vector, ConstVector} = ConstVector(1.0, length(index))
 
+    "The time of the snapshot"
     time::F = NaN
 
     """The radii of the particles, stored on first calculation"""
@@ -72,7 +73,7 @@ end
 
 
 """
-    Snapshot(positions, velocities, mass::Real)
+    Snapshot(positions, velocities, mass::Real; <keyword arguments>)
 
 Create a snapshot with constant mass.
 """
@@ -84,9 +85,9 @@ end
 
 
 """
-    Snapshot(positions, velocities, masses)
+    Snapshot(positions, velocities, masses; time=0, <keyword arguments>)
 
-Create a snapshot.
+Create a snapshot with particles of the given positions, velocities, and masses.
 """
 function Snapshot(positions, velocities, masses; time=0,kwargs...)
     N = size(positions, 2)
@@ -114,6 +115,7 @@ end
     Snapshot(filename)
 
 Load a snapshot from an HDF5 file.
+
 The filename may be a snapshot.hdf5 file or can be the path to an output
 with a slash-index to retrieve the ith snapshot from the output (including the
 centre).
@@ -178,13 +180,16 @@ function Base.size(snap::Snapshot)
 end
 
 
+""" The number of particles in the snapshot"""
 function Base.length(snap::Snapshot) 
     return length(snap.index)
 end
 
 # Base.IndexStyle(::Type{<:Snapshot}) = IndexLinear()
 
-
+"""
+Return a new snapshot keeping only the indexed particles.
+"""
 function Base.getindex(snap::Snapshot, idx)
     kwargs = Dict{Symbol, Any}()
     kwargs[:h] = snap.h
@@ -217,7 +222,7 @@ end
 
 
 
-"""is the particle mass constant in the snapshot?"""
+""" Determine if the particle mass constant in the snapshot. """
 function mass_is_fixed(snap::Snapshot)
     return mass_is_fixed(snap.masses)
 end
@@ -229,40 +234,40 @@ end
 
 
 """
-    save(filename, snap)
+    write(filename, snap)
 
 Save a snapshot to an HDF5 file.
 
 Notes: does regenerate the snapshot's header.
 """
-function save(filename::String, snap::Snapshot)
+function write(filename::String, snap::Snapshot)
     h5open(filename, "w") do h5f
-        save(h5f, snap)
+        write(h5f, snap)
     end
 end
 
 
-function save(snap::Snapshot)
-    save(snap.filename, snap)
+function write(snap::Snapshot)
+    write(snap.filename, snap)
 end
 
 
 
-function save(h5f::HDF5.H5DataStore, snap::Snapshot)
+function write(h5f::HDF5.H5DataStore, snap::Snapshot)
     regenerate_header!(snap)
 
     set_header!(h5f, snap.header)
 
     for (var, _) in h5vectors
-        save_vector(h5f, snap, var)
+        write_vector(h5f, snap, var)
     end
 end
 
 
 """
-saves a vector from a snapshot into an HDF5 file
+Write a vector from a snapshot into an HDF5 file
 """
-function save_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol; group="PartType1")
+function write_vector(h5f::HDF5.H5DataStore, snap::Snapshot, var::Symbol; group="PartType1")
     col = h5vectors[var]
     val = getproperty(snap, var) 
 
@@ -289,7 +294,7 @@ end
 """
     make_default_header(N, mass)
 
-Create a default Gadget header for a snapshot with N particles and DM mass `mass`.
+Make a default Gadget header for a snapshot with N particles and DM mass `mass`.
 """
 function make_default_header(N, mass, time=0)
 
@@ -307,7 +312,9 @@ end
 
 
 """
-Regenerates the header of the snapshot, accounting for changes in particle mass and number of particles.
+    regenerate_header!(snap::Snapshot)
+
+Regenerate the header of the snapshot, accounting for changes in particle mass and number of particles.
 """
 function regenerate_header!(snap::Snapshot)
     if mass_is_fixed(snap)
@@ -325,7 +332,7 @@ end
 """
     make_gadget2_header(N, mass)
 
-Create a Gadget-2 header for a snapshot with N particles and DM mass `mass`.
+Make a Gadget-2 header for a snapshot with N particles and DM mass `mass`.
 """
 function make_gadget2_header(N, mass)
     return Dict(
@@ -344,7 +351,7 @@ end
 """
     rescale(snapshot, mass_scale, radius_scale)
 
-Returns a snapshot scaled by the given mass and radius (using code units)
+Rescale a snapshot by the given mass and radius (using code units)
 """
 function rescale(snap::Snapshot, m_scale::Real, r_scale::Real)
     v_scale = sqrt(G * m_scale / r_scale)
@@ -377,7 +384,8 @@ end
 """
     add_stars!(snap, [index, ]probability)
 
-Given a snapshot, add a set of stars with the given probability.
+Add stellar probabilities to the snapshot.
+
 Probabilites should be sorted in the index order of the snapshot.
 If index is given, this is interpreted as the indices of the stars of the
 probability array, and the snapshot index is checked against the provided index.

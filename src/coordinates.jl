@@ -55,6 +55,7 @@ struct Point6D{F<:Real}
     v_z::F
 end
 
+
 function Point6D(x::Real, y::Real, z::Real, v_x::Real, v_y::Real, v_z::Real) 
     Point6D(promote(x, y, z, v_x, v_y, v_z)...)
 end
@@ -323,21 +324,21 @@ end
 
 
 """
-    position_of(pp::AbstractCartesian)
+    position(pp::AbstractCartesian)
 
 Returns [x, y, z], the position of phase point.
 """
-function position_of(pp::AbstractCartesian)
+function position(pp::AbstractCartesian)
     return [pp.x, pp.y, pp.z]
 end
 
 
 """
-    velocity_of(pp::AbstractPhasePoint)
+    velocity(pp::AbstractPhasePoint)
 
 Returns [v_x, v_y, v_z], the velocity of phase point.
 """
-function velocity_of(pp::AbstractCartesian)
+function velocity(pp::AbstractCartesian)
     return [pp.v_x, pp.v_y, pp.v_z]
 end
 

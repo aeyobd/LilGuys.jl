@@ -3,7 +3,8 @@ import LinearAlgebra: det
 """
     to_tangent(α, δ, α_0, δ_0)
 
-Computes the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
+Return the tangent plane coordinates of a point (α, δ) with respect to a reference point (α_0, δ_0).
+
 α and δ may be reals or vectors.
 Both input and output angles are assumed to be in degrees.
 Returns NaN for points with angular distances greater than 90 degrees.
@@ -47,9 +48,10 @@ end
 """
     angular_distance(α1, δ1, α2, δ2)
 
-Computes the angular distance in degrees between two points on the sky, 
-assuming RA/DEC and in degrees.
-Uses Haversine formula
+Compute the angular distance in degrees between two points on the sky, 
+assuming RA/Dec coordinates in degrees.
+
+Uses Haversine formula.
 """
 function angular_distance(α1::Real, δ1::Real, α2::Real, δ2::Real)
     dα  = α2 - α1
@@ -65,7 +67,9 @@ end
 """
     unit_vector(ra, dec)
 
-Returns the unit vector(s) pointing at the position(s) (ra, dec) in degrees on the sky. ra and dec may be reals or vectors, but should be in degrees.
+Return the unit vector(s) pointing at the position(s) (ra, dec) in degrees on the sky. 
+
+ra and dec may be reals or vectors, but should be in degrees.
 """
 function unit_vector(ra::Real, dec::Real)
     x = cosd(dec) * cosd(ra)
@@ -86,7 +90,7 @@ end
 """
     cartesian_to_sky(x, y, z)
 
-Converts cartesian coordinates to spherical coordinates (RA, DEC, r)
+Convert cartesian coordinates to spherical coordinates (RA, DEC, r).
 """
 function cartesian_to_sky(x::T, y::T, z::T) where T <: Union{Real, AbstractVector}
     R = sqrt.(x.^2 + y.^2)
@@ -122,7 +126,7 @@ end
 """
     rotate_sky(ra, dec, R)
 
-Given a point (ra, dec) on the sky, rotates it by the rotation matrix R
+Given a point (ra, dec) on the sky, rotate the coordinates by the rotation matrix R.
 """
 function rotate_sky(ra, dec, R)
     @assert size(R) == (3, 3)
@@ -141,7 +145,7 @@ end
 """
     Rx_mat(u)
 
-rotation matrix around x axis (radians)
+Rotation matrix around x axis (radians).
 """
 function Rx_mat(u::Real)
     c = cos(u)
@@ -156,7 +160,7 @@ end
 """
     Ry_mat(v)
 
-rotation matrix around y axis (radians)
+Rotation matrix around y axis (radians).
 """
 function Ry_mat(v::Real)
     c = cos(v)
@@ -170,7 +174,7 @@ end
 """
     Rz_mat(w)
 
-rotation matrix around z axis (radians)
+Rotation matrix around z axis (radians).
 """
 function Rz_mat(w::Real)
     c = cos(w)

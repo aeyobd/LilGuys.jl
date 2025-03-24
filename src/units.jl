@@ -1,3 +1,6 @@
+# TODO: could use Unitful here to be more general
+
+
 """Internal float unit """
 F = Float64
 
@@ -29,7 +32,7 @@ const kms_per_kpc_mas_per_yr = 4.740470463533348
 
 
 const kpc_per_Gyr_per_kms = 1.0227 # TODO double check this one
-# source IAU
+
 const SECONDS_PER_YEAR = 31_557_600 # seconds; exact IAU
 const M_PER_PC = 3.085677581491367e+16 # meters; exact IAU
 const M_PER_AU = 149_597_870_700 # meters; exact IAU
@@ -40,36 +43,60 @@ const ARCMIN_PER_RAD = (60 * 180) / π  # exact; mathematical
 
 
 """
-Calculates the physical diameter given the angular diameter and distance.
+    arcmin2kpc(arcmin::Real, distance::Real)
 
-TODO: could also use Unitful to be more general
+Convert an angular scale in arcmin to a physical length in kpc assuming a distance in kpc.
 """
-function arcmin_to_kpc(arcmin::Real, distance::Real)
+function arcmin2kpc(arcmin::Real, distance::Real)
     return arcmin * distance  / ARCMIN_PER_RAD
 end
 
 
 """
-Converts a physical length to a sky angular diameter in arcminutes
+    kpc2arcmin(length::Real, distance::Real)
+
+Convert a physical length in kpc to a sky angular diameter in arcminutes.
 """
-function kpc_to_arcmin(length::Real, distance::Real)
+function kpc2arcmin(length::Real, distance::Real)
     return length / distance * ARCMIN_PER_RAD
 end
 
 
 """
-Converts a proper motion (mas/yr) at a given distance (kpc) to the tangental velocity (km/s)
+    pm2kms(proper_motion::Real, distance::Real)
+
+Convert a proper motion in mas/yr at a distance in kpc to the tangental velocity in km/s.
 """
-function pm_to_kms(pm::Real, distance::Real)
-    return pm * distance * kms_per_kpc_mas_per_yr
+function pm2kms(proper_motion::Real, distance::Real)
+    return proper_motion * distance * kms_per_kpc_mas_per_yr
+end
+
+
+"""
+    kms2pm(velocity::Real, distance::Real)
+
+Convert a tangental velocity in km/s at a distance in kpc to a proper motion in mas/yr.
+"""
+function kms2pm(velocity::Real, distance::Real)
+    return velocity / distance / kms_per_kpc_mas_per_yr
+end
+
+
+"""
+    dist2dm(dm::Real)
+
+Convert a distance in kpc to a distance modulus.
+"""
+function dist2dm(dist::Real)
+    return 5 * (log10(dist)  - 1 + 3)
 end
 
 
 """
     dm_to_dist(dm::Real)
 
-Converts a distance modulus to a distance in kpc
+Convert a distance modulus to a distance in kpc
 """
-function dm_to_dist(dm::Real)
+function dm2dist(dm::Real)
     return 10 .^ (dm / 5 + 1 - 3)
 end

@@ -1,12 +1,12 @@
 import Base: @kwdef
 
 
-"""Converts a coordinate frame to ICRS"""
+"""Convert a coordinate frame to ICRS"""
 function to_icrs(coord::CoordinateFrame)::ICRS
     throw(MethodError(to_icrs, (coord, )))
 end
 
-"""Converts a coordinate frame from ICRS"""
+"""Convert a coordinate frame from ICRS"""
 function from_icrs(frame::Type{<:CoordinateFrame}, coord::ICRS)::CoordinateFrame
     throw(MethodError(from_icrs, (frame, coord)))
 end
@@ -15,8 +15,9 @@ end
 """
     transform(T, obs)
 
-Transforms a coordinate of type `obs` to an object of type `T`.
-Note, all kwargs passed to from_icrs implementation.
+Transform a coordinate of type `obs` to an object of type `T`.
+
+Note, all kwargs passed to the `from_icrs` implementation for the given types.
 """
 function transform(::Type{T}, obs::CoordinateFrame; kwargs...) where {T<:CoordinateFrame}
     return from_icrs(T, to_icrs(obs); kwargs...)
@@ -315,7 +316,7 @@ end
 
 
 function _heliocen_to_galcen_position(cart::Cartesian; frame=default_gc_frame)
-    return _heliocen_to_galcen_position(position_of(cart); frame=frame)
+    return _heliocen_to_galcen_position(position(cart); frame=frame)
 end
 
 
@@ -335,13 +336,13 @@ end
 
 
 function _gsr_to_galcen_velocity(cart::Cartesian{<:GSR}; frame=default_gc_frame)
-    return _gsr_to_galcen_velocity(velocity_of(cart); frame=frame)
+    return _gsr_to_galcen_velocity(velocity(cart); frame=frame)
 end
 
 
 
 function _heliocen_to_galcen_velocity(cart::Cartesian{<:ICRS}; frame=default_gc_frame)
-    return _heliocen_to_galcen_velocity(velocity_of(cart); frame=frame)
+    return _heliocen_to_galcen_velocity(velocity(cart); frame=frame)
 end
 
 
@@ -359,7 +360,7 @@ end
 
 
 function _galcen_to_heliocen_position(galcen::Galactocentric)
-    return _galcen_to_heliocen_position(position_of(galcen), frame=galcen.frame)
+    return _galcen_to_heliocen_position(position(galcen), frame=galcen.frame)
 end
 
 
@@ -376,11 +377,11 @@ function _galcen_to_heliocen_velocity(v_vec::Vector{F}; frame=default_gc_frame) 
 end
 
 function _galcen_to_gsr_velocity(galcen::Galactocentric)
-    return _galcen_to_gsr_velocity(velocity_of(galcen), frame=galcen.frame)
+    return _galcen_to_gsr_velocity(velocity(galcen), frame=galcen.frame)
 end
 
 function _galcen_to_heliocen_velocity(galcen::Galactocentric)
-    return _galcen_to_heliocen_velocity(velocity_of(galcen), frame=galcen.frame)
+    return _galcen_to_heliocen_velocity(velocity(galcen), frame=galcen.frame)
 end
 
 

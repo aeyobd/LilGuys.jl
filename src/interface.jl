@@ -176,7 +176,7 @@ end
 
 Computes bins where each bin is of width at least `bin_width` and contains at least `num_per_bin` observations. Returns an array of type x containing the bins.
 """
-function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
+function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing, pad=0)
     x, weights = filter_nans(x, weights)
 
     if bin_width === nothing
@@ -185,12 +185,19 @@ function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
     if num_per_bin === nothing
         num_per_bin = ceil(Int, default_n_per_bin(x, weights))
     end
+    if pad isa Tuple{Real, Real}
+        padl, padh = pad
+    elseif pad isa Real
+        padl = padh = pad
+    else
+        @error "pad must be a real or tuple"
+    end
 
 
     bins = empty(x)
     x = sort(x)
 
-    x_i = minimum(x) - 0.5*bin_width
+    x_i = minimum(x) - padl*bin_width
     push!(bins, x_i)
     N = length(x)
 
@@ -208,9 +215,9 @@ function bins_both(x, weights; bin_width=nothing, num_per_bin=nothing)
     end
 
     if (sum(x .> bins[end]) <= num_per_bin) || (maximum(x) - bins[end] < bin_width)
-        bins[end] = maximum(x) + 0.5*bin_width
+        bins[end] = maximum(x) + padh*bin_width
     else
-        push!(bins, maximum(x) + 0.5*bin_width)
+        push!(bins, maximum(x) + padh*bin_width)
     end
 
     return bins
