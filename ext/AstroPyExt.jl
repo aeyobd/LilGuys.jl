@@ -36,25 +36,9 @@ function read_fits(filename::String; hdu=2, columns=nothing, kwargs...)
     df = DataFrame()
 
     tab = AstroPyTable[].Table.read(filename; hdu=hdu-1, format="fits", kwargs...)
-    table = tab.to_pandas()
+    columns = check_columns(tab, columns)
+    table = tab[pylist(columns)].to_pandas()
     @info "pandas table loaded in"
-
-    all_columns = pyconvert(Vector{String}, table.columns)
-
-    if isnothing(columns)
-        columns = all_columns
-    else
-        if !(columns ⊆ all_columns)
-            @error "Columns not found in data: $(setdiff(columns, all_columns))"
-        end
-    end
-
-    size_filter = [length(table[col].shape) <= 1 for col in columns]
-    if sum(.!size_filter) > 0
-        @warn "skipping multidimensional columns: $(columns[.!size_filter])"
-    end
-    columns = columns[size_filter]
-
 
 
     for colname in columns
@@ -70,25 +54,57 @@ function read_fits(filename::String; hdu=2, columns=nothing, kwargs...)
 end
 
 
+
+function check_columns(tab::Py, columns)
+    all_columns = pyconvert(Vector{String}, tab.columns)
+
+    if isnothing(columns)
+        columns = all_columns
+    else
+        if !(columns ⊆ all_columns)
+            @error "Columns not found in data: $(setdiff(columns, all_columns))"
+        end
+    end
+
+    size_filter = [length(tab[col].shape) <= 1 for col in columns]
+    if sum(.!size_filter) > 0
+        @warn "skipping multidimensional columns: $(columns[.!size_filter])"
+    end
+    columns = columns[size_filter]
+
+    return columns
+end
+
+
 """
     read_pandas_column(column)
 
 Reads in a pandas series 
 """
 function read_pandas_column(column)
-    if pyisinstance(column.dtype, Numpy[].dtypes.ObjectDType) && hasproperty(column, :str)
+    np = Numpy[]
+    if pytruth(Pandas[].api.types.is_string_dtype(column.dtype))
         @debug "reading as bytes"
         col = column.str.decode("ascii") # fits is ascii only
         coldat = map(col) do x
             if pyisinstance(x, pybuiltins.str)
                 return pyconvert(String, x)
-            elseif pyconvert(Bool, pybool(Numpy[].isnan(x)))
-                return NaN
+            elseif pytruth(Pandas[].isna(x))
+                return missing
             else
                 @error "type $(pybuiltins.type(x)) not implemented for bytes"
             end
         end
 
+    elseif pytruth(Pandas[].api.types.is_integer_dtype(column.dtype))
+        @debug "reading as integer"
+        coldat = map(column) do x
+            if Pandas[].isna(x) |> pytruth
+                return missing
+            else
+                return pyconvert(Integer, x)
+            end
+        end
     else
         coldat = pyconvert(Vector, column)
     end
@@ -110,19 +126,8 @@ function write_fits(filename::String, frame::DataFrame;
         rm(filename, force=true)
     end
 
-    df = OrderedDict(
-        col => Numpy[].array(frame[:, col]) for col in names(frame)
-       )
-
-    for col in names(frame)
-        if eltype(frame[!, col]) <: AbstractString
-            df[col] = Numpy[].array(frame[:, col], Numpy[].str_)
-        end
-    end
-
-
     try 
-        column_names = ascii.(keys(df))
+        column_names = ascii.(names(frame))
     catch e
         if isa(e, ArgumentError)
             throw(ArgumentError("Column names must be ASCII"))
@@ -132,12 +137,42 @@ function write_fits(filename::String, frame::DataFrame;
     end
 
 
-    table = AstroPyTable[].Table(PyDict(df); kwargs...)
+    df = PyDict()
+
+    for col in names(frame)
+        @debug "converting $col"
+        val = frame[!, col]
+        if any(ismissing.(val))
+            @debug "converting missings"
+             pyval = map(val) do x
+                if ismissing(x)
+                    Pandas[].NA
+                else
+                    Py(x)
+                end
+            end
+            pycol = Pandas[].Series(pyval).convert_dtypes()
+        else
+            pycol = Pandas[].Series(val).convert_dtypes()
+        end
+
+        if pytruth(Pandas[].api.types.is_string_dtype(pycol.dtype))
+            @debug "converting string"
+            pycol = Pandas[].Series(Numpy[].array(pycol, Numpy[].str_)) # need to fix dtype
+        end
+
+        df[pystr(col)] = pycol
+    end
+
+    df = Pandas[].DataFrame(df)
+
+
+    table = AstroPyTable[].Table.from_pandas(df; kwargs...)
 
     for col in table.columns.keys()
         @debug col
-        @debug table[key].dtype
-        @debug table[key].shape
+        @debug table[col].dtype
+        @debug table[col].shape
     end
 
     table.write(filename)

@@ -1,6 +1,6 @@
 module MakieExt
 
-using Makie
+using Makie 
 using StatsBase
 
 import Makie: convert_arguments, convert_single_argument
@@ -14,6 +14,8 @@ using Arya
 import LilGuys: plot_xyz, plot_xyz!
 import LilGuys: cmd_axis
 import LilGuys: projecteddensity, projecteddensity!
+import LilGuys: gammaplot, gammaplot!
+import LilGuys: logsigmaplot, logsigmaplot!
 import LilGuys: hide_grid!, plot_log_Σ!, plot_Γ!
 import LilGuys: @savefig
 
@@ -79,9 +81,9 @@ function Makie.plot!(p::ProjectedDensity)
         bins=p[:bins][], 
         limits=limits, 
         weights=snap.masses,
-        colorrange=p[:colorrange][],
-        colormap=p[:colormap][],
-        colorscale=p[:colorscale][]
+        colorrange=p.colorrange,
+        colormap=p.colormap,
+        colorscale=p.colorscale,
     )
     
     return p
@@ -291,7 +293,7 @@ kwargs passed to Arya.errorscatter!
 function plot_log_Σ!(ax, p::LilGuys.StellarDensityProfile; kwargs...)
     x = p.log_R
     y = LilGuys.middle.(p.log_Sigma)
-    yerror = LilGuys.credible_interval.(p.log_Sigma)
+    yerror = LilGuys.error_interval.(p.log_Sigma)
     filt = isfinite.(y)
 
     x = x[filt]
@@ -303,27 +305,53 @@ end
 
 
 
-"""
-    plot_Γ!(ax, p; kwargs...)
 
-Plot a density profile from a LilGuys.StellarDensityProfile.
-kwargs passed to Arya.errorscatter!
+
 """
-function plot_Γ!(ax, p::LilGuys.StellarDensityProfile; log_R=true, kwargs...)
+Plot a density profile from a LilGuys.StellarDensityProfile using Makie.
+"""
+@recipe GammaPlot begin
+    log_R = true
+
+    color = @inherit markercolor
+    marker = @inherit marker
+    size = @inherit size
+    strokewidth = @inherit markerstrokewidth
+    strokecolor = @inherit markerstrokecolor
+    linewidth = @inherit linewidth
+
+    Makie.MakieCore.mixin_generic_plot_attributes()...
+end
+
+
+function Makie.plot!(plot::GammaPlot{<:Tuple{LilGuys.StellarDensityProfile}})
+
+    # Process data
+    p = plot[1][]
     x = p.log_R
     y = LilGuys.middle.(p.Gamma)
-    yerror = LilGuys.credible_interval.(p.Gamma)
+    yerror = LilGuys.error_interval.(p.Gamma)
     filt = isfinite.(y)
-
     x = x[filt]
     y = y[filt]
     yerror = yerror[filt]
 
-    if !(log_R)
+    # Convert to linear scale if needed
+    if !plot[:log_R][]
         x = 10 .^ x
     end
 
-    errorscatter!(ax, x, y; yerror=yerror,  kwargs...)
+    errorscatter!(
+        plot,
+        x, y, yerror=yerror;
+        color = plot.color,
+        marker = plot.marker,
+        size = plot.size,
+        strokewidth = plot.strokewidth,
+        strokecolor = plot.strokecolor,
+        linewidth = plot.linewidth,
+    )
+
 end
 
 
@@ -331,7 +359,7 @@ end
 """
     hide_grid!(ax)
 
-Hides the grid lines on an axis.
+Hide the grid lines on an axis.
 """
 function hide_grid!(ax)
     ax.xgridvisible = false
@@ -342,12 +370,12 @@ end
 """
     @savefig name [fig=fig]
 
-Saves a figure to the current figdir as both a pdf and a jpeg.
+Save a figure to the current figdir as both a pdf and a jpeg.
 If `fig` is not provided, it defaults to the current figure (assumed to be `fig`).
 `FIGDIR` may be defined as the path where figures are saved.
 `FIGSUFFIX` may be defined as the suffix for figures (e.g. notebook name).
 Saves figures with the basename name and in both pdf and png formats.
-Returns the figure object.
+Returns the figure object].
 
 # Notes
 Will make the FIGDIR if this does not exist (but will not mkpath).

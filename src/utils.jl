@@ -43,8 +43,8 @@ function struct_to_dict(S, split_errors=true)
         for (key, val) in d
             if val isa AbstractArray{<:Measurement}
                 m = LilGuys.middle.(val)
-                em = LilGuys.lower_bound.(val)
-                ep = LilGuys.upper_bound.(val)
+                em = LilGuys.lower_error.(val)
+                ep = LilGuys.upper_error.(val)
                 d[key] = m
                 d[Symbol(string(key) * "_em")] = em
                 d[Symbol(string(key) * "_ep")] = ep

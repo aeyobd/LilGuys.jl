@@ -7,7 +7,7 @@ public F, G
 public arcmin2kpc, kpc2arcmin, pm2kms, kms2pm, dm2dist, dist2dm
 include("units.jl")
 
-export Measurement, middle, lower_bound, upper_bound, credible_interval
+export Measurement, middle, lower_error, upper_error, error_interval
 include("measurements.jl")
 
 
@@ -109,6 +109,7 @@ using .Centres
 public plot_xyz, plot_xyz!
 public plot_log_Σ!, plot_Γ!
 public projecteddensity, projecteddensity!
+public gammaplot, gammaplot!
 public hide_grid!, cmd_axis
 export @savefig
 
@@ -116,11 +117,14 @@ export @savefig
 function plot_xyz end
 function plot_xyz! end
 function plot_log_Σ! end
-function plot_Γ! end
 function cmd_axis end
 
 function projecteddensity end
 function projecteddensity! end
+
+function gammaplot end
+function gammaplot! end
+
 function hide_grid! end
 
 macro savefig end
