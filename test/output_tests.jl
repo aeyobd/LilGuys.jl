@@ -23,9 +23,9 @@ let
 
 
     # write and open output
-    LilGuys.save("$dir/out/snapshot_000.hdf5", snap1)
-    LilGuys.save("$dir/out/snapshot_001.hdf5", snap2)
-    LilGuys.save("$dir/out/snapshot_002.hdf5", snap3)
+    LilGuys.write("$dir/out/snapshot_000.hdf5", snap1)
+    LilGuys.write("$dir/out/snapshot_001.hdf5", snap2)
+    LilGuys.write("$dir/out/snapshot_002.hdf5", snap3)
 
     old_dir = pwd()
     cd(dir * "/out")

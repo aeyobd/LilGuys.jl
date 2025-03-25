@@ -35,7 +35,9 @@ Now, fits are read in using astropy.
 function read_fits(filename::String; hdu=2, columns=nothing, kwargs...)
     df = DataFrame()
 
-    table = AstroPyTable[].Table.read(filename; hdu=hdu-1, format="fits", kwargs...).to_pandas()
+    tab = AstroPyTable[].Table.read(filename; hdu=hdu-1, format="fits", kwargs...)
+    table = tab.to_pandas()
+    @info "pandas table loaded in"
 
     all_columns = pyconvert(Vector{String}, table.columns)
 
@@ -61,7 +63,7 @@ function read_fits(filename::String; hdu=2, columns=nothing, kwargs...)
         @debug table[colname].shape
 
         df[!, colname] = read_pandas_column(table[colname])
-        table.drop(columns = colname) # free memory as we go
+        #table.drop(columns = colname) # free memory as we go
     end
 
     return df

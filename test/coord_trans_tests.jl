@@ -43,7 +43,7 @@ end
 
     phase = lguys.transform(lguys.Galactocentric, gc)
 
-    @test lguys.position_of(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.position(phase) ≈ [0,0,0] atol=1e-2
     @test phase.v_x ≈ 0 atol=0.1
     @test phase.v_y ≈ 0 atol=0.1
     @test phase.v_z ≈ 0 atol=0.1
@@ -53,7 +53,7 @@ end
     sun = lguys.ICRS(ra = 0., dec=-0, distance=0,
                              pmra=0, pmdec=0, radial_velocity=0)
     phase = lguys.transform(lguys.Galactocentric, sun)
-    @test lguys.position_of(phase) ≈ sun_gc rtol=3e-3
+    @test lguys.position(phase) ≈ sun_gc rtol=3e-3
     @test phase.v_x ≈12.9 atol=0.1
     @test phase.v_y ≈ 245.6 atol=0.1
     @test phase.v_z ≈ 7.78 atol=0.1
@@ -104,8 +104,8 @@ end
 
     phase = lguys.transform(lguys.Galactocentric, gc)
 
-    @test lguys.position_of(phase) ≈ [0,0,0] atol=1e-2
-    @test lguys.velocity_of(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.position(phase) ≈ [0,0,0] atol=1e-2
+    @test lguys.velocity(phase) ≈ [0,0,0] atol=1e-2
 
 
 
@@ -115,16 +115,16 @@ end
 
     frame = phase.frame
     theta = asin(frame.z_sun / frame.d)
-    @test lguys.position_of(phase) ≈ [-8.122*cos(theta), 0, 8.122 * sin(theta)] atol=3e-3
-    @test lguys.velocity_of(phase) ≈ [0, 0, 0] atol=3e-3
+    @test lguys.position(phase) ≈ [-8.122*cos(theta), 0, 8.122 * sin(theta)] atol=3e-3
+    @test lguys.velocity(phase) ≈ [0, 0, 0] atol=3e-3
 
 
     gsr = lguys.GSR(ra=266.4051, dec=-28.936175, distance=8.122,
                     pmra=-3.151, pmdec=-5.547, radial_velocity=-12.9)
 
     gc = lguys.transform(lguys.Galactocentric, gsr)
-    @test lguys.position_of(gc) ≈ [0,0,0] atol=1e-2
-    @test lguys.velocity_of(gc) ≈ - frame.v_sun atol = 0.2
+    @test lguys.position(gc) ≈ [0,0,0] atol=1e-2
+    @test lguys.velocity(gc) ≈ - frame.v_sun atol = 0.2
 end
 
 

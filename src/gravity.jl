@@ -58,11 +58,11 @@ end
 
 
 """
-    Φ_spherical_func(positions, masses)
+    potential_spherical_func(positions, masses)
 
 Return a function which computes the spherical potential at a given radius.
 """
-function Φ_spherical_func(radii::AbstractVector{T}, masses::AbstractVector) where {T <: Real}
+function potential_spherical_func(radii::AbstractVector{T}, masses::AbstractVector) where {T <: Real}
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -74,40 +74,40 @@ function Φ_spherical_func(radii::AbstractVector{T}, masses::AbstractVector) whe
     Φs_out = zeros(T, N)
 
     for i in 1:N-1
-        Φs_out[i] = calc_Φ(rs_sorted[i+1:end], ms_sorted[i+1:end])
+        Φs_out[i] = potential(rs_sorted[i+1:end], ms_sorted[i+1:end])
     end
-    Φ_cen = calc_Φ(rs_sorted, ms_sorted)
+    Φ_cen = potential(rs_sorted, ms_sorted)
 
-    return r -> _interpolated_Φ(r, rs_sorted, Ms_in, Φs_out, Φ_cen)
+    return r -> _interpolated_potential(r, rs_sorted, Ms_in, Φs_out, Φ_cen)
 end
 
 
-function Φ_spherical_func(positions::AbstractMatrix{<:Real}, masses::AbstractVector{<:Real}) 
-    radii = calc_r(positions)
-    return Φ_spherical_func(radii, masses)
+function potential_spherical_func(positions::AbstractMatrix{<:Real}, masses::AbstractVector{<:Real}) 
+    r = radii(positions)
+    return potential_spherical_func(r, masses)
 end
 
 
-function Φ_spherical_func(snap::Snapshot)
-    return Φ_spherical_func(snap.positions, snap.masses)
+function potential_spherical_func(snap::Snapshot)
+    return potential_spherical_func(snap.positions, snap.masses)
 end
 
 
-function _interpolated_Φ(r, rs, Ms_in, Φs_out, Φ_cen)
+function _interpolated_potential(r, rs, Ms_in, Φs_out, Φ_cen)
     if r < rs[1]
         return Φ_cen
     end
     idx = searchsortedlast(rs, r)
-    Φ_in = calc_Φ(r, Ms_in[idx])
-    Φ = Φs_out[idx] + Φ_in
-    return Φ
+    Φ_in = potential(r, Ms_in[idx])
+    Φ_tot = Φs_out[idx] + Φ_in
+    return Φ_tot
 end
 
 
 
 
 """
-    calc_discrete_spherical_Φ(positions, masses)
+    potential_spherical(positions, masses)
 
 Given a collection of masses at given radii,
 returns the potential at each radius.
@@ -117,7 +117,7 @@ The potential is calculated as
 Φ(r) = -G M(r) / r - \\int_r^\\infty G dm/dr(r') / r' dr'
 ```
 """
-function Φ_spherical(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
+function potential_spherical(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -125,43 +125,43 @@ function Φ_spherical(radii::AbstractVector{T}, masses::AbstractVector) where T 
 
     M_in = cumsum(ms_sorted)
 
-    Φ_shells = calc_Φ.(rs_sorted, ms_sorted)[2:end]
+    Φ_shells = potential.(rs_sorted, ms_sorted)[2:end]
 
     # include each shell outside the current one...
     Φ_out = Vector{T}(undef, length(masses))
     Φ_out[1:end-1] .= reverse(cumsum(reverse(Φ_shells)))
     Φ_out[end] = 0
 
-    Φ_in = calc_Φ.(rs_sorted, M_in)
+    Φ_in = potential.(rs_sorted, M_in)
 
     Φ = Φ_out .+ Φ_in
     return Φ[invperm(idx)]
 end
 
 
-function calc_radial_discrete_Φ(positions::Matrix{T}, masses::AbstractVector) where T <: Real
-    radii = calc_r(positions)
-    return calc_radial_discrete_Φ(radii, masses)
+function potential_spherical(positions::Matrix{T}, masses::AbstractVector) where T <: Real
+    r = radii(positions)
+    return Φ_spherical(r, masses)
 end
 
 
-function calc_radial_discrete_Φ(snap::Snapshot)
-    return calc_radial_discrete_Φ(calc_r(snap), snap.masses)
+function potential_spherical(snap::Snapshot)
+    return Φ_spherical(radii(snap), snap.masses)
 end
 
 
 
 """
-    calc_Φ(snap, x_vec)
+    potential(snap, x_vec)
 
 Gravitational potential due to particles in snapshot at position x_vec
 """
-function calc_Φ(snap::Snapshot, x_vec)
-    return calc_Φ(snap.positions, snap.masses, x_vec)
+function potential(snap::Snapshot, x_vec)
+    return potential(snap.positions, snap.masses, x_vec)
 end
 
-function calc_Φ(snap::Snapshot)
-    Φ = Vector{F}(undef, length(snap))
+function potential(snap::Snapshot)
+    Φ_out = Vector{F}(undef, length(snap))
 
     N = length(snap)
     for i in 1:N
@@ -169,42 +169,42 @@ function calc_Φ(snap::Snapshot)
         positions = snap.positions[:, j]
         masses = snap.masses[j]
 
-        Φ[i] = calc_Φ(positions, masses, snap.positions[:, i])
+        Φ_out[i] = Φ(positions, masses, snap.positions[:, i])
     end
 
-    return Φ
+    return Φ_out
 end
 
 
 """
-    calc_Φ(masses, positions, x_vec)
+    potential(masses, positions, x_vec)
 
 Gravitational potential due to ensemble of masses at positions evaluated at x_vec
 """
-function calc_Φ(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
-    radii = calc_r(positions .- x_vec)
-    return calc_Φ(radii, masses)
+function potential(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
+    r = radii(positions .- x_vec)
+    return potential(r, masses)
 end
 
 
 
 """
-    calc_Φ(radii, masses)
+    potential(radii, masses)
 
 Potential due to a collection of masses at given radii, or equivalently
 potential inside centred shells of masses and radii
 """
-function calc_Φ(radii::Vector{T}, masses::Vector{T}) where T <: Real
-    return sum(calc_Φ.(radii, masses))
+function potential(radii::Vector{T}, masses::Vector{T}) where T <: Real
+    return sum(potential.(radii, masses))
 end
 
 
 """
-    calc_Φ(radius, mass)
+    potential(radius, mass)
 
 One point potential law (-Gm/r)
 """
-function calc_Φ(radius::Real, mass::Real)
+function potential(radius::Real, mass::Real)
     if radius == 0
         return -Inf
     end
@@ -218,9 +218,9 @@ end
 
 Force of gravity from masses at given positions evaluated at x_vec
 """
-function F_graF_grav(positions::AbstractMatrix, masses::AbstractVector, x_vec)
+function F_grav(positions::AbstractMatrix, masses::AbstractVector, x_vec)
     dr = x_vec .- positions
-    rs = calc_r(dr)
+    rs = radii(dr)
     r_hat = dr ./ rs
     force =  sum(F_grav_point.(rs, masses) .* r_hat, dims=2)
     force[:, rs .== 0] .= 0  # remove divergences

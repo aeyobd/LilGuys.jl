@@ -2,6 +2,9 @@ import TOML
 import LinearAlgebra: ×, ⋅
 
 
+# TODO: split MassProfile3D in half
+
+
 """
 A struct representing a 3-dimensional 
 mass profile (likely of a snapshot).
@@ -94,7 +97,7 @@ function MassProfile3D(snap::Snapshot;
     )
 
     if filt_bound
-        filt = get_bound(snap)
+        filt = bound_particles(snap)
         snap = snap[filt]
     end
 
@@ -103,19 +106,19 @@ function MassProfile3D(snap::Snapshot;
         throw(ArgumentError("No bound particles in snapshot"))
     end
 
-    K = calc_K_tot(snap)
+    K = K_tot(snap)
 
     if !isnothing(snap.Φs)
-        W = calc_W_tot(snap)
+        W = W_tot(snap)
         E = W + K
     else
         E = NaN
         W = NaN
     end
 
-    L = calc_L_tot(snap)
+    L = L_tot(snap)
 
-    log_r_snap = log10.(calc_r(snap))
+    log_r_snap = log10.(radii(snap))
 
     bins, hist, err = histogram(log_r_snap, bins, weights=snap.masses, errors=:weighted)
     log_r_bins = bins
@@ -129,7 +132,7 @@ function MassProfile3D(snap::Snapshot;
     r = 10 .^ log_r
     rel_err = mass_in_shell_err ./ mass_in_shell
 
-    rho = calc_ρ_from_hist(r_bins, mass_in_shell)
+    rho = ρ_from_hist(r_bins, mass_in_shell)
     rho_err = rho .* rel_err # TODO: does not include binning error
 
     M_in = cumsum(mass_in_shell)
@@ -137,11 +140,11 @@ function MassProfile3D(snap::Snapshot;
 
     skip = min(round(Int, default_n_per_bin(log_r_snap) / 1.5), 200)
     @info "circ vel bins $skip"
-    r_circ, v_circ, n_circ = calc_v_circ(snap, skip=skip)
-    v_circ_err = v_circ ./ sqrt.(n_circ)
-    t_circ = 2π * r_circ ./ v_circ
+    r_circ, v_c, n_circ = v_circ(snap, skip=skip)
+    v_circ_err = v_c ./ sqrt.(n_circ)
+    t_circ = 2π * r_circ ./ v_c
 
-    fit = fit_v_r_circ_max(r_circ, v_circ)
+    fit = fit_v_r_circ_max(r_circ, v_c)
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
@@ -162,7 +165,7 @@ function MassProfile3D(snap::Snapshot;
         rho=rho,
         rho_err=rho_err,
         r_circ=r_circ,
-        v_circ=v_circ,
+        v_circ=v_c,
         v_circ_err=v_circ_err,
         t_circ=t_circ,
         n_circ=n_circ,
@@ -178,9 +181,9 @@ end
 
 
 """
-    calc_ρ_from_hist(bins, counts)
+    ρ_from_hist(bins, counts)
 """
-function calc_ρ_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{<:Real}) 
+function ρ_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{<:Real}) 
     if length(bins) != length(counts) + 1
         throw(DimensionMismatch("Bins must be one longer than counts, got sizes $(length(bins)), $(length(counts))"))
     end
@@ -192,20 +195,20 @@ end
 
 
 """ 
-	calc_v_rad(snap)
+	v_rad(snap)
 
 returns the radial velocities relative to the snapshot centre in code units
 """
-function calc_v_rad(snap)
-    return calc_v_rad(snap.positions, snap.velocities, x_cen=snap.x_cen, v_cen=snap.v_cen)
+function v_rad(snap)
+    return v_rad(snap.positions, snap.velocities, x_cen=snap.x_cen, v_cen=snap.v_cen)
 end
 
 """
-    calc_v_rad(positions, velocities; x_cen=zeros(3), v_cen=zeros(3))
+    v_rad(positions, velocities; x_cen=zeros(3), v_cen=zeros(3))
 
 Calculates the radial velocities relative to x_cen, v_cen.
 """
-function calc_v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:Real}; x_cen=zeros(3), v_cen=zeros(3))
+function v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:Real}; x_cen=zeros(3), v_cen=zeros(3))
 
     @assert_same_size positions velocities
     @assert_3vector positions
@@ -214,7 +217,7 @@ function calc_v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatri
     v_vec = velocities .- v_cen
 
     # normalize
-    x_hat = x_vec ./ calc_r(x_vec)'
+    x_hat = x_vec ./ radii(x_vec)'
 
     # dot product
     v_rad = sum(x_hat .* v_vec, dims=1)
@@ -228,7 +231,7 @@ end
 
 
 """
-    calc_v_circ(snap; filter_bound=:recursive_1d, skip=10)
+    v_circ(snap; filter_bound=:recursive_1d, skip=10)
 
 Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
 Skips every `skip` particles (i.e. each radius contains n times skip particles inclusive)
@@ -238,15 +241,15 @@ filter_bound may be
 - :simple: only removes unbound particles once
 - :false: does not filter particles
 """
-function calc_v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=10)
-    r = calc_r(snap)
+function v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=10)
+    r = radii(snap)
     m = snap.masses
 
     if filter_bound != :false
         if filter_bound == :simple
-            filt = get_bound(snap)
+            filt = bound_particles(snap)
         elseif filter_bound == :recursive_1d
-            filt = get_bound_recursive_1D(snap)
+            filt = bound_particles_recursive_1D(snap)
         else
             throw(ArgumentError("Unknown filter_bound: $filter_bound"))
         end
@@ -268,15 +271,15 @@ function calc_v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=1
     idx_skip = skip:skip:length(r)
     r = r[idx_skip]
     M = M[idx_skip]
-    v_circ = calc_v_circ.(r, M)
+    v_c = v_circ.(r, M)
 
-    return r, v_circ, idx_skip
+    return r, v_c, idx_skip
 end
 
 
 
 """
-    calc_v_circ_max(r, v_circ; q=80, p0=[6., 30.])
+    v_circ_max(r, v_circ; q=80, p0=[6., 30.])
 
 Fits the maximum circular velocity of a rotation curve assuming a NFW
 profile. Returns the parameters of the fit and the range of radii used.
@@ -346,7 +349,7 @@ end
 Fits circular velocity of snapshot
 """
 function fit_v_r_circ_max(snap; kwargs...)
-    r, v_circ = calc_v_circ(snap)
+    r, v_circ = v_circ(snap)
     return fit_v_r_circ_max(r, v_circ; kwargs...)
 end
 
@@ -372,36 +375,36 @@ end
 
 
 """
-    calc_M_in(snap::Snapshot, radius::Real)
+    M_in(snap::Snapshot, radius::Real)
 
 Calculates the number of bound particles within a given radius for a snapshot.
 """
-function calc_M_in(snap::Snapshot, radius::Real)
-    filt = get_bound(snap)
-    rs = calc_r(snap)[filt]
+function M_in(snap::Snapshot, radius::Real)
+    filt = bound_particles(snap)
+    rs = radii(snap)[filt]
     return sum(rs .<= radius)
 end
 
 
 """
-    calc_β_prof(snap; r_bins)
+    β_prof(snap; r_bins)
 
 Computes the velocity dispersion and anisotropy profiles
 for the snapshot assuming spherical symmetry.
 Returns a tuple or radii bins, velocity dispersion, and anisotropy
 """
-function calc_β_prof(snap; r_bins)
+function β_prof(snap; r_bins)
     vel = snap.velocities .- snap.v_cen
     pos = snap.positions .- snap.x_cen
     N = size(vel, 2)
 
-    rs = calc_r(snap)
+    rs = radii(snap)
     r_hat = pos ./ rs'
     
     ϕ_hat = hcat([r_hat[:, i] × [0,0,1] for i in 1:N]...)
-    ϕ_hat ./= calc_r(ϕ_hat)'
+    ϕ_hat ./= radii(ϕ_hat)'
     θ_hat = hcat([r_hat[:, i] × ϕ_hat[:, i] for i in 1:N]...)
-    θ_hat ./= calc_r(θ_hat)'
+    θ_hat ./= radii(θ_hat)'
 
     v_r = [vel[:, i] ⋅ r_hat[:, i] for i in 1:N]
     v_ϕ = [vel[:, i] ⋅ ϕ_hat[:, i] for i in 1:N]

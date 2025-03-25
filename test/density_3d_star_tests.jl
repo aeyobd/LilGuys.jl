@@ -3,7 +3,7 @@
 end
 
 
-@testset "calc_σv" begin
+@testset "σv" begin
     N = 10000
     σ_exp = 2.1
     positions = randn(3, N)
@@ -13,29 +13,29 @@ end
 
     snap = lguys.Snapshot(positions, velocities, masses, weights=weights)
 
-    @test lguys.calc_σv_1d(snap) ≈ σ_exp rtol=1e-2
-    @test lguys.calc_σv_x(snap) ≈ σ_exp rtol=3e-2
+    @test lguys.σv_1d(snap) ≈ σ_exp rtol=1e-2
+    @test lguys.σv_x(snap) ≈ σ_exp rtol=3e-2
 
 
     r_max = 0.5
-    filt = lguys.calc_r(positions) .< r_max
+    filt = lguys.radii(positions) .< r_max
 
     @test sum(.!filt) > 0
     velocities[:, .!filt] .*= 3 
 
-    @test lguys.calc_σv_1d(snap, r_max=r_max) ≈ σ_exp rtol=1e-2
-    @test lguys.calc_σv_1d(snap, r_max=2) > σ_exp * 1.5
+    @test lguys.σv_1d(snap, r_max=r_max) ≈ σ_exp rtol=1e-2
+    @test lguys.σv_1d(snap, r_max=2) > σ_exp * 1.5
 
-    @test lguys.calc_σv_x(snap, r_max=r_max) ≈ σ_exp rtol=3e-2
-    @test lguys.calc_σv_x(snap, r_max=2) > σ_exp * 1.5
+    @test lguys.σv_x(snap, r_max=r_max) ≈ σ_exp rtol=3e-2
+    @test lguys.σv_x(snap, r_max=2) > σ_exp * 1.5
 end
 
 
 
-@testset "calc_break_radius"  begin
-    @test lguys.calc_break_radius(1.0, 1.0) ≈ 0.55
-    @test lguys.calc_break_radius(0.5, 1.0) ≈ 0.55 * 0.5
-    @test lguys.calc_break_radius(1.2, 0.5) ≈ 0.55 * 0.6
+@testset "break_radius"  begin
+    @test lguys.break_radius(1.0, 1.0) ≈ 0.55
+    @test lguys.break_radius(0.5, 1.0) ≈ 0.55 * 0.5
+    @test lguys.break_radius(1.2, 0.5) ≈ 0.55 * 0.6
 end
 
 
@@ -102,7 +102,7 @@ end
         @test prof.quantiles == [0.3, 0.5, 0.7]
         @test prof.delta_t == 2.0
         @test prof.r_break ≈ 2.0 * 0.55 * σv_exp atol=1e-2
-        @test prof.sigma_vx ≈ lguys.calc_σv_1d(snap, r_max=3) rtol=1e-8
+        @test prof.sigma_vx ≈ lguys.σv_1d(snap, r_max=3) rtol=1e-8
     end
 
 

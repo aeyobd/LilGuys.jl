@@ -4,8 +4,8 @@ import Base: @kwdef
 
 "A map of the HDF5 columns to the snapshot fields"
 const h5vectors = Dict(
-    :Φs=>"Potential",
-    :Φs_ext=>"ExtPotential",
+    :potential=>"Potential",
+    :potential_ext=>"ExtPotential",
     :index=>"ParticleIDs",
     :positions=>"Coordinates",
     :velocities=>"Velocities",
@@ -14,7 +14,7 @@ const h5vectors = Dict(
    )
 
 const snap_matricies = [:positions, :velocities, :accelerations]
-const snap_vectors = [:masses, :Φs, :Φs_ext, :index]
+const snap_vectors = [:masses, :potential, :potential_ext, :index]
 
 
 
@@ -37,11 +37,11 @@ A snapshot of a gadget simulation. Units are all code units.
     """The accelerations of the particles"""
     accelerations::OptMatrix = nothing
 
-    """The potential of the particles"""
-    Φs::OptVector = nothing  
+    """The potential at each particle"""
+    potential::OptVector = nothing  
 
-    """The external (milky way) potential of the particles"""
-    Φs_ext::OptVector = nothing
+    """The external (milky way) potential at each particle"""
+    potential_ext::OptVector = nothing
 
     """The filename of the snapshot"""
     filename::String = ""
@@ -199,7 +199,7 @@ function Base.getindex(snap::Snapshot, idx)
     kwargs[:filename] = snap.filename
     kwargs[:time] = snap.time
 
-    for sym in [:positions, :velocities, :masses, :index, :accelerations, :Φs, :Φs_ext, :weights]
+    for sym in [:positions, :velocities, :masses, :index, :accelerations, :potential, :potential_ext, :weights]
         if getproperty(snap, sym) === nothing
             continue
         elseif sym ∈ snap_matricies
@@ -364,12 +364,12 @@ function rescale(snap::Snapshot, m_scale::Real, r_scale::Real)
     rescaled.velocities = snap.velocities * v_scale
     rescaled.masses = snap.masses * m_scale
 
-    if snap.Φs !== nothing
-        rescaled.Φs .*= Φ_scale
+    if snap.potential !== nothing
+        rescaled.potential .*= Φ_scale
     end
 
-    if snap.Φs_ext !== nothing
-        rescaled.Φ_ext .*= Φ_scale
+    if snap.potential_ext !== nothing
+        rescaled.potential_ext .*= Φ_scale
     end
 
 

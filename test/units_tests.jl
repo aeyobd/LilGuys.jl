@@ -21,41 +21,57 @@ end
 
 
 @testset "arcmin to kpc" begin
-    @test LilGuys.arcmin_to_kpc(1, 1) ≈ 0.0002908879 rtol=1e-5
-    @test LilGuys.arcmin_to_kpc(40, 86.2) ≈ 1 rtol=3e-3
-    @test LilGuys.arcmin_to_kpc(40, 862) ≈ 10 rtol=3e-3
+    @test LilGuys.arcmin2kpc(1, 1) ≈ 0.0002908879 rtol=1e-5
+    @test LilGuys.arcmin2kpc(40, 86.2) ≈ 1 rtol=3e-3
+    @test LilGuys.arcmin2kpc(40, 862) ≈ 10 rtol=3e-3
 end
 
 
 @testset "kpc to arcmin" begin
-    @test LilGuys.kpc_to_arcmin(1, 1000) ≈ 3.43775 rtol = 1e-5
-    @test LilGuys.kpc_to_arcmin(1, 86.2) ≈ 40 rtol = 3e-3
-    @test LilGuys.kpc_to_arcmin(0.1, 86.2) ≈ 4 rtol = 3e-3
+    @test LilGuys.kpc2arcmin(1, 1000) ≈ 3.43775 rtol = 1e-5
+    @test LilGuys.kpc2arcmin(1, 86.2) ≈ 40 rtol = 3e-3
+    @test LilGuys.kpc2arcmin(0.1, 86.2) ≈ 4 rtol = 3e-3
 end
 
 
-@testset "kpc_to_arcmin inverse" begin
+@testset "kpc2arcmin inverse" begin
     for (a, b) in [
         (1, 1), (10, 234.2), (1.23, 2344)
        ]
-        @test LilGuys.arcmin_to_kpc(LilGuys.kpc_to_arcmin(a, b), b) ≈ a
+        @test LilGuys.arcmin2kpc(LilGuys.kpc2arcmin(a, b), b) ≈ a
     end
 end
 
 
-@testset "pm_to_kms" begin
-    @test LilGuys.pm_to_kms(1, 1) ≈ 4.74047 rtol=1e-5
-    @test LilGuys.pm_to_kms(3, 1) ≈ 3*4.74047 rtol=1e-5
-    @test LilGuys.pm_to_kms(3, 0.5) ≈ 3 * 0.5 * 4.74047 rtol=1e-5
+@testset "pm2kms" begin
+    @test LilGuys.pm2kms(1, 1) ≈ 4.74047 rtol=1e-5
+    @test LilGuys.pm2kms(3, 1) ≈ 3*4.74047 rtol=1e-5
+    @test LilGuys.pm2kms(3, 0.5) ≈ 3 * 0.5 * 4.74047 rtol=1e-5
+end
+
+@testset "kms2pm" begin
+    @test LilGuys.kms2pm(1, 1) ≈ 1/4.74047 rtol=1e-5
+    @test LilGuys.kms2pm(2, 1) ≈ 2/4.74047 rtol=1e-5
+    @test LilGuys.kms2pm(2, 0.5) ≈ 4 / 4.74047 rtol=1e-5
 end
 
 
-@testset "dm_to_dist" begin
-    @test LilGuys.dm_to_dist(0) ≈ 0.01
-    @test LilGuys.dm_to_dist(5.0) ≈ 0.1
-    @test LilGuys.dm_to_dist(25) ≈ 1000
-    @test LilGuys.dm_to_dist(-5) ≈ 0.001
-    @test LilGuys.dm_to_dist(-Inf) ≈ 0.0
-    @test LilGuys.dm_to_dist(Inf) ≈ Inf
-    @test LilGuys.dm_to_dist(NaN) === NaN
+@testset "dm2dist" begin
+    @test LilGuys.dm2dist(0) ≈ 0.01
+    @test LilGuys.dm2dist(5.0) ≈ 0.1
+    @test LilGuys.dm2dist(25) ≈ 1000
+    @test LilGuys.dm2dist(-5) ≈ 0.001
+    @test LilGuys.dm2dist(-Inf) ≈ 0.0
+    @test LilGuys.dm2dist(Inf) ≈ Inf
+    @test LilGuys.dm2dist(NaN) === NaN
+end
+
+@testset "dist2dm" begin
+    @test LilGuys.dist2dm(0.010) ≈ 0
+    @test LilGuys.dist2dm(0.1) ≈ 5
+    @test LilGuys.dist2dm(1000) ≈ 25
+    @test LilGuys.dist2dm(1e-3) ≈ -5
+    @test LilGuys.dist2dm(0) ≈ -Inf
+    @test LilGuys.dist2dm(Inf) ≈ Inf
+    @test LilGuys.dist2dm(NaN) === NaN
 end

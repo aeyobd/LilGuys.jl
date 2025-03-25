@@ -97,7 +97,7 @@ end
     xs = lguys.rand_unit(N)
 
     @test size(xs) == (3, N)
-    rs = lguys.calc_r(xs)
+    rs = lguys.radii(xs)
     @test rs ≈ fill(1, N)
     μ = lguys.mean(xs)
     σ = lguys.std(xs)

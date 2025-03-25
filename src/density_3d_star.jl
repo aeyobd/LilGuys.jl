@@ -55,7 +55,7 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
         r_max=1,
     )
 
-    log_r_snap = log10.(calc_r(snap))
+    log_r_snap = log10.(radii(snap))
 
     bins, hist, err = histogram(log_r_snap, bins, weights=snap.weights, errors=:weighted)
     log_r_bins = bins
@@ -78,18 +78,18 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
     r = 10 .^ log_r
     rel_err = mass_in_shell_err ./ mass_in_shell
 
-    rho = calc_ρ_from_hist(r_bins, mass_in_shell)
+    rho = ρ_from_hist(r_bins, mass_in_shell)
     rho_err = rho .* rel_err # TODO: does not include binning error
 
 
     M_in = cumsum(mass_in_shell)
     M_in_err = 1 ./ sqrt.(cumsum(counts)) .* M_in
 
-    σ_v_1d = calc_σv_1d(snap, r_max=r_max)
-    r_break = calc_break_radius(σ_v_1d, delta_t)
+    σ_v_1d = σv_1d(snap, r_max=r_max)
+    r_break = break_radius(σ_v_1d, delta_t)
     r_quantile = find_r_quantile_star(snap, quantiles)
 
-    bound_mass = sum(snap.weights[get_bound(snap)])
+    bound_mass = sum(snap.weights[bound_particles(snap)])
 
     return StellarProfile3D(
         sigma_vx=σ_v_1d, 
@@ -142,7 +142,7 @@ Find the radius(ii) containing a given fraction of the total stellar mass of the
 `p` may be a real or a vector of real representing the fractions.
 """
 function find_r_quantile_star(snap::Snapshot, p)
-    r = calc_r(snap)
+    r = radii(snap)
     m = snap.weights ./ sum(snap.weights)
 
     return quantile(r, m, p)
@@ -151,14 +151,14 @@ end
 
 
 """
-    calc_σv_x(snap; r_max=1)
+    σv_x(snap; r_max=1)
 
 Calculate the velocity dispersion in the x-direction
 for particles within r_max of the centre.
 """
-function calc_σv_x(snap; r_max=1)
-    vs = get_v_x(snap)
-    filt = calc_r(snap) .< r_max
+function σv_x(snap; r_max=1)
+    vs = x_velocity(snap)
+    filt = radii(snap) .< r_max
     w = snap.weights[filt]
     vs = vs[filt]
     return std(vs, w)
@@ -166,17 +166,17 @@ end
 
 
 """
-    calc_σv_1d(snap; r_max=1)
+    σv_1d(snap; r_max=1)
 
 Calculate the average 1D orthoganal velocity dispersion
 for particles within r_max of the centre. 
 Assums relative to snapshot center
 """
-function calc_σv_1d(snap; r_max=1)
-    filt = calc_r(snap) .< r_max
+function σv_1d(snap; r_max=1)
+    filt = radii(snap) .< r_max
 
     w = snap.weights[filt]
-    v = calc_v(snap)[filt]
+    v = speeds(snap)[filt]
 
     σ = sqrt( sum(v .^ 2 .* w) / sum(w) )
 
@@ -186,7 +186,7 @@ end
 
 
 @doc raw"""
-	calc_break_radius(σ, delta_t)
+	break_radius(σ, delta_t)
 
 Given a radial velocity dispersion σ and the time since last pericentre (all
 code units) calculate the break radius in kpc (code units).
@@ -197,6 +197,6 @@ r_{\rm break} = C\,\sigma_{v}\,\Delta t
 ```
 where $C=0.55$ is an empirical fit
 """
-function calc_break_radius(σ::Real, delta_t::Real; C::Real=0.55)
+function break_radius(σ::Real, delta_t::Real; C::Real=0.55)
     return C * σ  * delta_t
 end

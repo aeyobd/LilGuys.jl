@@ -78,93 +78,81 @@ z_velocity(snap::Snapshot) = z_position(snap.velocities)
 
 
 """
-    calc_K_spec(snap)
+    kinetic_energies(snap)
 
 Kinetic energy of each particle of a snapshot
 """
-function calc_K_spec(snap::Snapshot, v_cen=snap.v_cen)
+function kinetic_energies(snap::Snapshot, v_cen=snap.v_cen)
     v2 = sum((snap.velocities .- v_cen) .^ 2, dims=1)
     return 1/2 * dropdims(v2, dims=1)
 end
 
 
 """
-    calc_K_tot(snap)
+    kinetic_energy_total(snap)
 
 Total kinetic energy of a snapshot
 """
-function calc_K_tot(snap::Snapshot)
-    return sum(snap.masses .* calc_K_spec(snap))
+function kinetic_energy_total(snap::Snapshot)
+    return sum(snap.masses .* kinetic_energies(snap))
 end
 
 
 
 @doc raw"""
-    calc_W_tot(snap)
+    potential_energy(snap)
 
 Total potential energy of a snapshot
 ```math
     W = -\frac{1}{2} \sum m_i Φ_i
 ```
 """
-function calc_W_tot(snapshot::Snapshot)
+function potential_energy(snapshot::Snapshot)
     return -1/2 * sum(snapshot.masses .* snapshot.Φs)
 end
 
 
 
 """
-    calc_E_spec(snap)
+    specific_energy(snap)
 
-Specific energy of each particle of a snapshot
+Specific energy of each particle of a snapshot (ϵ) defined to be positive for bound particles.
 """
-function calc_E_spec(snap::Snapshot)
+function specific_energy(snap::Snapshot)
     if snap.Φs == nothing 
         @warn "Snapshot does not contain Φ using radial Φ approximation."
-        Φ = calc_radial_discrete_Φ(snap)
+        Φ = Φ_spherical(snap)
     else
         Φ = snap.Φs
     end
-    return calc_K_spec(snap) .+ Φ
-end
-
-
-@doc raw"""
-    calc_ϵ(snap)
-
-calculates binding energy of each particle in snapshot.
-```math
-    ϵ = -E_{\text{spec}} = -\frac{1}{2}v^2 - Φ
-```
-"""
-function calc_ϵ(snap::Snapshot)
-    return -calc_E_spec(snap)
+    return -(kinetic_spec(snap) .+ Φ)
 end
 
 
 
+
 """
-    calc_E_spec(Φ, v)
+    specific_energy(Φ, v)
 Given potential and velocity, calculate specific energy.
 """
-function calc_E_spec(Φ::Real, v::Real)
+function specific_energy(Φ::Real, v::Real)
     return 0.5v^2 .+ Φ
 end
 
 
 """
-    calc_E_tot(snap)
+    total_energy(snap)
 
 Total energy of a snapshot
 """
-function calc_E_tot(snap::Snapshot, v_cen=snap.v_cen)
+function total_energy(snap::Snapshot, v_cen=snap.v_cen)
     if snap.Φs_ext == nothing
         Φs_ext = 0
     else
         Φs_ext = snap.Φs_ext
     end
     return sum(snap.masses .* (
-               calc_K_spec(snap, v_cen) 
+               kinetic_spec(snap, v_cen) 
                .+ 1/2 * snap.Φs 
                .+ Φs_ext)
               )
@@ -173,22 +161,22 @@ end
 
 
 """
-    L_spec(x, v)
+    angular_momenta(x, v)
 
 Calculate the angular momentum of a particle with position x and velocity v
 May pass a snapshot, or two 3-vecotrs, or two 3xN matrices for x and v.
 """
-function L_spec(x::AbstractVector{T}, v::AbstractVector{T}) where T<:Real
+function angular_momenta(x::AbstractVector{T}, v::AbstractVector{T}) where T<:Real
     return x × v
 end
 
 
-function L_spec(snap::Snapshot)
-    return L_spec(snap.positions, snap.velocities)
+function angular_momenta(snap::Snapshot)
+    return angular_momenta(snap.positions, snap.velocities)
 end
 
 
-function L_spec(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
+function angular_momenta(x::AbstractMatrix{T}, v::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3 || size(v, 1) != 3
         throw(DimensionMismatch("Matrices must have 3 rows"))
     end
@@ -209,14 +197,14 @@ end
 
 
 """
-    L_tot(snap)
+    total_angular_momentum(snap)
 
 Calculates the total angular momentum of a snapshot
 """
-function L_tot(snap::Snapshot)
+function total_angular_momentum(snap::Snapshot)
     L = zeros(3)
     for i in 1:length(snap)
-        L += snap.masses[i] .* L_spec(snap.positions[:, i], snap.velocities[:, i])
+        L += snap.masses[i] .* angular_momenta(snap.positions[:, i], snap.velocities[:, i])
     end
 
     return L
@@ -224,12 +212,11 @@ end
 
 
 """
-    v_circ(r, M)
-
+    circular_velocity(r, M)
 
 The circular velocity at radius r from the center of a mass M.
 """
-function v_circ(r::Real, M::Real)
+function circular_velocity(r::Real, M::Real)
     if M < 0 || r < 0
         throw(DomainError("M and r must be positive"))
     elseif r == 0
@@ -245,7 +232,7 @@ end
 Return a filter for particles that are bound to the snapshot.
 """
 function bound_particles(snap::Snapshot)
-    return calc_E_spec(snap) .< 0
+    return specific_energy(snap) .>= 0
 end
 
 
@@ -260,7 +247,7 @@ function bound_particles_recursive_1D(snap::Snapshot; maxiter=300)
     m = snap.masses
     v = speeds(snap)
 
-    ϕ = calc_radial_discrete_Φ(r, m)
+    ϕ = Φ_spherical(r, m)
     ϵ = @. -1/2 * v^2 - ϕ
     filt = ϵ .> 0
     dN = sum(.!filt)
@@ -270,7 +257,7 @@ function bound_particles_recursive_1D(snap::Snapshot; maxiter=300)
             break
         end
 
-        ϕ = calc_radial_discrete_Φ(r[filt], m[filt])
+        ϕ = Φ_spherical(r[filt], m[filt])
         ϵ = @. -1/2 * v[filt]^2 - ϕ
         filt_2 = ϵ .> 0
 

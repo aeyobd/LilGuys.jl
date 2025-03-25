@@ -89,27 +89,27 @@ end
 
 
 """
-    calc_ρ(profile, r)
+    density(profile, r)
 
 Calculates the 3D density of the profile at radius r
 """
-function calc_ρ end
+function density end
 
 
 """
-    calc_Σ(profile, R)
+    surface_density(profile, R)
 
 Calculates the projected 2D surface density of the profile at radius R
 """
-function calc_Σ end
+function surface_density end
 
 
 """
-    calc_M(profile, r)
+    mass(profile, r)
 
 Calculates the mass enclosed within 3D radius r
 """
-function calc_M end
+function M end
 
 
 
@@ -173,7 +173,7 @@ An exponential disk profile in 3D. The density profile is given by
 \rho = \rho_0 \, \exp(-r/r_s)
 ``
 
-where M is the total mass and r_s is the scale radius, and ρ_0 = M / (8π * r_s^3)
+where M is the total mass and r_s is the scale radius, and density_0 = M / (8π * r_s^3)
 """
 @kwdef struct Exp3D{F<:Real} <: SphericalProfile
     M::F = 1
@@ -289,7 +289,7 @@ end
 #
 #
 
-function calc_ρ(profile::Plummer, r::Real)
+function density(profile::Plummer, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
     ρ0 = get_ρ0(profile)
@@ -304,7 +304,7 @@ function get_Σ0(profile::Plummer)
     return profile.M / (π * profile.r_s^2)
 end
 
-function calc_Σ(profile::Plummer, R::Real)
+function surface_density(profile::Plummer, R::Real)
     M, r_s = profile.M, profile.r_s
     x = R / r_s
     Σ0 = get_Σ0(profile)
@@ -312,24 +312,24 @@ function calc_Σ(profile::Plummer, R::Real)
 end
     
 
-function calc_M(profile::Plummer, r::Real)
+function mass(profile::Plummer, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
     return M * x^3 / (1 + x^2)^(3/2)
 end
 
 
-function calc_M_2D(profile::Plummer, R::Real)
+function mass_2D(profile::Plummer, R::Real)
     M, r_s = profile.M, profile.r_s
     x = R / r_s
     return M * x^2 / (1 + x^2)
 end
 
-function calc_R_h(profile::Plummer)
+function R_h(profile::Plummer)
     return profile.r_s
 end
 
-function calc_r_h(profile::Plummer)
+function r_h(profile::Plummer)
     return (2^(2/3) - 1)^(-1/2) * profile.r_s
 end
 
@@ -343,18 +343,18 @@ function get_Σ_s(profile::Exp2D)
     return profile.M / (2π * profile.R_s^2)
 end
 
-function calc_R_h(profile::Exp2D)
+function R_h(profile::Exp2D)
     α = 1.6783469900166605 # solution to 1/2 = 1 - (1 + x) exp(-x)
     return α * profile.R_s
 end
 
-function calc_r_h(profile::Exp2D)
+function r_h(profile::Exp2D)
     r_h_over_r_s = 2.2235172865036716
     return r_h_over_r_s * profile.R_s
 end
 
 
-function calc_ρ(profile::Exp2D, r::Real)
+function density(profile::Exp2D, r::Real)
     Σ_s = get_Σ_s(profile)
     ρ_s = Σ_s / (π * profile.R_s)
 
@@ -363,7 +363,7 @@ function calc_ρ(profile::Exp2D, r::Real)
 end
 
 
-function calc_Σ(profile::Exp2D, R::Real)
+function surface_density(profile::Exp2D, R::Real)
     Σ_s = get_Σ_s(profile)
     x = R / profile.R_s
     return Σ_s * exp(-x)
@@ -373,7 +373,7 @@ function scale(profile::Exp2D, radius_scale::Real, mass_scale::Real)
     return Exp2D(profile.M * mass_scale, profile.R_s * radius_scale)
 end
 
-# function calc_M(profile::Exp2D, r::Float64)
+# function mass(profile::Exp2D, r::Float64)
 #     M, R_s = profile.M, profile.R_s
 #     return 2/3 π x (3 π L_1(x) K_2(x) + (3 π L_2(x) - 4 x) K_1(x)) + constant
 #     L_n is the modified struve function
@@ -388,14 +388,14 @@ function get_ρ_s(profile::Exp3D)
 end
 
 
-function calc_ρ(profile::Exp3D, r::Real)
+function density(profile::Exp3D, r::Real)
     M, r_s = profile.M, profile.r_s
     ρ_s = get_ρ_s(profile)
     return ρ_s * exp(-r/r_s)
 end
 
 
-function calc_Σ(profile::Exp3D, r::Real)
+function surface_density(profile::Exp3D, r::Real)
     M, r_s = profile.M, profile.r_s
     ρ_s = get_ρ_s(profile)
     Σ0 = 2ρ_s * r_s
@@ -403,7 +403,7 @@ function calc_Σ(profile::Exp3D, r::Real)
     return Σ0 * x * besselk(1, x)
 end
 
-function calc_M(profile::Exp3D, r::Real)
+function mass(profile::Exp3D, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
     return M * 1/2 * (2 - (x^2 + 2*x + 2)*exp(-x))
@@ -416,7 +416,7 @@ end
 
 ############ LogCusp2D
 
-function calc_ρ(profile::LogCusp2D, r::Real)
+function density(profile::LogCusp2D, r::Real)
     M, r_s = profile.M, profile.R_s
     x = r / r_s
     ρ_s = get_ρ_s(profile)
@@ -429,7 +429,7 @@ function get_ρ_s(profile::LogCusp2D)
     return M / (4π * r_s^3)
 end
 
-function calc_Σ(profile::LogCusp2D, r::Real)
+function surface_density(profile::LogCusp2D, r::Real)
     M, r_s = profile.M, profile.R_s
     ρ_s = get_ρ_s(profile)
     Σ_s = ρ_s * 2 * r_s
@@ -437,7 +437,7 @@ function calc_Σ(profile::LogCusp2D, r::Real)
     return Σ_s * besselk(0, x)
 end
 
-function calc_M(profile::LogCusp2D, r::Real)
+function mass(profile::LogCusp2D, r::Real)
     M, r_s = profile.M, profile.R_s
     x = r / r_s
     return M * (1 - exp(-x) - x*exp(-x))
@@ -453,7 +453,7 @@ end
 
 ############ ExpCusp
 
-function calc_ρ(profile::ExpCusp, r::Real)
+function density(profile::ExpCusp, r::Real)
     r_s = profile.r_s
     x = r / r_s
     ρ_s = get_ρ_s(profile)
@@ -467,23 +467,23 @@ function get_ρ_s(profile::ExpCusp)
 end
 
 
-function calc_M(profile::ExpCusp, r::Real)
+function mass(profile::ExpCusp, r::Real)
     M, r_s = profile.M, profile.r_s
     x = r / r_s
     return M * (1 - (1 + x) * exp(-x))
 end
 
-function calc_r_circ_max(profile::ExpCusp)
+function r_circ_max(profile::ExpCusp)
     α = 1.7932821329007609 # root of x^2 + x + 1 - exp(x)
     return α * profile.r_s
 end
 
-function calc_v_circ_max(profile::ExpCusp)
-    rm = calc_r_circ_max(profile)
-    return calc_v_circ(profile, rm)
+function v_circ_max(profile::ExpCusp)
+    rm = r_circ_max(profile)
+    return v_circ(profile, rm)
 end
 
-function calc_r_h(profile::ExpCusp)
+function r_h(profile::ExpCusp)
     α = 1.6783469900166605 # solution to 1/2 = 1 - (1 + x) exp(-x)
     return α * profile.r_s
 end
@@ -498,7 +498,7 @@ end
 
 ############ KingProfile
 
-function calc_Σ(profile::KingProfile, r::Real)
+function surface_density(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0.
     end
@@ -514,7 +514,7 @@ end
 
 
 
-function calc_ρ(profile::KingProfile, r::Real)
+function ρ(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0
     end
@@ -546,7 +546,7 @@ function _get_king_k(M::Real, r_s::Real, r_t::Real)
 end
 
 
-function calc_M_2D(profile::KingProfile, R::Real)
+function mass_2D(profile::KingProfile, R::Real)
     r_s, r_t = profile.R_s, profile.R_t
 
     k = profile.k
@@ -573,46 +573,46 @@ end
 
 
 
-function calc_M(profile::SphericalProfile, r::Real)
+function mass(profile::SphericalProfile, r::Real)
     if r < 0
         return NaN
     end
 
-    return calc_M_from_ρ(profile, r)
+    return mass_from_density(profile, r)
 end
 
 
-function calc_M_2D(profile::SphericalProfile, R::Real)
-    return calc_M_2D_from_Σ(profile, R)
+function mass_2D(profile::SphericalProfile, R::Real)
+    return mass_from_density_2D(profile, R)
 end
 
-function calc_M_2D_from_Σ(profile::SphericalProfile, R::Real)
-    return integrate(R -> 2π * R * calc_Σ(profile, R), 0, R)
+function mass_from_density_2D(profile::SphericalProfile, R::Real)
+    return integrate(R -> 2π * R * surface_density(profile, R), 0, R)
 end
 
-function calc_M_from_ρ(profile::SphericalProfile, r::Real)
-    return integrate(r -> 4π * r^2 * calc_ρ(profile, r), 0, r)
+function mass_from_density(profile::SphericalProfile, r::Real)
+    return integrate(r -> 4π * r^2 * density(profile, r), 0, r)
 end
 
 
-function calc_Σ_from_ρ(profile::SphericalProfile, R::Real)
-    integrand(r) = calc_ρ(profile, r) * r / sqrt(r^2 - R^2)
+function surface_density_from_density(profile::SphericalProfile, R::Real)
+    integrand(r) = density(profile, r) * r / sqrt(r^2 - R^2)
     return 2*integrate(integrand, R, Inf)
 end
 
-function calc_Σ(profile::SphericalProfile, R::Real)
-    return calc_Σ_from_ρ(profile, R)
+function surface_density(profile::SphericalProfile, R::Real)
+    return surface_density_from_density(profile, R)
 end
 
 
 
 """
-    calc_v_circ(profile, r)
+    v_circ(profile, r)
 
 Calculates the circular velocity at radius r
 """
-function calc_v_circ(profile::SphericalProfile, r)
-    return sqrt(G * calc_M(profile, r) / r)
+function v_circ(profile::SphericalProfile, r)
+    return sqrt(G * mass(profile, r) / r)
 end
 
 
@@ -625,8 +625,8 @@ Abel inversion formula:
 \rho(r) = -1/π \int_r^\infty dR dΣ/dR / \sqrt{R^2 - r^2}
 ``
 """
-function calc_ρ_from_Σ(profile::SphericalProfile, r::Real)
-    integrand(R) = derivative(R->calc_Σ(profile, R), R) / sqrt(R^2 - r^2)
+function density_from_surface_density(profile::SphericalProfile, r::Real)
+    integrand(R) = derivative(R->surface_density(profile, R), R) / sqrt(R^2 - r^2)
     return -1/π * integrate(integrand, r, Inf)
 end
 
@@ -641,21 +641,21 @@ end
 """
 Mean density instide radius
 """
-function calc_ρ_mean(profile::SphericalProfile, r::Real)
-    return calc_M(profile, r) / (4π/3 * r^3)
+function mean_density(profile::SphericalProfile, r::Real)
+    return mass(profile, r) / (4π/3 * r^3)
 end
 
-function calc_R_h(profile::KingProfile)
+function R_h(profile::KingProfile)
     r_s = get_r_s(profile)
     M0 = get_M_tot(profile)
-    return find_zero(R -> calc_M_2D(profile, R) / M0 - 1/2, r_s)
+    return find_zero(R -> mass_2D(profile, R) / M0 - 1/2, r_s)
 end
 
 
-function calc_r_h(profile::KingProfile)
+function r_h(profile::KingProfile)
     M0 = get_M_tot(profile)
     r_s = get_r_s(profile)
-    return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
+    return find_zero(r -> mass(profile, r) / M0 - 1/2, r_s)
 end
 
 
@@ -699,14 +699,14 @@ function Sersic(;kwargs...)
     if :_b_n in keys(kwargs)
         _b_n = kwargs[:_b_n]
     else
-        _b_n = calc_b_n(n)
+        _b_n = b_n(n)
     end
 
     return Sersic(Σ_h, R_h, n, _b_n)
 end
 
 
-function calc_b_n(n::Real)
+function b_n(n::Real)
     return find_zero(b_n -> gamma_inc(2n, b_n)[1] - 1/2, guess_b_n(n))
 end
 
@@ -724,7 +724,7 @@ function guess_b_n(n::Real)
 end
 
 
-function calc_Σ(profile::Sersic, R::Real)
+function surface_density(profile::Sersic, R::Real)
     Σ_h, R_h, n = profile.Σ_h, profile.R_h, profile.n
     return Σ_h * exp(-profile._b_n * ((R/R_h)^(1/n) - 1))
 end
@@ -734,16 +734,16 @@ end
 
 # General methods
 
-function calc_r_h(profile::SphericalProfile)
+function r_h(profile::SphericalProfile)
     M0 = get_M_tot(profile)
     r_s = 1.0
-    return find_zero(r -> calc_M(profile, r) / M0 - 1/2, r_s)
+    return find_zero(r -> mass(profile, r) / M0 - 1/2, r_s)
 end
 
-function calc_R_h(profile::SphericalProfile)
+function R_h(profile::SphericalProfile)
     r_s = 1.0 # initial guess
     M0 = get_M_tot(profile)
-    return find_zero(R -> calc_M_2D(profile, R) / M0 - 1/2, r_s)
+    return find_zero(R -> mass_2D(profile, R) / M0 - 1/2, r_s)
 end
 
 
@@ -751,23 +751,23 @@ function get_M_tot(profile::SphericalProfile)
     if :M in fieldnames(typeof(profile))
         return profile.M
     else
-        return calc_M(profile, Inf)
+        return mass(profile, Inf)
     end
 end
 
-function calc_Φ(profile::SphericalProfile, r::Real)
-    return calc_Φ_from_ρ(profile, r)
+function Φ(profile::SphericalProfile, r::Real)
+    return Φ_from_density(profile, r)
 end
 
 
 
-function calc_Φ_from_ρ(profile::SphericalProfile, r::Real; integrate_M=false)
-    integrand(r) = calc_ρ(profile, r) * r
+function Φ_from_density(profile::SphericalProfile, r::Real; integrate_M=false)
+    integrand(r) = density(profile, r) * r
 
     if integrate_M
-        M_in = calc_M_from_ρ(profile, r)
+        M_in = mass_from_density(profile, r)
     else
-        M_in = calc_M(profile, r)
+        M_in = mass(profile, r)
     end
 
     Φ_in = -G * M_in / r
@@ -780,21 +780,21 @@ end
 
 
 """
-    calc_σv_star_mean(dm_profile, stellar_profile)
+    σv_star_mean(dm_profile, stellar_profile)
 
 Given a dark matter (mass) profile and a stellar profile, assuming isotropic and spherical system,
 returns the light-weighted line of sight (1D) velocity dispersion for the system (in code units).
 """
-function calc_σv_star_mean(dm_profile::SphericalProfile, stellar_profile::SphericalProfile; R_min=0, R_max=Inf)
-    ρ(r) = calc_ρ(stellar_profile, r)
-    M(r) = calc_M(dm_profile, r)
-    integrand(r) = ρ(r) * G * M(r) * 4π/3 * r
+function σv_star_mean(dm_profile::SphericalProfile, stellar_profile::SphericalProfile; R_min=0, R_max=Inf)
+    density(r) = density(stellar_profile, r)
+    mass(r) = mass(dm_profile, r)
+    integrand(r) = density(r) * G * mass(r) * 4π/3 * r
 
     weighted_σ2 = (
             integrate(integrand, R_min, R_max)
     )
 
-    Mtot = calc_M(stellar_profile, R_max)
+    Mtot = mass(stellar_profile, R_max)
 
     sqrt(weighted_σ2 / Mtot)
 end

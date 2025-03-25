@@ -7,15 +7,16 @@ public F, G
 public arcmin2kpc, kpc2arcmin, pm2kms, kms2pm, dm2dist, dist2dm
 include("units.jl")
 
-export Measurement, middle, lower, upper, interval
+export Measurement, middle, lower_bound, upper_bound, credible_interval
 include("measurements.jl")
 
 
 public mean, std, midpoints, quantile, variance
 public expinti, erf
-public integrate, hsitogram, 
+public integrate, histogram 
 public effective_sample_size, bins_default, bins_equal_number, bins_both, bins_equal_width, default_bin_width, default_n_per_bin
 public DataFrame
+
 include("interface.jl")
 using .Interface
 
@@ -40,7 +41,7 @@ include("coordinates.jl")
 
 export read_hdf5_table, write_hdf5_table
 export read_struct_from_hdf5, read_structs_from_hdf5
-export write_struct_to_hdf5, write_structs_to_hdf5,
+export write_struct_to_hdf5, write_structs_to_hdf5
 include("io.jl")
 
 public write

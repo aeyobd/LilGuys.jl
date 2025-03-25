@@ -50,19 +50,20 @@ end
     header = lguys.make_default_header(N, m[1])
 
     snap = Snapshot(masses=m, positions=pos, velocities=vel,
-                    accelerations=acc, Φs=Φ, Φs_ext=Φ_ext, index=index, h=h, 
+                    accelerations=acc, potential=Φ, potential_ext=Φ_ext, index=index, h=h, 
                     filename=filename, header=header)
 
 
     @test all(snap.positions .== pos)
     @test all(snap.velocities .== vel)
     @test all(snap.accelerations .== acc)
-    @test all(snap.Φs .== Φ)
+    @test all(snap.potential .== Φ)
+    @test all(snap.potential_ext .== Φ_ext)
     @test snap.masses[1] ≈ m[1]
     @test size(snap) == (N,)
 
 
-    lguys.save(filename, snap)
+    lguys.write(filename, snap)
     snap_saved = Snapshot(filename)
     assert_equal(snap, snap_saved)
 end
@@ -103,12 +104,12 @@ end
     snap2.positions .+= [1,2,3]
     snap2.velocities .-= [1,2,3]
     snap2.accelerations .*= 2
-    snap2.Φs .*= 2
+    snap2.potential .*= 2
 
     @test snap2.positions != snap.positions
     @test snap2.velocities != snap.velocities
     @test snap2.accelerations != snap.accelerations
-    @test snap2.Φs != snap.Φs
+    @test snap2.potential != snap.potential
 end
 
 
@@ -183,7 +184,7 @@ end
     snap.masses = [1,2,3,4]
     
     lguys.regenerate_header!(snap)
-    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    lguys.write(joinpath(tdir, "test.hdf5"), snap)
     snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
     @test snap2.masses == snap.masses
 
@@ -192,13 +193,13 @@ end
     
     #lguys.regenerate_header!(snap)
     # check this is done automatically
-    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    lguys.write(joinpath(tdir, "test.hdf5"), snap)
     snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
     @test snap2.masses == lguys.ConstVector(1.0, 4)
 
     snap = snap[1:3]
     #lguys.regenerate_header!(snap)
-    lguys.save(joinpath(tdir, "test.hdf5"), snap)
+    lguys.write(joinpath(tdir, "test.hdf5"), snap)
     snap2 = Snapshot(joinpath(tdir, "test.hdf5"))
     @test snap2.masses == lguys.ConstVector(1.0, 3)
     @test snap2.header["NumPart_ThisFile"] == [0, 3]

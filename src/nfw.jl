@@ -7,7 +7,7 @@ import SpecialFunctions: expint
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
 function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
-    f(r) = calc_ρ_mean(profile, r) - δ*ρ_crit
+    f(r) = ρ_mean(profile, r) - δ*ρ_crit
 
     R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])
 
@@ -18,19 +18,19 @@ function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
     return R200
 end
 
-function calc_R200(profile::GeneralNFW)
+function R200(profile::GeneralNFW)
     return solve_R200(profile)
 end
 
-function calc_M200(profile::GeneralNFW)
-    return calc_M(profile, calc_R200(profile))
+function M200(profile::GeneralNFW)
+    return M(profile, R200(profile))
 end
 
 
 """
 NFW concentration parameter = r_s / r_200
 """
-function calc_c(profile::GeneralNFW)
+function concentration(profile::GeneralNFW)
     r200 = solve_R200(profile)
     c = r200 / profile.r_s
 
@@ -38,22 +38,22 @@ function calc_c(profile::GeneralNFW)
 end
 
 
-function calc_c(M200::Real, r_s::Real)
-    return calc_R200(M200) / r_s
+function concentration(M200::Real, r_s::Real)
+    return R200(M200) / r_s
 end
 
 function solve_r_circ_max(profile::GeneralNFW)
-    r_max = find_zero(r -> 4π * r * calc_ρ(profile, r) - calc_M(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
+    r_max = find_zero(r -> 4π * r * ρ(profile, r) - M(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
     return r_max
 end
 
-function calc_r_circ_max(profile::GeneralNFW)
+function r_circ_max(profile::GeneralNFW)
     return solve_r_circ_max(profile)
 end
 
-function calc_v_circ_max(profile::GeneralNFW)
-    r_max = calc_r_circ_max(profile)
-    return calc_v_circ(profile, r_max)
+function v_circ_max(profile::GeneralNFW)
+    r_max = r_circ_max(profile)
+    return v_circ(profile, r_max)
 end
 
 @doc raw"""
@@ -97,7 +97,7 @@ function NFW(; c=nothing, kwargs...)
     elseif arg_names == Set([:M200, :r_s])
         M200, r_s = kwargs[:M200], kwargs[:r_s]
         M_s, r_s = _NFW_from_M200_r_s(M200, r_s; c=c)
-        c = calc_R200(M200) / r_s
+        c = R200(M200) / r_s
     elseif arg_names == Set([:v_circ_max, :r_circ_max])
         v_circ_max, r_circ_max = kwargs[:v_circ_max], kwargs[:r_circ_max]
         M_s, r_s = _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
@@ -106,7 +106,7 @@ function NFW(; c=nothing, kwargs...)
     end
 
     if c === nothing
-        c = calc_c(NFW(M_s, r_s, nothing))
+        c = concentration(NFW(M_s, r_s, nothing))
     end
 
     return NFW(M_s, r_s, c)
@@ -114,8 +114,8 @@ end
 
 
 function _NFW_from_M200_c(M200, c)
-    R200 = calc_R200(M200)
-    r_s = R200 / c
+    Rvir = R200(M200)
+    r_s = Rvir / c
     M_s = M200 / A_NFW(c)
     return M_s, r_s
 end
@@ -129,7 +129,7 @@ end
 
 function _NFW_from_M200_r_s(M200, r_s; c=nothing)
     if c === nothing
-        c = calc_R200(M200) / r_s
+        c = R200(M200) / r_s
     end
     M_s = M200 / A_NFW(c)
     return M_s, r_s
@@ -161,14 +161,14 @@ function get_ρ_s(profile::NFW)
     return M_s / V_s
 end
 
-function calc_ρ(profile::NFW, r::Real)
+function ρ(profile::NFW, r::Real)
     x = r / profile.r_s
     ρ_s = get_ρ_s(profile)
     return (ρ_s / 3) / (x * (1 + x)^2)
 end
 
 
-function calc_M(profile::NFW, r::Real)
+function M(profile::NFW, r::Real)
     x = r / profile.r_s
     return profile.M_s * A_NFW(x)
 end
@@ -191,7 +191,7 @@ function A_NFW(c::Real)
 end
 
 
-function calc_Φ(profile::NFW, r::Real)
+function Φ(profile::NFW, r::Real)
     Φ_0 = -G * profile.M_s / profile.r_s
     x = r / profile.r_s
 
@@ -207,15 +207,15 @@ function calc_Φ(profile::NFW, r::Real)
 end
 
 
-function calc_v_circ_max(profile::NFW)
-    r_max = calc_r_circ_max(profile)
-    M = calc_M(profile, r_max)
+function v_circ_max(profile::NFW)
+    r_max = r_circ_max(profile)
+    M_max = M(profile, r_max)
 
-    return sqrt(G * M / r_max)
+    return sqrt(G * M_max / r_max)
 end
 
 
-function calc_r_circ_max(profile::NFW)
+function r_circ_max(profile::NFW)
     return α_nfw * profile.r_s
 end
 
@@ -225,17 +225,17 @@ end
 """
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
-function calc_R200(profile::NFW)
+function R200(profile::NFW)
     return profile.r_s * profile.c
 end
 
 
-function calc_M200(profile::NFW)
+function M200(profile::NFW)
     return A_NFW(profile.c) * profile.M_s
 end
 
 
-function calc_R200(M200::Real)
+function R200(M200::Real)
     return (3 * M200 / (4π * 200 * ρ_crit))^(1/3)
 end
 
@@ -274,12 +274,12 @@ function TruncNFW(; r_t=nothing, trunc=nothing, kwargs...)
 end
 
 
-function calc_ρ(profile::TruncNFW, r::Real)
+function ρ(profile::TruncNFW, r::Real)
     nfw = NFW(profile.M_s, profile.r_s, profile.c)
-    return calc_ρ(nfw, r) * exp(-(r/profile.r_t))
+    return ρ(nfw, r) * exp(-(r/profile.r_t))
 end
 
-function calc_M(profile::TruncNFW, r::Real)
+function M(profile::TruncNFW, r::Real)
     x = r / profile.r_s
     t = profile.r_t / profile.r_s
     B = (1+1/t)*exp(1/t)
@@ -287,7 +287,7 @@ function calc_M(profile::TruncNFW, r::Real)
 end
 
 
-function calc_M_tot(profile::TruncNFW)
+function M_tot(profile::TruncNFW)
     t = profile.r_t / profile.r_s
     A = -(1+1/t)*exp(1/t)*expinti(-1/t) - 1
 
@@ -295,8 +295,8 @@ function calc_M_tot(profile::TruncNFW)
 end
 
 
-function calc_Φ(profile::TruncNFW, r::Real)
-    Φ_in = - G * calc_M(profile, r) / r
+function Φ(profile::TruncNFW, r::Real)
+    Φ_in = - G * M(profile, r) / r
 
     Φ0 = -G * profile.M_s / profile.r_s
     x = r / profile.r_s
@@ -329,7 +329,7 @@ end
 
 function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s)
     if c === nothing
-        c = calc_c(CoredNFW(M_s, r_s, r_c, r_t, nothing))
+        c = concentration(CoredNFW(M_s, r_s, r_c, r_t, nothing))
     end
 
     return CoredNFW(M_s, r_s, r_c, r_t, c)
@@ -342,13 +342,13 @@ function get_ρ_s(profile::CoredNFW)
 end
 
 
-function calc_ρ(profile::CoredNFW, r::Real)
+function ρ(profile::CoredNFW, r::Real)
     r_c, r_s = profile.r_c, profile.r_s
     ρ_s = get_ρ_s(profile)
     return ρ_s/3 * (r_c / r_s + r / r_s)^(-1) * (1 + r / r_s)^(-2) * exp(-r/profile.r_t)
 end
 
-function calc_M(profile::CoredNFW, r::Real)
+function M(profile::CoredNFW, r::Real)
     # result from sagemath, maybe I will do this integral one day
     c = profile.r_c
     s = profile.r_s

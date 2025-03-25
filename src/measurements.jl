@@ -45,24 +45,24 @@ function Measurement{T}(middle, lower::Real, upper::Real) where T <: Real
 end
 
 
-function middle_of(x::Measurement)
+function middle(x::Measurement)
     return x.middle
 end
 
 """
-    interval(x::Measurement)
+    credible_interval(x::Measurement)
 
 Returns the confidence/credibility interval of x.
 """
-function interval(x::Measurement)
+function credible_interval(x::Measurement)
     return x.lower, x.upper
 end
 
-function lower(x::Measurement)
+function lower_bound(x::Measurement)
     return x.lower
 end
 
-function upper(x::Measurement)
+function upper_bound(x::Measurement)
     return x.upper
 end
 

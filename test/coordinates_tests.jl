@@ -58,11 +58,11 @@ end
         @test getfield(p1, sym) == getfield(p2, sym)
     end
 
-    @test lguys.position_of(p1) == position
-    @test lguys.velocity_of(p1) == velocity
+    @test lguys.position(p1) == position
+    @test lguys.velocity(p1) == velocity
 
-    @test lguys.position_of(p2) == position
-    @test lguys.velocity_of(p2) == velocity
+    @test lguys.position(p2) == position
+    @test lguys.velocity(p2) == velocity
 end
 
 
@@ -180,7 +180,7 @@ end
         "radial_velocity_err" => 0.4
        )
 
-    dist = lguys.dm_to_dist(df["distance_modulus"])
+    dist = lguys.dm2dist(df["distance_modulus"])
     dist_err = dist * df["distance_modulus_err"] / 5 * log(10)
     coords = lguys.rand_coords(df, N)
 

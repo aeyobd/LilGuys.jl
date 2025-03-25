@@ -58,21 +58,21 @@ end
 
         # default is no normalization
         prof = LilGuys.StellarDensityProfile(radii, bins=bins)
-        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma nans=true
-        e = first.(LilGuys.ci_of.(prof.log_Sigma))
+        @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma nans=true
+        e = LilGuys.lower_bound.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
         prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:mass)
         Mtot = 6
-        e = first.(LilGuys.ci_of.(prof.log_Sigma))
-        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
+        e = LilGuys.lower_bound.(prof.log_Sigma)
+        @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
         prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:central, bins_centre=1)
         Mtot = 2 / (π * 3.5^2)
-        @test LilGuys.value.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
-        e = first.(LilGuys.ci_of.(prof.log_Sigma)) 
+        @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
+        e = LilGuys.lower_bound.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
@@ -112,7 +112,7 @@ end
 
     obs = LilGuys.StellarDensityProfile(R, normalization=:none)
     
-    Σs = 10 .^ LilGuys.value.(obs.log_Sigma)
+    Σs = 10 .^ LilGuys.middle.(obs.log_Sigma)
     mass_per_annulus = sum(Σs .* diff(π * 10 .^ 2obs.log_R_bins))
 
     @test sum(mass_per_annulus) ≈ N
@@ -123,20 +123,20 @@ end
     sigma_exp = N * Σ.(R)
     log_sigma_exp = log10.(sigma_exp)
     
-    err = maximum.(LilGuys.ci_of.(obs.log_Sigma))
-    @test_χ2 LilGuys.value.(obs.log_Sigma) err log_sigma_exp
+    err = maximum.(LilGuys.credible_interval.(obs.log_Sigma))
+    @test_χ2 LilGuys.middle.(obs.log_Sigma) err log_sigma_exp
 
     Gamma_exp = -R
-    err = maximum.(LilGuys.ci_of.(obs.Gamma))
+    err = maximum.(LilGuys.credible_interval.(obs.Gamma))
     filt = isfinite.(err)
     @test sum(filt) > 10
 
-    x2 = (LilGuys.value.(obs.Gamma)[filt]  .- Gamma_exp[filt]) ./ err[filt]
+    x2 = (LilGuys.middle.(obs.Gamma)[filt]  .- Gamma_exp[filt]) ./ err[filt]
     @info obs.Gamma[filt][argmax(x2)]
     @info err[filt][argmax(x2)]
     @info Gamma_exp[filt][argmax(x2)]
 
-    @test_χ2 LilGuys.value.(obs.Gamma)[filt] err[filt]  Gamma_exp[filt]
+    @test_χ2 LilGuys.middle.(obs.Gamma)[filt] err[filt]  Gamma_exp[filt]
 
 
     @testset "read/write" begin
@@ -351,7 +351,7 @@ end
     obs = LilGuys.StellarDensityProfile(r, normalization=:none, weights=mass)
 
     mass_per_annulus = 10 .^ obs.log_Sigma .* diff(π * 10 .^ 2obs.log_R_bins)
-    @test sum(LilGuys.value.(mass_per_annulus)) ≈ sum(mass)
+    @test sum(LilGuys.middle.(mass_per_annulus)) ≈ sum(mass)
 
     @test issorted(obs.log_R)
     @test sum(obs.counts) ≈ N
@@ -359,12 +359,12 @@ end
     r = 10 .^ obs.log_R
     sigma_exp = M * Σ.(r)
 
-    err = maximum.(LilGuys.ci_of.(obs.log_Sigma))
-    @test_χ2 LilGuys.value.(obs.log_Sigma) err log10.(sigma_exp)
+    err = maximum.(LilGuys.credible_interval.(obs.log_Sigma))
+    @test_χ2 LilGuys.middle.(obs.log_Sigma) err log10.(sigma_exp)
 
     Gamma_exp = -r
-    err = maximum.(LilGuys.ci_of.(obs.Gamma))
-    @test_χ2 LilGuys.value.(obs.Gamma) err  Gamma_exp
+    err = maximum.(LilGuys.credible_interval.(obs.Gamma))
+    @test_χ2 LilGuys.middle.(obs.Gamma) err  Gamma_exp
 
 
 

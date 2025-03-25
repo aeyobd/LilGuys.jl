@@ -283,7 +283,7 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
         x = x0
     end
 
-    r0 = calc_r(out[1].positions, x)[sortperm(out[1].index)]
+    r0 = radii(out[1].positions, x)[sortperm(out[1].index)]
     rm1 = copy(r0)
     rm2 = copy(r0)
     peris = copy(r0)
@@ -313,7 +313,7 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
             x = x0
         end
 
-        r = calc_r(snap.positions[:, idx], x)
+        r = radii(snap.positions[:, idx], x)
         apos .= max.(apos, r)
         peris .= min.(peris, r)
 

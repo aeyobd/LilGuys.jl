@@ -43,8 +43,8 @@ function struct_to_dict(S, split_errors=true)
         for (key, val) in d
             if val isa AbstractArray{<:Measurement}
                 m = LilGuys.middle.(val)
-                em = LilGuys.lower.(val)
-                ep = LilGuys.upper.(val)
+                em = LilGuys.lower_bound.(val)
+                ep = LilGuys.upper_bound.(val)
                 d[key] = m
                 d[Symbol(string(key) * "_em")] = em
                 d[Symbol(string(key) * "_ep")] = ep
@@ -98,7 +98,7 @@ Returns a 3xN matrix of random unit vectors.
 function rand_unit(N::Integer=1)
     # generate a random vector
     x = randn(3, N)
-    x_norm = reshape(calc_r(x), 1, N)
+    x_norm = reshape(radii(x), 1, N)
 
     return x ./ x_norm
 end
