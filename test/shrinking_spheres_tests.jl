@@ -10,7 +10,7 @@ using Logging
     @test params.x0 == x0
 
 
-    @test maximum(lguys.calc_r(positions, x0)) == params.r_cut_0
+    @test maximum(lguys.radii(positions, x0)) == params.r_cut_0
 
 end
 
@@ -72,7 +72,7 @@ end
     masses = [1.]
 
     snap = lguys.Snapshot(positions, velocities, masses)
-    snap.Φs = [0.]
+    snap.potential = [0.]
     snap.accelerations = [0.;0.;0.;;]
 
     state = lguys.SS_State(snap)
@@ -99,7 +99,7 @@ end
     nfw = LilGuys.TruncNFW(r_s=r_s,  M_s=M_s, trunc=10)
     snap = LilGuys.sample_potential(nfw, N)
 
-    snap.Φs = LilGuys.calc_radial_discrete_Φ(snap)
+    snap.potential = LilGuys.potential_spherical_discrete(snap)
 
     # TODO; these sem reasonable but not sure how to properly quantify this
     dx = r_s * 0.23 / sqrt(100)
@@ -151,12 +151,12 @@ end
     @testset "stopping criteria rmax" begin
         state = lguys.SS_State(snap, r_max=3)
         @test_logs (:info, r".*completed with status r") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
-        r_max = maximum(calc_r(snap.positions[:, state.filt], state.centre.position))
+        r_max = maximum(radii(snap.positions[:, state.filt], state.centre.position))
         @test r_max ≈ 3 rtol=0.05
 
         state = lguys.SS_State(snap, r_max=8.5)
         @test_logs (:info, r".*completed with status r") match_mode=:any LilGuys.Centres.calc_centre!(state, snap)
-        r_max = maximum(calc_r(snap.positions[:, state.filt], state.centre.position))
+        r_max = maximum(radii(snap.positions[:, state.filt], state.centre.position))
         @test r_max ≈ 8.5 rtol=0.05
     end
 
@@ -226,7 +226,7 @@ end
     snap2.velocities .+= v2
 
     snap_combined = LilGuys.Snapshot(hcat(snap1.positions, snap2.positions), hcat(snap1.velocities, snap2.velocities), vcat(snap1.masses, snap2.masses))
-    snap_combined.Φs = LilGuys.calc_radial_discrete_Φ(snap_combined)
+    snap_combined.potential = LilGuys.potential_spherical_discrete(snap_combined)
 
     state = lguys.SS_State(snap_combined, x0=x2)
     LilGuys.Centres.calc_centre!(state, snap_combined)

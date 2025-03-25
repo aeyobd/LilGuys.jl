@@ -57,7 +57,7 @@ end
     for k in [2, 5, 10, 25]
         δr, δv = lguys.Centres.phase_volumes(snap, k=k)
 
-        filt = lguys.calc_r(snap.positions) .< 0.5*R
+        filt = lguys.radii(snap.positions) .< 0.5*R
 
         μ_r = lguys.mean(δr[filt])
         σ_r = lguys.std(δr[filt])

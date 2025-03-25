@@ -44,9 +44,9 @@ end
     pos = randn(3, N)
     vel = randn(3, N)
     snap = lguys.Snapshot(pos, vel, ones(N))
-    snap.Φs = lguys.calc_radial_discrete_Φ(snap)
+    snap.potential = lguys.potential_spherical_discrete(snap)
 
-    cen1 = lguys.Centres.weighted_centre(snap, -snap.Φs)
+    cen1 = lguys.Centres.weighted_centre(snap, -snap.potential)
     cen2 = lguys.Centres.centre_weighted_potential(snap)
 
     s2 = lguys.StaticState(snap; method="potential")
@@ -72,9 +72,9 @@ end
     snap2 = lguys.Snapshot(pos, vel, m)
     cen = lguys.Centres.centre_potential_percen(snap2)
 
-    snap2.Φs = lguys.calc_radial_discrete_Φ(snap2)
+    snap2.potential = lguys.potential_spherical_discrete(snap2)
 
-    snap = snap2[snap2.Φs .< lguys.quantile(snap2.Φs, 0.05)]
+    snap = snap2[snap2.potential .< lguys.quantile(snap2.potential, 0.05)]
 
     cen2 = lguys.Centres.centre_of_mass(snap)
 

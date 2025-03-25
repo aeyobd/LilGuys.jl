@@ -3,12 +3,12 @@ using LinearAlgebra: ×
 import DensityEstimators: bins_min_width_equal_number
 
 
-@testset "ρ_from_hist" begin
+@testset "density_from_hist" begin
     @testset "simple cases" begin
         masses = [1, 0, π]
         bins = [0, 1, 2, 5]
 
-        ρ = lguys.ρ_from_hist(bins, masses)
+        ρ = lguys.density_from_hist(bins, masses)
         ρ_exp = [3/4π, 0, 3/4 * 1/117]
 
         @test ρ ≈ ρ_exp 
@@ -18,12 +18,12 @@ import DensityEstimators: bins_min_width_equal_number
         masses = Int[]
         bins = [1, 2]
 
-        @test_throws DimensionMismatch lguys.ρ_from_hist(masses, bins)
+        @test_throws DimensionMismatch lguys.density_from_hist(masses, bins)
 
         masses = [1.0, 2.0]
         bins = [1, 2]
 
-        @test_throws DimensionMismatch lguys.ρ_from_hist(masses, bins)
+        @test_throws DimensionMismatch lguys.density_from_hist(masses, bins)
     end
 
     @testset "mass conservation" begin
@@ -31,7 +31,7 @@ import DensityEstimators: bins_min_width_equal_number
         x = randn(N)
         bins, masses = lguys.histogram(x)
 
-        ρ = lguys.ρ_from_hist(bins, masses)
+        ρ = lguys.density_from_hist(bins, masses)
         M_per_shell = 4π/3*diff(bins .^ 3) .* ρ
         M_tot = sum(masses)
 
@@ -48,13 +48,13 @@ end
         pos = [ [-1,0,0]     [0, 2, 0]     [1/2, 3/2, -1] [π, √π, π^π]]
         vel = [ [π, 2, -2]  [0, 2.1, 0]   [0, 0, 0]      [0,0,0]]
 
-        @test lguys.v_rad(pos, vel) ≈ [-π, 2.1, 0, 0]
+        @test lguys.radial_velocities(pos, vel) ≈ [-π, 2.1, 0, 0]
 
         # easy angles
         pos = [ [3, 4, 0] [0, 12/3, -5/3]]
         vel = [ [2, 0, 0] [1, 0, 0.1]]
 
-        @test lguys.v_rad(pos, vel) ≈ [2*3/5, 0.1 * -5/13]
+        @test lguys.radial_velocities(pos, vel) ≈ [2*3/5, 0.1 * -5/13]
     end
 
 
@@ -66,20 +66,20 @@ end
         y = randn(3, N)
         vel = rand(N)' .* hcat([y[:, i] × pos[:, i] for i in 1:N]...)
 
-        @test lguys.v_rad(pos, vel) ≈ zeros(N) atol=1e-13
+        @test lguys.radial_velocities(pos, vel) ≈ zeros(N) atol=1e-13
 
         # random parallel
         v = 10 .^ randn(N)
         vel = v' .* pos ./ lguys.radii(pos)'
 
-        @test lguys.v_rad(pos, vel) ≈ v
+        @test lguys.radial_velocities(pos, vel) ≈ v
 
         pos = pos .* (10 .^ randn(N))'
-        @test lguys.v_rad(pos, vel) ≈ v
+        @test lguys.radial_velocities(pos, vel) ≈ v
 
         # antiparallel
         vel = -vel
-        @test lguys.v_rad(pos, vel) ≈ -v
+        @test lguys.radial_velocities(pos, vel) ≈ -v
     end
 end
 
@@ -169,13 +169,13 @@ end
 @testset "M_in" begin
     @testset "simple_cases" begin
         N = 10
-        snap = lguys.Snapshot(positions=zeros(3, N), velocities=zeros(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+        snap = lguys.Snapshot(positions=zeros(3, N), velocities=zeros(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
         @test lguys.M_in(snap, 0.01) == N
 
 
         r = collect(1:10) .- 0.01
-        snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+        snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
         expected = collect(1:10)
         actual = [lguys.M_in(snap, i) for i in 1:N]
@@ -191,16 +191,16 @@ end
     r_s = 5
 
     halo = lguys.TruncNFW(M_s=M_s, r_s=r_s, trunc=100)
-    M_0 = lguys.total_mass(halo)
+    M_0 = lguys.mass(halo)
 
-    ρ(r) = lguys.ρ(halo, r)
+    ρ(r) = lguys.density(halo, r)
 
-    r = lguys.sample_ρ(ρ, N, log_r=LinRange(-5, 5, 10_000))
+    r = lguys.sample_density(ρ, N, log_r=LinRange(-5, 5, 10_000))
 
     mass = M_0/N  * (1 .+ 0.0randn(N))
     M = sum(mass)
 
-    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
     radii = lguys.radii(snap)
     bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
@@ -210,14 +210,14 @@ end
     @test profile.N_bound ≈ N
     @test profile.M_in[end] ≈ M
 
-    @test lguys.get_M_tot(halo) ≈ M rtol=1e-2
+    @test lguys.mass(halo) ≈ M rtol=1e-2
 
     r = 10 .^ profile.log_r[2:end-1]
-    ρ_exp = lguys.ρ.(halo, r)
+    ρ_exp = lguys.density.(halo, r)
     @test_χ2 profile.rho[2:end-1] profile.rho_err[2:end-1] ρ_exp
 
     r = 10 .^ profile.log_r_bins[2:end]
-    M_exp = lguys.M.(halo, r)
+    M_exp = lguys.mass.(halo, r)
     @test_χ2 profile.M_in profile.M_in_err M_exp
 
     # errors tend to be overestimated here...
@@ -231,7 +231,7 @@ end
 @testset "to_sky" begin
     @testset "inverse" begin
         N = 100
-        snap = lguys.Snapshot(positions=100randn(3, N), velocities=1randn(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+        snap = lguys.Snapshot(positions=100randn(3, N), velocities=1randn(3, N), masses=ones(N), index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
         sky = lguys.to_sky(snap)
         gc = lguys.transform.(lguys.Galactocentric, sky)
@@ -257,7 +257,7 @@ end
     weights = rand(N)
 
     snap = lguys.Snapshot(positions=pos, velocities=vel, masses=masses, weights=weights,
-        index=1:N, header=lguys.make_default_header(1, N), Φs=-ones(N))
+        index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
     gaia = lguys.to_gaia(snap, add_centre=false)
 

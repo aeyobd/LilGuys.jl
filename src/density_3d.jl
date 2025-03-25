@@ -106,17 +106,17 @@ function MassProfile3D(snap::Snapshot;
         throw(ArgumentError("No bound particles in snapshot"))
     end
 
-    K = K_tot(snap)
+    K = kinetic_energy(snap)
 
-    if !isnothing(snap.Φs)
-        W = W_tot(snap)
+    if !isnothing(snap.potential)
+        W = potential_energy(snap)
         E = W + K
     else
         E = NaN
         W = NaN
     end
 
-    L = L_tot(snap)
+    L = angular_momentum(snap)
 
     log_r_snap = log10.(radii(snap))
 
@@ -132,7 +132,7 @@ function MassProfile3D(snap::Snapshot;
     r = 10 .^ log_r
     rel_err = mass_in_shell_err ./ mass_in_shell
 
-    rho = ρ_from_hist(r_bins, mass_in_shell)
+    rho = density_from_hist(r_bins, mass_in_shell)
     rho_err = rho .* rel_err # TODO: does not include binning error
 
     M_in = cumsum(mass_in_shell)
@@ -181,9 +181,9 @@ end
 
 
 """
-    ρ_from_hist(bins, counts)
+    density_from_hist(bins, counts)
 """
-function ρ_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{<:Real}) 
+function density_from_hist(bins::AbstractVector{<:Real}, counts::AbstractVector{<:Real}) 
     if length(bins) != length(counts) + 1
         throw(DimensionMismatch("Bins must be one longer than counts, got sizes $(length(bins)), $(length(counts))"))
     end
@@ -195,20 +195,20 @@ end
 
 
 """ 
-	v_rad(snap)
+	radial_velocities(snap)
 
 returns the radial velocities relative to the snapshot centre in code units
 """
-function v_rad(snap)
-    return v_rad(snap.positions, snap.velocities, x_cen=snap.x_cen, v_cen=snap.v_cen)
+function radial_velocities(snap)
+    return radial_velocities(snap.positions, snap.velocities, x_cen=snap.x_cen, v_cen=snap.v_cen)
 end
 
 """
-    v_rad(positions, velocities; x_cen=zeros(3), v_cen=zeros(3))
+    radial_velocities(positions, velocities; x_cen=zeros(3), v_cen=zeros(3))
 
 Calculates the radial velocities relative to x_cen, v_cen.
 """
-function v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:Real}; x_cen=zeros(3), v_cen=zeros(3))
+function radial_velocities(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:Real}; x_cen=zeros(3), v_cen=zeros(3))
 
     @assert_same_size positions velocities
     @assert_3vector positions
@@ -220,12 +220,12 @@ function v_rad(positions::AbstractMatrix{<:Real}, velocities::AbstractMatrix{<:R
     x_hat = x_vec ./ radii(x_vec)'
 
     # dot product
-    v_rad = sum(x_hat .* v_vec, dims=1)
+    v_r = sum(x_hat .* v_vec, dims=1)
 
     # matrix -> vector
-    v_rad = dropdims(v_rad, dims=1)
+    v_r = dropdims(v_r, dims=1)
     
-    return v_rad 
+    return v_r 
 end
 
 
@@ -279,7 +279,7 @@ end
 
 
 """
-    v_circ_max(r, v_circ; q=80, p0=[6., 30.])
+    fit_v_r_circ_max(r, v_circ; q=80, p0=[6., 30.])
 
 Fits the maximum circular velocity of a rotation curve assuming a NFW
 profile. Returns the parameters of the fit and the range of radii used.
@@ -349,8 +349,8 @@ end
 Fits circular velocity of snapshot
 """
 function fit_v_r_circ_max(snap; kwargs...)
-    r, v_circ = v_circ(snap)
-    return fit_v_r_circ_max(r, v_circ; kwargs...)
+    r, v_c = v_circ(snap)
+    return fit_v_r_circ_max(r, v_c; kwargs...)
 end
 
 

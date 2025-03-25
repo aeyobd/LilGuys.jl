@@ -108,7 +108,7 @@ end
 @testset "integration with exp profile unweighted" begin
     Σ(R) = exp(-R)/2π
     N = 10_000
-    R = LilGuys.sample_Σ(Σ, N, log_R=LinRange(-5, 5, 1000))
+    R = LilGuys.sample_surface_density(Σ, N, log_R=LinRange(-5, 5, 1000))
 
     obs = LilGuys.StellarDensityProfile(R, normalization=:none)
     
@@ -343,7 +343,7 @@ end
 @testset "integration with exp profile" begin
     Σ(r) = exp(-r)/2π
     N = 10_000
-    r = LilGuys.sample_Σ(Σ, N, log_R=LinRange(-5, 5, 1000))
+    r = LilGuys.sample_surface_density(Σ, N, log_R=LinRange(-5, 5, 1000))
 
     mass = 0.5 .+ 0.5rand(N)
     M = sum(mass)

@@ -50,7 +50,7 @@ function _ShrinkingSpheresParams(positions; f_min::Real=0.001, N_min::Real=100,
     kwargs[:x0] = x0
 
     if isnothing(r_cut_0)
-        r_cut_0 = maximum(calc_r(positions, x0))
+        r_cut_0 = maximum(radii(positions, x0))
     end
     kwargs[:r_cut_0] = r_cut_0
 
@@ -136,10 +136,10 @@ centre of the shrinking spheres state.
 Assumes that the potential of the snapshot is the real potential.
 """
 function _bound_particles(state::SS_State, snap::Snapshot)
-    v = calc_r(snap.velocities[:, state.filt] .- state.centre.velocity)
+    v = radii(snap.velocities[:, state.filt] .- state.centre.velocity)
 
-    Φs = snap.Φs[state.filt]
-    ϵ = calc_E_spec.(Φs, v)
+    Φs = snap.potential[state.filt]
+    ϵ = specific_energy.(Φs, v)
     filt_bound = ϵ .< 0
     
     return filt_bound
@@ -216,19 +216,19 @@ function _shrinking_spheres(positions, params::_ShrinkingSpheresParams)
     status = nothing
 
     for i in 1:params.itermax
-        radii = calc_r(positions[:, filt], x0)
+        r = radii(positions[:, filt], x0)
 
         if params.mode == :quantile
-            r_cut = quantile(radii, params.r_factor)
+            r_cut = quantile(r, params.r_factor)
         else
             r_cut *= params.r_factor
         end
 
-        filt_r = radii .< r_cut
+        filt_r = r .< r_cut
 
         xnew = centroid(positions[:, filt][:, filt_r])
 
-        dx = calc_r(xnew, x0)
+        dx = radii(xnew, x0)
         N = sum(filt)
         dN = sum( @. !filt_r)
         

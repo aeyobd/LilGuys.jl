@@ -2,7 +2,7 @@
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "2cc6abadf6144674749e8d918aafaef5dbebb40c"
+project_hash = "3182360b042a920690f3a4790bb3d2460b95b494"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -112,9 +112,9 @@ version = "1.11.0"
 
 [[deps.Arya]]
 deps = ["ColorSchemeTools", "Colors", "DensityEstimators", "DocStringExtensions", "Makie", "MakieCore", "StatsBase", "TOML", "Test"]
-git-tree-sha1 = "d3af551ea112e88613833fc0bfa3dfc3b5314758"
+git-tree-sha1 = "246dac3e6ca7bbf65833badceea5177ee1cf6c62"
 uuid = "415bc928-4679-4905-9aff-233f9524af88"
-version = "0.1.10-DEV-3"
+version = "0.1.10-DEV-4"
 
     [deps.Arya.extensions]
     AryaMeasurementsExt = "Measurements"

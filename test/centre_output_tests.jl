@@ -15,8 +15,8 @@ function make_out_test(x_expected, v_expected; N=100, r_s=0.3, v_s=0.05, dt=0.1)
         snap = Snapshot(positions, velocities, masses,
                         index=index, header=header, time=times[i])
 
-        snap.Φs = lguys.calc_radial_discrete_Φ(snap)
-        LilGuys.save("$dir/out/snapshot_$i.hdf5", snap)
+        snap.potential = lguys.potential_spherical_discrete(snap)
+        LilGuys.write("$dir/out/snapshot_$i.hdf5", snap)
     end
 
 
@@ -114,8 +114,8 @@ let
 
         @test cen_f.position ≈ cens_reinit[end].position 
         @test cen_f.velocity ≈ cens_reinit[end].velocity
-        @test calc_r(cens[end].position, cens_reinit[end].position) > 1e-5
-        @test calc_r(cens[end].velocity, cens_reinit[end].velocity) > 1e-5
+        @test radii(cens[end].position, cens_reinit[end].position) > 1e-5
+        @test radii(cens[end].velocity, cens_reinit[end].velocity) > 1e-5
 
     end
 end

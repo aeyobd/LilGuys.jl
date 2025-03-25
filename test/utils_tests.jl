@@ -289,7 +289,7 @@ end
 
         N = 1000
 
-        r = lguys.sample_Σ(f, N)
+        r = lguys.sample_surface_density(f, N)
         @test minimum(r) ≈ low atol=0.03
         @test maximum(r) ≈ high atol=0.03
         @test lguys.mean(r) ≈ (low + high) / 2 atol=0.02
@@ -301,7 +301,7 @@ end
         f(x) = 1
         N = 1000
         log_R = log10.(LinRange(0, 1, N))
-        r = lguys.sample_Σ(f, N, log_R=log_R)
+        r = lguys.sample_surface_density(f, N, log_R=log_R)
         @test minimum(r) ≈ 0 atol=0.03
         @test maximum(r) ≈ 1 atol=0.03
         @test lguys.mean(r) ≈ 2/3 atol=0.03

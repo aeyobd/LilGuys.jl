@@ -51,30 +51,30 @@ end
 
 @testset "NFW density" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
-    @test lguys.ρ(nfw, 0) === Inf
-    @test lguys.ρ(nfw, 1) ≈ 1/(16π)
+    @test lguys.density(nfw, 0) === Inf
+    @test lguys.density(nfw, 1) ≈ 1/(16π)
 end
 
 
 
 @testset "NFW mass" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
-    @test lguys.M(nfw, 0) == 0
-    @test lguys.M(nfw, Inf) === Inf
+    @test lguys.mass(nfw, 0) == 0
+    @test lguys.mass(nfw, Inf) === Inf
 end
 
 
 
 @testset "NFW potential" begin
     nfw = lguys.NFW(r_s=1, M_s=1)
-    @test lguys.Φ(nfw, 0) == -1
-    @test lguys.Φ(nfw, 1e-10) ≈ -1
-    @test lguys.Φ(nfw, 1) ≈ -log(2)
-    @test lguys.Φ(nfw, 1e10) ≈ 0 atol=1e-8
-    @test lguys.Φ(nfw, Inf) == 0.
-    @test lguys.Φ(nfw, NaN) === NaN
+    @test lguys.potential(nfw, 0) == -1
+    @test lguys.potential(nfw, 1e-10) ≈ -1
+    @test lguys.potential(nfw, 1) ≈ -log(2)
+    @test lguys.potential(nfw, 1e10) ≈ 0 atol=1e-8
+    @test lguys.potential(nfw, Inf) == 0.
+    @test lguys.potential(nfw, NaN) === NaN
 
-    @test_throws DomainError lguys.Φ(nfw, -1)
+    @test_throws DomainError lguys.potential(nfw, -1)
 end
 
 
@@ -90,9 +90,9 @@ end
     r1 = lguys.solve_R200(nfw)
     @test r ≈ r1
     M = lguys.M200(nfw)
-    @test lguys.M(nfw, r1) ≈ M
+    @test lguys.mass(nfw, r1) ≈ M
 
-    @test lguys.M(nfw, r1) / (4/3 * π * r1^3) ≈ 200 * lguys.ρ_crit
+    @test lguys.mass(nfw, r1) / (4/3 * π * r1^3) ≈ 200 * lguys.ρ_crit
 end
 
 @testset "v circ max" begin
@@ -111,9 +111,9 @@ end
     nfw = lguys.NFW(r_s=1, M_s=1)
 
     radii = 10 .^ range(-2, 2, length=100)
-    M_exp = lguys.M.(nfw, radii)
-    ρ_exp = lguys.ρ.(nfw, radii)
-    Φ_exp = lguys.Φ.(nfw, radii)
+    M_exp = lguys.mass.(nfw, radii)
+    ρ_exp = lguys.density.(nfw, radii)
+    Φ_exp = lguys.potential.(nfw, radii)
 
     for _ in 1:100
         M_s = 10 ^ (randn()/4)
@@ -122,9 +122,9 @@ end
         halo = lguys.NFW(r_s=r_s, M_s=M_s)
 
         r = radii * r_s
-        M = lguys.M.(halo, r)
-        ρ = lguys.ρ.(halo, r)
-        Φ = lguys.Φ.(halo, r)
+        M = lguys.mass.(halo, r)
+        ρ = lguys.density.(halo, r)
+        Φ = lguys.potential.(halo, r)
 
         @test M ≈ M_exp * M_s
         @test ρ ≈ ρ_exp * M_s / r_s^3
@@ -141,7 +141,7 @@ end
 
     ρ_mean = M200 / (4/3 * π * R200^3)
     @test ρ_mean ≈ 200*lguys.ρ_crit
-    @test lguys.M(halo, R200) ≈ M200
+    @test lguys.mass(halo, R200) ≈ M200
 end
 
 
@@ -150,18 +150,18 @@ end
     @testset "simple" begin
         halo = lguys.TruncNFW(r_s=1, M_s=1, r_t=2)
 
-        @test lguys.ρ(halo, 0) === Inf
-        @test lguys.ρ(halo, 1) ≈ 1/4π * 1/(2^2) * exp(-1/2)
-        @test lguys.ρ(halo, 2) ≈ 1/4π * 1/(2*3^2) * exp(-2/2)
+        @test lguys.density(halo, 0) === Inf
+        @test lguys.density(halo, 1) ≈ 1/4π * 1/(2^2) * exp(-1/2)
+        @test lguys.density(halo, 2) ≈ 1/4π * 1/(2*3^2) * exp(-2/2)
     end
 
 
     @testset "Mtot" begin
         halo = lguys.TruncNFW(r_s=2.231, M_s=0.952, r_t=6)
 
-        @test lguys.M(halo, 0) ≈ 0
-        @test lguys.M(halo, 1000) ≈ lguys.M_tot(halo)
-        @test lguys.M(halo, 10^4) ≈ lguys.M_tot(halo)
+        @test lguys.mass(halo, 0) ≈ 0
+        @test lguys.mass(halo, 1000) ≈ lguys.mass(halo)
+        @test lguys.mass(halo, 10^4) ≈ lguys.mass(halo)
 
     end
 
@@ -169,8 +169,8 @@ end
         profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.M.(profile, x)
-        M2 = lguys.M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -179,8 +179,8 @@ end
         profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
 
         x = 10 .^ LinRange(0, 1, 10)
-        Φ1 = lguys.Φ.(profile, x)
-        Φ2 = lguys.Φ_from_ρ.(profile, x)
+        Φ1 = lguys.potential.(profile, x)
+        Φ2 = lguys.potential_from_density.(profile, x)
 
         @test Φ1 ≈ Φ2 rtol=1e-5
     end
@@ -191,22 +191,22 @@ end
     @testset "simple" begin
         halo = lguys.CoredNFW(r_s=1, M_s=1, r_t=2, r_c=0.1)
 
-        @test lguys.ρ(halo, 0) ≈ 10 / (4π)
-        @test lguys.ρ(halo, 1e-8) ≈ 10 / (4π) rtol=1e-5
-        @test lguys.ρ(halo, 1e-6) ≈ 10 / (4π) rtol=1e-3
+        @test lguys.density(halo, 0) ≈ 10 / (4π)
+        @test lguys.density(halo, 1e-8) ≈ 10 / (4π) rtol=1e-5
+        @test lguys.density(halo, 1e-6) ≈ 10 / (4π) rtol=1e-3
 
-        @test lguys.ρ(halo, 1) ≈ 1/4π * 1/(1.1 * 2^2) * exp(-1/2)
-        @test lguys.ρ(halo, 2) ≈ 1/4π * 1/(2.1 *3^2) * exp(-2/2)
+        @test lguys.density(halo, 1) ≈ 1/4π * 1/(1.1 * 2^2) * exp(-1/2)
+        @test lguys.density(halo, 2) ≈ 1/4π * 1/(2.1 *3^2) * exp(-2/2)
 
-        @test lguys.ρ(halo, 20) ≈ 0 atol=1e-6
+        @test lguys.density(halo, 20) ≈ 0 atol=1e-6
     end
 
     @testset "M" begin
         profile = lguys.CoredNFW(r_s=1.21, M_s=√π, r_t=5, r_c=0.3)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.M.(profile, x)
-        M2 = lguys.M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -227,7 +227,7 @@ end
 
         ρ_mean = M200 / (4/3 * π * R200^3)
         @test ρ_mean ≈ 200*lguys.ρ_crit
-        @test lguys.M(profile, R200) ≈ M200
+        @test lguys.mass(profile, R200) ≈ M200
     end
 end
 

@@ -124,7 +124,7 @@ module Ludlow
     function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000])
         dc = 10 ^ (0 + δlogc)
 
-        f(M200) = LilGuys.calc_v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
+        f(M200) = LilGuys.v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
 
         M200 = find_zero(f, interval)
         return M200, c_ludlow(M200, 0.) * dc
@@ -140,7 +140,7 @@ module Ludlow
     """
     function solve_rmax(v_circ_max, δlogc=0; kwargs...)
         M200, c = solve_M200_c(v_circ_max, δlogc; kwargs...)
-        return calc_r_circ_max(NFW(M200=M200, c=c))
+        return r_circ_max(NFW(M200=M200, c=c))
     end
 
 end

@@ -3,53 +3,53 @@ dir = mktempdir()
 import TOML
 
 function test_R_h(profile, M=profile.M)
-    R_h = lguys.calc_R_h(profile)
-    @test lguys.calc_M_2D(profile, R_h) ./ M ≈ 1/2 rtol=1e-3
+    R_h = lguys.R_h(profile)
+    @test lguys.mass_2D(profile, R_h) ./ M ≈ 1/2 rtol=1e-3
 end
 
 function test_r_h(profile, M=profile.M)
-    r_h = lguys.calc_r_h(profile)
-    @test lguys.calc_M(profile, r_h) ./ M ≈ 1/2 rtol=1e-3
+    r_h = lguys.r_h(profile)
+    @test lguys.mass(profile, r_h) ./ M ≈ 1/2 rtol=1e-3
 end
 
 function test_M_tot(profile, M=profile.M; r=100)
-    @test lguys.calc_M(profile, r) ≈ M
+    @test lguys.mass(profile, r) ≈ M
 end
 
 function test_M_2D_tot(profile, M=profile.M, r=100)
-    @test lguys.calc_M_2D(profile, r) ≈ M
+    @test lguys.mass_2D(profile, r) ≈ M
 end
 
 function test_to_zero(profile; r=100000, atol=1e-8)
-    @test lguys.calc_Σ(profile, r) ≈ 0 atol=atol
-    @test lguys.calc_ρ(profile, r) ≈ 0 atol=atol
-    @test lguys.calc_M(profile, 1/r) ≈ 0 atol=atol
+    @test lguys.surface_density(profile, r) ≈ 0 atol=atol
+    @test lguys.density(profile, r) ≈ 0 atol=atol
+    @test lguys.mass(profile, 1/r) ≈ 0 atol=atol
 end
 
 
 @testset "Plummer" begin
     @testset "Σ" begin
         profile = lguys.Plummer(1., 1.)
-        @test lguys.calc_Σ(profile, 0) ≈ 1 / π
-        @test lguys.calc_Σ(profile, 1) ≈ 1 / (4π)
-        @test lguys.calc_Σ(profile, 2) ≈ 1 / (25π)
+        @test lguys.surface_density(profile, 0) ≈ 1 / π
+        @test lguys.surface_density(profile, 1) ≈ 1 / (4π)
+        @test lguys.surface_density(profile, 2) ≈ 1 / (25π)
 
-        @test lguys.calc_R_h(profile) ≈ 1
+        @test lguys.R_h(profile) ≈ 1
     end
 
     @testset "ρ" begin
         profile = lguys.Plummer(0.23, 0.51)
         x = 10 .^ LinRange(-1, 1, 10)
-        ρ1 = lguys.calc_ρ.(profile, x)
-        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+        ρ1 = lguys.density.(profile, x)
+        ρ2 = lguys.density_from_surface_density.(profile, x)
         @test ρ1 ≈ ρ2 rtol=1e-5
     end
 
     @testset "Σ_inv" begin
         profile = lguys.Plummer(0.23, 0.51)
         x = 10 .^ LinRange(-1, 1, 10)
-        Σ1 = lguys.calc_Σ.(profile, x)
-        Σ2 = lguys.calc_Σ_from_ρ.(profile, x)
+        Σ1 = lguys.surface_density.(profile, x)
+        Σ2 = lguys.surface_density.(profile, x)
         @test Σ1 ≈ Σ2 rtol=1e-5
     end
 
@@ -57,8 +57,8 @@ end
         profile = lguys.Plummer(0.989, 1.35)
         x = 10 .^ LinRange(-1, 0.5, 10)
 
-        M1 = lguys.calc_M.(profile, x)
-        M2 = lguys.calc_M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -68,8 +68,8 @@ end
         profile = lguys.Plummer(0.989, 1.35)
         x = 10 .^ LinRange(-1, 0.5, 10)
 
-        M1 = lguys.calc_M_2D.(profile, x)
-        M2 = lguys.calc_M_2D_from_Σ.(profile, x)
+        M1 = lguys.mass_2D.(profile, x)
+        M2 = lguys.mass_from_density_2D.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -92,7 +92,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 
 end
@@ -103,18 +103,18 @@ end
     @testset "ρ" begin
         profile = lguys.ExpCusp(1, 1)
 
-        @test lguys.calc_ρ(profile, 0) ≈ Inf
-        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 4π
-        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 2 / 4π
-        @test lguys.calc_ρ(profile, Inf) ≈ 0
+        @test lguys.density(profile, 0) ≈ Inf
+        @test lguys.density(profile, 1) ≈ exp(-1) / 4π
+        @test lguys.density(profile, 2) ≈ exp(-2) / 2 / 4π
+        @test lguys.density(profile, Inf) ≈ 0
     end
 
     @testset "M" begin
         profile = lguys.ExpCusp(2.8, 1.11)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.calc_M.(profile, x)
-        M2 = lguys.calc_M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -137,7 +137,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 end
 
@@ -146,10 +146,10 @@ end
     @testset "Σ" begin
         profile = lguys.Exp2D(1, 1)
 
-        @test lguys.calc_Σ(profile, 0) ≈ 1 / 2π 
-        @test lguys.calc_Σ(profile, 1) ≈ exp(-1) / 2π
-        @test lguys.calc_Σ(profile, 2) ≈ exp(-2) / 2π 
-        @test lguys.calc_Σ(profile, Inf) ≈ 0
+        @test lguys.surface_density(profile, 0) ≈ 1 / 2π 
+        @test lguys.surface_density(profile, 1) ≈ exp(-1) / 2π
+        @test lguys.surface_density(profile, 2) ≈ exp(-2) / 2π 
+        @test lguys.surface_density(profile, Inf) ≈ 0
     end
 
     @testset "ρ" begin
@@ -157,8 +157,8 @@ end
         
         x = 10 .^ LinRange(0, 1, 10)
 
-        ρ1 = lguys.calc_ρ.(profile, x)
-        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+        ρ1 = lguys.density.(profile, x)
+        ρ2 = lguys.density_from_surface_density.(profile, x)
 
         @test ρ1 ≈ ρ2 rtol=1e-5
     end
@@ -167,8 +167,8 @@ end
         profile = lguys.Exp2D(0.989, 1.35)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.calc_M.(profile, x)
-        M2 = lguys.calc_M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -194,7 +194,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 end
 
@@ -203,10 +203,10 @@ end
     @testset "ρ" begin
         profile = lguys.Exp3D(1, 1)
 
-        @test lguys.calc_ρ(profile, 0) ≈ 1 / 8π 
-        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 8π
-        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 8π 
-        @test lguys.calc_ρ(profile, Inf) ≈ 0
+        @test lguys.density(profile, 0) ≈ 1 / 8π 
+        @test lguys.density(profile, 1) ≈ exp(-1) / 8π
+        @test lguys.density(profile, 2) ≈ exp(-2) / 8π 
+        @test lguys.density(profile, Inf) ≈ 0
     end
 
     @testset "ρ" begin
@@ -214,8 +214,8 @@ end
         
         x = 10 .^ LinRange(0, 1, 10)
 
-        ρ1 = lguys.calc_ρ.(profile, x)
-        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+        ρ1 = lguys.density.(profile, x)
+        ρ2 = lguys.density_from_surface_density.(profile, x)
 
         @test ρ1 ≈ ρ2 rtol=1e-5
     end
@@ -224,8 +224,8 @@ end
         profile = lguys.Exp3D(0.989, 1.35)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.calc_M.(profile, x)
-        M2 = lguys.calc_M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -249,7 +249,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 end
 
@@ -257,9 +257,9 @@ end
 @testset "log cusp 2D Σ" begin
     @testset "ρ" begin
         profile = lguys.LogCusp2D(1, 1)
-        @test lguys.calc_ρ(profile, 0) ≈ Inf
-        @test lguys.calc_ρ(profile, 1) ≈ exp(-1) / 4π
-        @test lguys.calc_ρ(profile, 2) ≈ exp(-2) / 8π
+        @test lguys.density(profile, 0) ≈ Inf
+        @test lguys.density(profile, 1) ≈ exp(-1) / 4π
+        @test lguys.density(profile, 2) ≈ exp(-2) / 8π
     end
 
     @testset "consistency" begin
@@ -275,8 +275,8 @@ end
         profile = lguys.LogCusp2D(0.987, 3.3)
         x = 10 .^ LinRange(-1, 2, 10)
 
-        M1 = lguys.calc_M.(profile, x)
-        M2 = lguys.calc_M_from_ρ.(profile, x)
+        M1 = lguys.mass.(profile, x)
+        M2 = lguys.mass_from_density.(profile, x)
 
         @test M1 ≈ M2 rtol=1e-5
     end
@@ -286,8 +286,8 @@ end
         profile = lguys.LogCusp2D(1, 1)
 
         x = 10 .^ LinRange(0, 1, 10)
-        Σ1 = lguys.calc_Σ.(profile, x)
-        Σ2 = lguys.calc_Σ_from_ρ.(profile, x)
+        Σ1 = lguys.surface_density.(profile, x)
+        Σ2 = lguys.surface_density_from_density.(profile, x)
 
         @test Σ1 ≈ Σ2 rtol=1e-5
     end
@@ -301,7 +301,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 end
 
@@ -313,19 +313,19 @@ end
         r_t = 2
         profile = lguys.KingProfile(k=1, R_s=r_s, R_t=r_t)
 
-        @test lguys.calc_Σ(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2
+        @test lguys.surface_density(profile, 0) ≈ (1 - (1+(r_t/r_s)^2)^(-1/2))^2
 
-        @test lguys.calc_Σ(profile, r_t) ≈ 0
-        @test lguys.calc_Σ(profile, 1.2*r_t) ≈ 0
-        @test lguys.calc_Σ(profile, Inf) ≈ 0
+        @test lguys.surface_density(profile, r_t) ≈ 0
+        @test lguys.surface_density(profile, 1.2*r_t) ≈ 0
+        @test lguys.surface_density(profile, Inf) ≈ 0
     end
 
     @testset "ρ" begin
         profile = lguys.KingProfile(k=0.666, R_s=2.3, R_t=9.5)
         x = 10 .^ LinRange(-1, 1, 10)
 
-        ρ1 = lguys.calc_ρ.(profile, x)
-        ρ2 = lguys.calc_ρ_from_Σ.(profile, x)
+        ρ1 = lguys.density.(profile, x)
+        ρ2 = lguys.density_from_surface_density.(profile, x)
         @test ρ1 ≈ ρ2 rtol=1e-5
     end
 
@@ -347,7 +347,7 @@ end
 
         x = 10 .^ LinRange(-1, 1, 30)
 
-        @test lguys.calc_ρ.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.calc_ρ.(prof_scaled, x)
+        @test lguys.density.(prof, x ./ r_scale) * m_scale/r_scale^3 ≈ lguys.density.(prof_scaled, x)
     end
 end
 
@@ -359,11 +359,11 @@ end
         @test profile.Σ_h ≈ 1
         @test profile._b_n ≈ 1.6783469900166605
 
-        @test lguys.calc_Σ(profile, 0) ≈ 5.356693980033321 rtol=1e-4 # exp 1.6783469900166605
-        @test lguys.calc_Σ(profile, 1) ≈ 1.0
+        @test lguys.surface_density(profile, 0) ≈ 5.356693980033321 rtol=1e-4 # exp 1.6783469900166605
+        @test lguys.surface_density(profile, 1) ≈ 1.0
 
         profile = lguys.Sersic(n=4)
-        @test lguys.calc_Σ(profile, 1) ≈ 1.0
+        @test lguys.surface_density(profile, 1) ≈ 1.0
 
 
     end
@@ -371,8 +371,8 @@ end
     @testset "b_n" begin
         for n in [0.6, 0.85, 1, 2.5, 5.8, 10, 15]
             profile = lguys.Sersic(n=n)
-            @test lguys.calc_Σ(profile, 1) ≈ 1.0
-            @test lguys.calc_M_2D(profile, 1) ≈ 0.5 * lguys.calc_M_2D(profile, 10 * max(1, n)^4) rtol=1e-3
+            @test lguys.surface_density(profile, 1) ≈ 1.0
+            @test lguys.mass_2D(profile, 1) ≈ 0.5 * lguys.mass_2D(profile, 10 * max(1, n)^4) rtol=1e-3
 
             if n > 8
                 @test profile._b_n ≈ 2n - 1/3 rtol=1e-3
@@ -497,6 +497,6 @@ end
 
 
 
-@testset "calc_σv_star_mean" begin
+@testset "σv_star_mean" begin
     @test false broken=true
 end

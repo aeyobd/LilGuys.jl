@@ -58,7 +58,7 @@ end
 
 @testset "kinetic energy" begin
     snap = create_snapshot()
-    actual = lguys.K_spec(snap)
+    actual = lguys.kinetic_spec(snap)
     expected = [0.5, 2, 1.125]
 
     @test actual ≈ expected
@@ -68,14 +68,14 @@ end
 
 @testset "angular momentum" begin
     snap = create_snapshot()
-    actual = lguys.L_spec(snap) .* snap.masses
+    actual = lguys.angular_momenta(snap) .* snap.masses
     expected = [0.  0  0;
                 0  0  0;
                 1 -2  0]
                 
     @test actual ≈ expected
     
-    tot = lguys.L_tot(snap)
+    tot = lguys.angular_momentum(snap)
     @test tot ≈ [0, 0, -1]
 end
 
@@ -139,7 +139,7 @@ end
     m = rand(N)
     snap = Snapshot(pos, zeros(3, N), m)
 
-    snap.Φs = lguys.Φ(snap)
+    snap.potential = lguys.potential_nbody(snap)
 
     W = 0
 
@@ -150,7 +150,7 @@ end
         end
     end
 
-    actual = lguys.W_tot(snap)
+    actual = lguys.potential_energy(snap)
     @test actual ≈ W
-    @test actual ≈ -0.5 * sum(snap.Φs .* snap.masses)
+    @test actual ≈ -0.5 * sum(snap.potential .* snap.masses)
 end

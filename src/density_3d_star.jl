@@ -78,7 +78,7 @@ function StellarProfile3D(snap; delta_t=NaN, bins=nothing,
     r = 10 .^ log_r
     rel_err = mass_in_shell_err ./ mass_in_shell
 
-    rho = ρ_from_hist(r_bins, mass_in_shell)
+    rho = density_from_hist(r_bins, mass_in_shell)
     rho_err = rho .* rel_err # TODO: does not include binning error
 
 

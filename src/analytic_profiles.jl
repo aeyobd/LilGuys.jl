@@ -514,7 +514,7 @@ end
 
 
 
-function ρ(profile::KingProfile, r::Real)
+function density(profile::KingProfile, r::Real)
     if r > profile.R_t
         return 0
     end
@@ -647,13 +647,13 @@ end
 
 function R_h(profile::KingProfile)
     r_s = get_r_s(profile)
-    M0 = get_M_tot(profile)
+    M0 = mass(profile)
     return find_zero(R -> mass_2D(profile, R) / M0 - 1/2, r_s)
 end
 
 
 function r_h(profile::KingProfile)
-    M0 = get_M_tot(profile)
+    M0 = mass(profile)
     r_s = get_r_s(profile)
     return find_zero(r -> mass(profile, r) / M0 - 1/2, r_s)
 end
@@ -735,19 +735,19 @@ end
 # General methods
 
 function r_h(profile::SphericalProfile)
-    M0 = get_M_tot(profile)
+    M0 = mass(profile)
     r_s = 1.0
     return find_zero(r -> mass(profile, r) / M0 - 1/2, r_s)
 end
 
 function R_h(profile::SphericalProfile)
     r_s = 1.0 # initial guess
-    M0 = get_M_tot(profile)
+    M0 = mass(profile)
     return find_zero(R -> mass_2D(profile, R) / M0 - 1/2, r_s)
 end
 
 
-function get_M_tot(profile::SphericalProfile)
+function mass(profile::SphericalProfile)
     if :M in fieldnames(typeof(profile))
         return profile.M
     else
@@ -755,13 +755,13 @@ function get_M_tot(profile::SphericalProfile)
     end
 end
 
-function Φ(profile::SphericalProfile, r::Real)
-    return Φ_from_density(profile, r)
+function potential(profile::SphericalProfile, r::Real)
+    return potential_from_density(profile, r)
 end
 
 
 
-function Φ_from_density(profile::SphericalProfile, r::Real; integrate_M=false)
+function potential_from_density(profile::SphericalProfile, r::Real; integrate_M=false)
     integrand(r) = density(profile, r) * r
 
     if integrate_M

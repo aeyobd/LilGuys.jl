@@ -1,7 +1,7 @@
 # This file containes methods to evaluate the gravitational 
 # potential and force
 
-
+# TODO: multiple dispatch on potentials
 
 struct DistributionFunction{F} 
     ρ::Vector{F}
@@ -74,9 +74,9 @@ function potential_spherical_func(radii::AbstractVector{T}, masses::AbstractVect
     Φs_out = zeros(T, N)
 
     for i in 1:N-1
-        Φs_out[i] = potential(rs_sorted[i+1:end], ms_sorted[i+1:end])
+        Φs_out[i] = potential_points(rs_sorted[i+1:end], ms_sorted[i+1:end])
     end
-    Φ_cen = potential(rs_sorted, ms_sorted)
+    Φ_cen = potential_points(rs_sorted, ms_sorted)
 
     return r -> _interpolated_potential(r, rs_sorted, Ms_in, Φs_out, Φ_cen)
 end
@@ -98,7 +98,7 @@ function _interpolated_potential(r, rs, Ms_in, Φs_out, Φ_cen)
         return Φ_cen
     end
     idx = searchsortedlast(rs, r)
-    Φ_in = potential(r, Ms_in[idx])
+    Φ_in = potential_point(r, Ms_in[idx])
     Φ_tot = Φs_out[idx] + Φ_in
     return Φ_tot
 end
@@ -117,7 +117,7 @@ The potential is calculated as
 Φ(r) = -G M(r) / r - \\int_r^\\infty G dm/dr(r') / r' dr'
 ```
 """
-function potential_spherical(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
+function potential_spherical_discrete(radii::AbstractVector{T}, masses::AbstractVector) where T <: Real
     # work inside out
     idx = sortperm(radii)
     rs_sorted = radii[idx]
@@ -125,42 +125,42 @@ function potential_spherical(radii::AbstractVector{T}, masses::AbstractVector) w
 
     M_in = cumsum(ms_sorted)
 
-    Φ_shells = potential.(rs_sorted, ms_sorted)[2:end]
+    Φ_shells = potential_point.(rs_sorted, ms_sorted)[2:end]
 
     # include each shell outside the current one...
     Φ_out = Vector{T}(undef, length(masses))
     Φ_out[1:end-1] .= reverse(cumsum(reverse(Φ_shells)))
     Φ_out[end] = 0
 
-    Φ_in = potential.(rs_sorted, M_in)
+    Φ_in = potential_point.(rs_sorted, M_in)
 
     Φ = Φ_out .+ Φ_in
     return Φ[invperm(idx)]
 end
 
 
-function potential_spherical(positions::Matrix{T}, masses::AbstractVector) where T <: Real
+function potential_spherical_discrete(positions::Matrix{T}, masses::AbstractVector) where T <: Real
     r = radii(positions)
-    return Φ_spherical(r, masses)
+    return potential_spherical_discrete(r, masses)
 end
 
 
-function potential_spherical(snap::Snapshot)
-    return Φ_spherical(radii(snap), snap.masses)
+function potential_spherical_discrete(snap::Snapshot)
+    return potential_spherical_discrete(radii(snap), snap.masses)
 end
 
 
 
 """
-    potential(snap, x_vec)
+    potential_nbody(snap, x_vec)
 
 Gravitational potential due to particles in snapshot at position x_vec
 """
-function potential(snap::Snapshot, x_vec)
-    return potential(snap.positions, snap.masses, x_vec)
+function potential_nbody(snap::Snapshot, x_vec)
+    return potential_nbody(snap.positions, snap.masses, x_vec)
 end
 
-function potential(snap::Snapshot)
+function potential_nbody(snap::Snapshot)
     Φ_out = Vector{F}(undef, length(snap))
 
     N = length(snap)
@@ -169,7 +169,7 @@ function potential(snap::Snapshot)
         positions = snap.positions[:, j]
         masses = snap.masses[j]
 
-        Φ_out[i] = Φ(positions, masses, snap.positions[:, i])
+        Φ_out[i] = potential_nbody(positions, masses, snap.positions[:, i])
     end
 
     return Φ_out
@@ -177,34 +177,34 @@ end
 
 
 """
-    potential(masses, positions, x_vec)
+    potential_nbody(masses, positions, x_vec)
 
 Gravitational potential due to ensemble of masses at positions evaluated at x_vec
 """
-function potential(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
+function potential_nbody(positions::Matrix{T}, masses::Vector{T}, x_vec) where T <: Real
     r = radii(positions .- x_vec)
-    return potential(r, masses)
+    return potential_points(r, masses)
 end
 
 
 
 """
-    potential(radii, masses)
+    potential_points(radii, masses)
 
 Potential due to a collection of masses at given radii, or equivalently
 potential inside centred shells of masses and radii
 """
-function potential(radii::Vector{T}, masses::Vector{T}) where T <: Real
-    return sum(potential.(radii, masses))
+function potential_points(radii::Vector{T}, masses::Vector{T}) where T <: Real
+    return sum(potential_point.(radii, masses))
 end
 
 
 """
-    potential(radius, mass)
+    potential_point(radius, mass)
 
 One point potential law (-Gm/r)
 """
-function potential(radius::Real, mass::Real)
+function potential_point(radius::Real, mass::Real)
     if radius == 0
         return -Inf
     end

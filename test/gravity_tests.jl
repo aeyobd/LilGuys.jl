@@ -5,7 +5,7 @@ import SpecialFunctions: dawson, erf
     masses = ones(1)
     
     let
-        f(x) = lguys.calc_F_grav(positions, masses, x)
+        f(x) = lguys.F_grav(positions, masses, x)
 
         x = [0.;0;0]
         @test f(x) ≈ [0.;0;0]
@@ -22,7 +22,7 @@ end
     pos = [0.;0;0;;]
     mass = ones(1)
 
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    f(x_vec) = lguys.potential_nbody(pos, mass, x_vec)
 
     x_vec = [0.;0;0]
     @test f(x_vec) === -Inf
@@ -42,7 +42,7 @@ end
            0. 0.
           ]
     mass = ones(2)
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    f(x_vec) = lguys.potential_nbody(pos, mass, x_vec)
     @test f([1.;0;0]) ≈ -2.
 end
 
@@ -56,18 +56,18 @@ end
 
     mass = [1., 2, 3, 4, 5, 6]
 
-    f(x_vec) = lguys.calc_Φ(pos, mass, x_vec)
+    f(x_vec) = lguys.potential_nbody(pos, mass, x_vec)
     @test f([0.;0;0]) ≈ -6.
 end
 
 
 @testset "Φ grav snapshot, simple" begin
     snap = lguys.Snapshot([0 1 5.]', zeros(3, 1), [1.])
-    Φs = lguys.calc_Φ(snap)
+    Φs = lguys.potential_nbody(snap)
     @test Φs ≈ [0.]
 
     snap = lguys.Snapshot([[0,0,1] [0,1,0]], zeros(3, 2), [1., π])
-    Φs = lguys.calc_Φ(snap)
+    Φs = lguys.potential_nbody(snap)
     @test Φs ≈ [-π, -1] ./ √2
 end
 
@@ -80,14 +80,14 @@ end
 
     snap = lguys.Snapshot(pos, zeros(3, N), mass)
 
-    Φs = lguys.calc_Φ(snap)
+    Φs = lguys.potential_nbody(snap)
 
     Φ_exp = zeros(N)
     for i in 1:N
         for j in 1:N
             if i != j
-                r = lguys.calc_r(pos[:,i], pos[:,j])
-                Φ_exp[i] += lguys.calc_Φ(r, mass[j])
+                r = lguys.radii(pos[:,i], pos[:,j])
+                Φ_exp[i] += lguys.potential_point(r, mass[j])
             end
         end
     end
@@ -105,7 +105,7 @@ function make_rad_Φ(rs)
     masses = ones(N)
     velocities = randn(3, N)
     snap = lguys.Snapshot(positions, velocities, masses)
-    return lguys.calc_radial_Φ(snap)
+    return lguys.potential_spherical_func(snap)
 end
 
 
@@ -141,9 +141,9 @@ end
 
     r_test = [0.01, 0.5, 1, 5, 10, 100]
     pos_test = lguys.rand_unit(length(r_test)) .* r_test'
-    Φr = lguys.calc_radial_Φ(snap)
-    f1(x) = Φr(lguys.calc_r(x))
-    f(x) = lguys.calc_Φ(snap, x)
+    Φr = lguys.potential_spherical_func(snap)
+    f1(x) = Φr(lguys.radii(x))
+    f(x) = lguys.potential_nbody(snap, x)
 
     rel_err(x) = ifelse(f(x)==0, abs(f1(x)), abs(f(x) - f1(x)) / abs(f(x)))
     rel_errs = [rel_err(pos) for pos in eachcol(pos_test)]
@@ -157,10 +157,10 @@ end
 @testset "radial discrete Φ" begin
     snap = rand_snap()
 
-    phis = lguys.calc_radial_discrete_Φ(snap)
-    interp = lguys.calc_radial_Φ(snap)
+    phis = lguys.potential_spherical_discrete(snap)
+    interp = lguys.potential_spherical_func(snap)
 
-    radii = lguys.calc_r(snap)
+    radii = lguys.radii(snap)
     actual = [interp(r) for r in radii]
 
     @test phis ≈ actual rtol = 1e-10

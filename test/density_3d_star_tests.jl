@@ -43,7 +43,7 @@ end
 @testset "stellar profile 3D (integration)" begin
     ρ(r) = exp(-r)/8π
     N = 10_000
-    r = LilGuys.sample_ρ(ρ, N, log_r=LinRange(-5, 5, 1000))
+    r = LilGuys.sample_density(ρ, N, log_r=LinRange(-5, 5, 1000))
 
     positions = r' .* lguys.rand_unit(N)
     σv_exp = 0.055

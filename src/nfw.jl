@@ -7,7 +7,7 @@ import SpecialFunctions: expint
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
 function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
-    f(r) = ρ_mean(profile, r) - δ*ρ_crit
+    f(r) = mean_density(profile, r) - δ*ρ_crit
 
     R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])
 
@@ -23,7 +23,7 @@ function R200(profile::GeneralNFW)
 end
 
 function M200(profile::GeneralNFW)
-    return M(profile, R200(profile))
+    return mass(profile, R200(profile))
 end
 
 
@@ -43,7 +43,7 @@ function concentration(M200::Real, r_s::Real)
 end
 
 function solve_r_circ_max(profile::GeneralNFW)
-    r_max = find_zero(r -> 4π * r * ρ(profile, r) - M(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
+    r_max = find_zero(r -> 4π * r * density(profile, r) - mass(profile, r)/r^2, [0.0001profile.r_s, 1000profile.r_s])
     return r_max
 end
 
@@ -161,14 +161,14 @@ function get_ρ_s(profile::NFW)
     return M_s / V_s
 end
 
-function ρ(profile::NFW, r::Real)
+function density(profile::NFW, r::Real)
     x = r / profile.r_s
     ρ_s = get_ρ_s(profile)
     return (ρ_s / 3) / (x * (1 + x)^2)
 end
 
 
-function M(profile::NFW, r::Real)
+function mass(profile::NFW, r::Real)
     x = r / profile.r_s
     return profile.M_s * A_NFW(x)
 end
@@ -191,7 +191,7 @@ function A_NFW(c::Real)
 end
 
 
-function Φ(profile::NFW, r::Real)
+function potential(profile::NFW, r::Real)
     Φ_0 = -G * profile.M_s / profile.r_s
     x = r / profile.r_s
 
@@ -209,7 +209,7 @@ end
 
 function v_circ_max(profile::NFW)
     r_max = r_circ_max(profile)
-    M_max = M(profile, r_max)
+    M_max = mass(profile, r_max)
 
     return sqrt(G * M_max / r_max)
 end
@@ -274,12 +274,12 @@ function TruncNFW(; r_t=nothing, trunc=nothing, kwargs...)
 end
 
 
-function ρ(profile::TruncNFW, r::Real)
+function density(profile::TruncNFW, r::Real)
     nfw = NFW(profile.M_s, profile.r_s, profile.c)
-    return ρ(nfw, r) * exp(-(r/profile.r_t))
+    return density(nfw, r) * exp(-(r/profile.r_t))
 end
 
-function M(profile::TruncNFW, r::Real)
+function mass(profile::TruncNFW, r::Real)
     x = r / profile.r_s
     t = profile.r_t / profile.r_s
     B = (1+1/t)*exp(1/t)
@@ -287,7 +287,7 @@ function M(profile::TruncNFW, r::Real)
 end
 
 
-function M_tot(profile::TruncNFW)
+function mass(profile::TruncNFW)
     t = profile.r_t / profile.r_s
     A = -(1+1/t)*exp(1/t)*expinti(-1/t) - 1
 
@@ -295,8 +295,8 @@ function M_tot(profile::TruncNFW)
 end
 
 
-function Φ(profile::TruncNFW, r::Real)
-    Φ_in = - G * M(profile, r) / r
+function potential(profile::TruncNFW, r::Real)
+    Φ_in = - G * mass(profile, r) / r
 
     Φ0 = -G * profile.M_s / profile.r_s
     x = r / profile.r_s
@@ -342,13 +342,13 @@ function get_ρ_s(profile::CoredNFW)
 end
 
 
-function ρ(profile::CoredNFW, r::Real)
+function density(profile::CoredNFW, r::Real)
     r_c, r_s = profile.r_c, profile.r_s
     ρ_s = get_ρ_s(profile)
     return ρ_s/3 * (r_c / r_s + r / r_s)^(-1) * (1 + r / r_s)^(-2) * exp(-r/profile.r_t)
 end
 
-function M(profile::CoredNFW, r::Real)
+function mass(profile::CoredNFW, r::Real)
     # result from sagemath, maybe I will do this integral one day
     c = profile.r_c
     s = profile.r_s

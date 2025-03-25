@@ -3,7 +3,7 @@ module MakieExt
 using Makie
 using StatsBase
 
-import Makie: convert_arguments
+import Makie: convert_arguments, convert_single_argument
 using LilGuys
 import LilGuys: @assert_3vector
 import LinearAlgebra: norm, dot
@@ -14,7 +14,7 @@ using Arya
 import LilGuys: plot_xyz, plot_xyz!
 import LilGuys: cmd_axis
 import LilGuys: projecteddensity, projecteddensity!
-import LilGuys: hide_grid!, plot_density_prof!
+import LilGuys: hide_grid!, plot_log_Σ!, plot_Γ!
 import LilGuys: @savefig
 
 
@@ -271,6 +271,63 @@ end
 
 
 
+
+function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarDensityProfile)
+    return (h.log_R, LilGuys.middle.(h.log_Sigma))
+end
+
+
+function convert_single_argument(a::AbstractArray{T}) where {T<:LilGuys.Measurement}
+    return LilGuys.middle.(a)
+end
+
+
+"""
+    plot_log_Σ!(ax, p; kwargs...)
+
+Plot a density profile from a LilGuys.StellarDensityProfile.
+kwargs passed to Arya.errorscatter!
+"""
+function plot_log_Σ!(ax, p::LilGuys.StellarDensityProfile; kwargs...)
+    x = p.log_R
+    y = LilGuys.middle.(p.log_Sigma)
+    yerror = LilGuys.credible_interval.(p.log_Sigma)
+    filt = isfinite.(y)
+
+    x = x[filt]
+    y = y[filt]
+    yerror = yerror[filt]
+
+    errorscatter!(ax, x, y; yerror=yerror,  kwargs...)
+end
+
+
+
+"""
+    plot_Γ!(ax, p; kwargs...)
+
+Plot a density profile from a LilGuys.StellarDensityProfile.
+kwargs passed to Arya.errorscatter!
+"""
+function plot_Γ!(ax, p::LilGuys.StellarDensityProfile; log_R=true, kwargs...)
+    x = p.log_R
+    y = LilGuys.middle.(p.Gamma)
+    yerror = LilGuys.credible_interval.(p.Gamma)
+    filt = isfinite.(y)
+
+    x = x[filt]
+    y = y[filt]
+    yerror = yerror[filt]
+
+    if !(log_R)
+        x = 10 .^ x
+    end
+
+    errorscatter!(ax, x, y; yerror=yerror,  kwargs...)
+end
+
+
+
 """
     hide_grid!(ax)
 
@@ -331,56 +388,6 @@ macro savefig(name, fig=nothing)
 
         $fig
     end 
-end
-
-
-function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarMassProfile)
-    return (h.log_R, LilGuys.value.(h.log_Sigma))
-end
-
-
-"""
-    plot_log_Σ!(ax, p; kwargs...)
-
-Plots a density profile from a LilGuys.StellarDensityProfile.
-kwargs passed to Arya.errorscatter!
-"""
-function plot_log_Σ!(ax, p::LilGuys.StellarDensityProfile; kwargs...)
-    x = p.log_R
-    y = LilGuys.middle.(p.log_Sigma)
-    yerr = LilGuys.interval.(p.log_Sigma)
-    filt = isfinite.(y)
-
-    x = x[filt]
-    y = y[filt]
-    yerr = yerr[filt]
-
-    errorscatter!(ax, x, y, yerror=yerror,  kwargs...)
-end
-
-
-
-"""
-    plot_Γ!(ax, p; kwargs...)
-
-Plots a density profile from a LilGuys.StellarDensityProfile.
-kwargs passed to Arya.errorscatter!
-"""
-function plot_Γ!(ax, p::LilGuys.StellarDensityProfile; log_R=true, kwargs...)
-    x = p.log_R
-    y = LilGuys.middle.(p.Gamma)
-    yerr = LilGuys.interval.(p.Gamma)
-    filt = isfinite.(y)
-
-    x = x[filt]
-    y = y[filt]
-    yerr = yerr[filt]
-
-    if !(log_R)
-        x = 10 .^ x
-    end
-
-    errorscatter!(ax, x, y, yerror=yerror,  kwargs...)
 end
 
 

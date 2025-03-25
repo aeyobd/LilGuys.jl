@@ -35,7 +35,6 @@ public Point3D, Point6D, SkyCoord
 public GalactocentricFrame
 export ICRS, GSR, Galactocentric, Cartesian
 public position, velocity
-export to_galcen, to_sky
 public rand_coord, rand_coords, coord_from_file, coords_from_df
 include("coordinates.jl")
 
@@ -69,22 +68,28 @@ public bound_particles, bound_particles_recursive_1D
 include("physics.jl")
 
 public DistributionFunction
-public Φ_spherical, Φ_spherical_discrete, Φ_exact
+public potential_spherical, potential_spherical_func, potential_nbody, potential_spherical_discrete
 public F_grav
 include("gravity.jl")
 
 # profile tools
 export AbstractProfile, NFW
 public Plummer, KingProfile, Exp2D, Exp3D
-export calc_ρ, calc_M, calc_r_circ_max, calc_v_circ_max, calc_v_circ
+export density, surface_density, mass, v_circ
 include("analytic_profiles.jl")
+
+export r_circ_max, v_circ_max
 include("nfw.jl")
 
 include("scaling_relations.jl")
 
 include("project.jl")
-include("density_3d.jl")
+
 include("density_2d.jl")
+
+export MassProfile3D
+include("density_3d.jl")
+
 include("density_3d_star.jl")
 
 # orbits

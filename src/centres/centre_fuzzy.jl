@@ -91,7 +91,7 @@ end
 
 
 function bound_probabilities(snap::Snapshot; k=5)
-    Φ = calc_radial_Φ(snap)
+    Φ = potential_radial_func(snap)
     δxs, δvs = phase_volumes(snap, k=k)
 
     probs = zeros(length(snap))
@@ -103,11 +103,11 @@ function bound_probabilities(snap::Snapshot; k=5)
         δr = δxs[i]
         δv = δvs[i]
         
-        r0 = calc_r(pos1)
-        v0 = calc_r(vel1)
-        e0 = E_spec(Φ(r0), v0)
-        eh = E_spec(Φ(r0 + δr), v0 + δv)
-        el = E_spec(Φ(max(r0 - δr, 0)), max(v0 - δv, 0))
+        r0 = radii(pos1)
+        v0 = radii(vel1)
+        e0 = specific_energy(Φ(r0), v0)
+        eh = specific_energy(Φ(r0 + δr), v0 + δv)
+        el = specific_energy(Φ(max(r0 - δr, 0)), max(v0 - δv, 0))
 
         δe = (eh - el) / 2
 
@@ -146,7 +146,7 @@ function phase_volumes(snap::Snapshot; k=5, kwargs...)
         rs = dists[i][2:end]
 
         vel_0 = snap.velocities[:, i]
-        vs = calc_r(snap.velocities[:, idx], vel_0)
+        vs = radii(snap.velocities[:, idx], vel_0)
 
         δr, δv = _phase_volume(rs, vs; gamma_ratio=gamma_ratio, kwargs...)
         push!(δrs, δr)

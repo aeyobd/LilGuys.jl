@@ -303,11 +303,11 @@ end
 
 
 """
-    sample_Σ(f::Function, N::Integer = 1; log_R=nothing)
+    sample_surface_density(f::Function, N::Integer = 1; log_R=nothing)
 
 Randomly draws N samples from a Density profile given by the finction f.
 """
-function sample_Σ(f::Function, N::Integer = 1; log_R=nothing)
+function sample_surface_density(f::Function, N::Integer = 1; log_R=nothing)
     if log_R == nothing
         log_R = LinRange(-5, 5, 1000)
     end
@@ -334,11 +334,11 @@ end
 
 
 """
-    sample_ρ(f::Function, N::Integer = 1; log_r=nothing)
+    sample_density(f::Function, N::Integer = 1; log_r=nothing)
 
 Randomly draws N samples from a Density profile given by the finction f.
 """
-function sample_ρ(f::Function, N::Integer = 1; log_r=nothing)
+function sample_density(f::Function, N::Integer = 1; log_r=nothing)
     if log_r == nothing
         log_r = LinRange(-5, 5, 10000)
     end

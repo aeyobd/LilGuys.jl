@@ -5,9 +5,9 @@ module Centres
     export shrinking_spheres
 
     using ..LilGuys
-    import ..centroid, ..centroid_err, ..calc_r, ..F, ..Snapshot, ..Output, ..quantile, ..mean
-    import ..calc_radial_discrete_Φ
-    import ..calc_E_spec
+    import ..centroid, ..centroid_err, ..radii, ..F, ..Snapshot, ..Output, ..quantile, ..mean
+    import ..potential_spherical_discrete, ..potential_spherical_func
+    import ..specific_energy
     import ..OptVector
 
     include("static_centres.jl")

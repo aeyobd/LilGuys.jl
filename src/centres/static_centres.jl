@@ -82,7 +82,7 @@ end
 
 
 function centre_weighted_potential(snap::Snapshot)
-    return weighted_centre(snap, -snap.Φs)
+    return weighted_centre(snap, -snap.potential)
 end
 
 
@@ -113,10 +113,10 @@ end
 Computes the COM of particles with a potential below a certain quantile q.
 """
 function centre_potential_percen(snap::Snapshot, q=0.05)
-    if snap.Φs === nothing
-        Φs = calc_radial_discrete_Φ(snap)
+    if snap.potential === nothing
+        Φs = potential_spherical_discrete(snap)
     else
-        Φs = snap.Φs
+        Φs = snap.potential
     end
     Φcut = quantile(Φs, q)
     filt = Φs .< Φcut
