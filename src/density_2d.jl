@@ -1,4 +1,4 @@
-import Base: @kwdef
+import Base: @kwdef, filter
 
 import LinearAlgebra: diag, dot, norm, normalize, ⋅, × 
 
@@ -555,4 +555,79 @@ function scale(prof::StellarDensityProfile, R_scale::Real, m_scale::Real; _norma
     end
 
     return prof_new
+end
+
+"""
+filters a profile by the given bitarray (indexed by bin)
+"""
+function filter_by_bin(prof::StellarDensityProfile, bin_selection)
+    edge_filt = edge_from_midpoint_filter(bin_selection)
+    filt = bin_selection
+
+    prof_new = deepcopy(prof)
+    prof_new.log_R = prof.log_R[filt]
+    prof_new.log_R_bins = prof.log_R_bins[edge_filt]
+    prof_new.counts = prof.counts[filt]
+    prof_new.log_Sigma = prof.log_Sigma[filt]
+
+    if length(prof.Gamma) > 0
+        prof_new.Gamma = prof.Gamma[filt]
+    end
+
+    return prof_new
+end
+
+
+
+function filter_empty_bins(prof::StellarDensityProfile)
+    idxs = find_longest_consecutive_finite(prof.log_Sigma)
+
+    filt = eachindex(prof.log_R) .∈ Ref(idxs)
+    return filter_by_bin(prof, filt)
+end
+
+
+"returns the bin edges if x is a bitarray filter on bins"
+function edge_from_midpoint_filter(x)
+    return [false; x] .| [x; false]
+end
+
+
+"""
+    find_longest_consequtive_finite(x)
+
+Returns the longest consecutive sequence of finite elements in x
+as a int-range.
+"""
+function find_longest_consecutive_finite(x)
+    max_len = 0
+    max_start = 0
+    max_end = 0
+    current_len = 0
+    current_start = 0
+
+    for i in eachindex(x)
+        if isfinite(x[i])
+            if current_len == 0
+                current_start = i
+            end
+            current_len += 1
+        else
+            if current_len > max_len
+                max_len = current_len
+                max_start = current_start
+                max_end = i - 1
+            end
+            current_len = 0
+        end
+    end
+
+    # Check the last segment after loop ends
+    if current_len > max_len
+        max_len = current_len
+        max_start = current_start
+        max_end = lastindex(x)
+    end
+
+    return max_len > 0 ? (max_start:max_end) : nothing
 end
