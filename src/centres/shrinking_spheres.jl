@@ -140,7 +140,7 @@ function _bound_particles(state::SS_State, snap::Snapshot)
 
     Φs = snap.potential[state.filt]
     ϵ = specific_energy.(Φs, v)
-    filt_bound = ϵ .< 0
+    filt_bound = ϵ .> 0
     
     return filt_bound
 end

@@ -136,7 +136,7 @@ end
 Given potential and velocity, calculate specific energy.
 """
 function specific_energy(Φ::Real, v::Real)
-    return 0.5v^2 .+ Φ
+    return -(1/2 * v^2 .+ Φ)
 end
 
 
