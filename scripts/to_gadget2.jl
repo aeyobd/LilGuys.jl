@@ -33,7 +33,7 @@ function main()
     end
 
     snap.header = LilGuys.make_gadget2_header(length(snap), m_header)
-    LilGuys.save(args["output"], snap)
+    LilGuys.write(args["output"], snap)
 end
 
 

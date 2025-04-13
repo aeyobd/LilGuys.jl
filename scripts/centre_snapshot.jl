@@ -84,7 +84,7 @@ function main()
         lguys.regenerate_header!(new) # as N has changed
     end
 
-    lguys.save(args["output"], new)
+    lguys.write(args["output"], new)
 end
 
 

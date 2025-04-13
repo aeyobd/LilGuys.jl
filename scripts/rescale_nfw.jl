@@ -74,7 +74,7 @@ function main()
         scaled = scaled[filt]
     end
 
-    LilGuys.save(args["output"], scaled)
+    LilGuys.write(args["output"], scaled)
 
     @info "Writing used scales to $outparams"
 

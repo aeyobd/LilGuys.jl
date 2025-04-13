@@ -50,18 +50,18 @@ function main()
         out.v_cen .= zeros(size(out.v_cen))
     end
 
-    profiles = Pair{String, LilGuys.MassProfile3D}[]
-
     snap_idx = eachindex(out)[1:args["skip"]:end]
-    for i in snap_idx
+    profiles = Vector{Pair{String, LilGuys.MassProfile3D}}(undef, length(snap_idx))
+
+    Threads.@threads for i in snap_idx
         @info "computing profile for snapshot $i"
         try
             prof = LilGuys.MassProfile3D(out[i], bins=bins)
-            push!(profiles, string(i) => prof)
+            profiles[i] = string(i) => prof
         catch e
             @warn "failed to compute profile for snapshot $i"
             @warn e
-            break
+            profiles[i] = string(i) => nothing
         end
     end
 
