@@ -175,11 +175,9 @@ function write_fits(filename::String, frame::DataFrame;
         @debug table[col].shape
     end
 
-    table.write(filename)
 
-    if verbose
-        println("written to $filename")
-    end
+    table.write(filename)
+    @info "written dataframe to $filename"
 end
 
 
