@@ -13,60 +13,6 @@ function struct_approx_equal(a, b, rtol=1e-8, atol=1e-8)
     end
 end
 
-@testset "write_fits & read_fits" begin
-
-    @testset "simple" begin
-        df = lguys.DataFrame(
-            a = [1, 2, 8],
-            funky_key = [4.0, -π, NaN],
-            wow = ["a", "b", "cd"],
-        )
-        df[!, Symbol("nasty test")] = [true, false, true]
-
-        # write to fits
-        lguys.write_fits(joinpath(tdir, "test.fits"), df)
-
-        # read from fits
-        df2 = lguys.read_fits(joinpath(tdir, "test.fits"))
-
-
-        # check if the two dataframes are equal
-        @test size(df) == size(df2)
-        @test Set(names(df2)) == Set(names(df))
-        @test df.a == df2.a
-    end
-
-    @testset "missings" begin
-        df = lguys.DataFrame(
-            a = [1, 2, missing],
-            funky_key = [4.0, missing NaN],
-            wow = [missing, "b", "cd"],
-        )
-        df[!, Symbol("nasty test")] = [missing, missing, true]
-
-        # write to fits
-        lguys.write_fits(joinpath(tdir, "test.fits"), df)
-
-        # read from fits
-        df2 = lguys.read_fits(joinpath(tdir, "test.fits"))
-
-        # check if the two dataframes are equal
-        @test size(df) == size(df2)
-        @test Set(names(df2)) == Set(names(df))
-        @test df.a == df2.a
-    end
-
-    @testset "exceptions" begin 
-        df = lguys.DataFrame(
-            α = [1,2]
-        )
-
-        @test_throws ArgumentError lguys.write_fits(joinpath(tdir, "test.fits"), df)
-    end
-
-
-end
-
 
 @testset "write_hdf5_table & read_hdf5_table" begin
     @testset "simple" begin

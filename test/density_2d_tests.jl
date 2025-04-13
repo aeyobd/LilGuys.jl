@@ -59,12 +59,12 @@ end
         # default is no normalization
         prof = LilGuys.StellarDensityProfile(radii, bins=bins)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma nans=true
-        e = LilGuys.lower_bound.(prof.log_Sigma)
+        e = LilGuys.lower_error.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
         prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:mass)
         Mtot = 6
-        e = LilGuys.lower_bound.(prof.log_Sigma)
+        e = LilGuys.lower_error.(prof.log_Sigma)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
@@ -72,7 +72,7 @@ end
         prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:central, bins_centre=1)
         Mtot = 2 / (π * 3.5^2)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
-        e = LilGuys.lower_bound.(prof.log_Sigma)
+        e = LilGuys.lower_error.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
@@ -123,11 +123,11 @@ end
     sigma_exp = N * Σ.(R)
     log_sigma_exp = log10.(sigma_exp)
     
-    err = maximum.(LilGuys.credible_interval.(obs.log_Sigma))
+    err = maximum.(LilGuys.error_interval.(obs.log_Sigma))
     @test_χ2 LilGuys.middle.(obs.log_Sigma) err log_sigma_exp
 
     Gamma_exp = -R
-    err = maximum.(LilGuys.credible_interval.(obs.Gamma))
+    err = maximum.(LilGuys.error_interval.(obs.Gamma))
     filt = isfinite.(err)
     @test sum(filt) > 10
 
@@ -359,11 +359,11 @@ end
     r = 10 .^ obs.log_R
     sigma_exp = M * Σ.(r)
 
-    err = maximum.(LilGuys.credible_interval.(obs.log_Sigma))
+    err = maximum.(LilGuys.error_interval.(obs.log_Sigma))
     @test_χ2 LilGuys.middle.(obs.log_Sigma) err log10.(sigma_exp)
 
     Gamma_exp = -r
-    err = maximum.(LilGuys.credible_interval.(obs.Gamma))
+    err = maximum.(LilGuys.error_interval.(obs.Gamma))
     @test_χ2 LilGuys.middle.(obs.Gamma) err  Gamma_exp
 
 

@@ -3,6 +3,7 @@ using ArgParse
 
 using Polyhedra
 using LilGuys
+using PyFITS
 
 include("bin_args.jl")
 
@@ -92,7 +93,7 @@ function main()
     bins = bins_from_args(args)
 
     @info "loading sample"
-    sample = LilGuys.read_fits(args["input"])
+    sample = read_fits(args["input"])
 
     if args["mass-column"] === nothing
         weights = ones(size(sample, 1))

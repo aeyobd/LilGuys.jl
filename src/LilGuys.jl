@@ -137,17 +137,5 @@ function AgamaPotential end
 function sample_potential end
 
 
-# empty functions for AstroPyExt
-public read_fits, write_fits
-"""
-import PythonCall to use this method
-"""
-function read_fits end
-
-"""
-import PythonCall to use this method
-"""
-function write_fits end
-
 
 end # module LilGuys
