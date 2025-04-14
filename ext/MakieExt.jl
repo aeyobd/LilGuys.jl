@@ -15,7 +15,6 @@ import LilGuys: plot_xyz, plot_xyz!
 import LilGuys: cmd_axis
 import LilGuys: projecteddensity, projecteddensity!
 import LilGuys: gammaplot, gammaplot!
-import LilGuys: logsigmaplot, logsigmaplot!
 import LilGuys: hide_grid!, plot_log_Σ!, plot_Γ!
 import LilGuys: @savefig
 

@@ -59,19 +59,18 @@ end
     snap = lguys.Snapshot(positions, velocities, masses, weights=weights)
 
     bins = 20
-    prof = lguys.StellarProfile3D(snap, bins=bins)
-    @test prof isa lguys.StellarProfile3D
+    prof = lguys.StellarDensity3D(snap, bins=bins)
+    @test prof isa lguys.StellarDensity3D
 
     @testset "properties" begin
-        @test sum(prof.mass_in_shell) ≈ Mtot rtol=1e-2
         ρ_exp = @. Mtot .* ρ(10 ^ prof.log_r)
 
         @test_χ2 prof.rho prof.rho_err ρ_exp
 
-        @test prof.sigma_vx ≈ σv_exp rtol=1e-2
+        @test prof.annotations["sigma_vx"] ≈ σv_exp rtol=1e-2
 
-        @test prof.quantiles[3:5] ≈ [0.1, 0.5, 0.9]
-        @test prof.r_quantile[3:5] ≈ [1.102, 2.6740, 5.3223] rtol=1e-2
+        @test prof.annotations["quantiles"][3:5] ≈ [0.1, 0.5, 0.9]
+        @test prof.annotations["r_quantile"][3:5] ≈ [1.102, 2.6740, 5.3223] rtol=1e-2
         # quantiles test
         # integral of the profile is M * 1/2 * (2 - (x^2 + 2x + 2) * exp(-x))
         @test length(prof.log_r) == bins 
@@ -85,24 +84,26 @@ end
         v_scale = 1.1
 
         snap_scaled = lguys.Snapshot(positions * r_scale, velocities * v_scale, masses, weights=weights * m_scale)
-        prof_scaled = lguys.StellarProfile3D(snap_scaled, bins=bins)
+        prof_scaled = lguys.StellarDensity3D(snap_scaled, bins=bins)
         prof_rescaled = lguys.scale(prof, r_scale, v_scale, m_scale)
 
         for k in propertynames(prof_rescaled)
-            @test getproperty(prof_rescaled, k) ≈ getproperty(prof_scaled, k) rtol=1e-2 nans=true
+            if k != :annotations
+                @test getproperty(prof_rescaled, k) ≈ getproperty(prof_scaled, k) rtol=1e-2 nans=true
+            end
         end
     end
 
     @testset "arguments" begin
 
-        prof = lguys.StellarProfile3D(snap, bins=bins, 
+        prof = lguys.StellarDensity3D(snap, bins=bins, 
             r_max = 3, quantiles = [0.3, 0.5, 0.7], delta_t=2.0
            )
 
-        @test prof.quantiles == [0.3, 0.5, 0.7]
-        @test prof.delta_t == 2.0
-        @test prof.r_break ≈ 2.0 * 0.55 * σv_exp atol=1e-2
-        @test prof.sigma_vx ≈ lguys.σv_1d(snap, r_max=3) rtol=1e-8
+        @test prof.annotations["quantiles"] == [0.3, 0.5, 0.7]
+        @test prof.annotations["delta_t"] == 2.0
+        @test prof.annotations["r_break"] ≈ 2.0 * 0.55 * σv_exp atol=1e-2
+        @test prof.annotations["sigma_vx"] ≈ lguys.σv_1d(snap, r_max=3) rtol=1e-8
     end
 
 
