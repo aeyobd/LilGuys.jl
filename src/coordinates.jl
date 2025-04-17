@@ -458,14 +458,16 @@ end
 Given a dataframe with columns ra, dec, pmra, pmdec, radial_velocity, distance, 
 return an array of SkyCoord objects with the given frame.
 """
-function coords_from_df(df::DataFrame, coord::AbstractSkyCoord=ICRS)
+function coords_from_df(df::DataFrame, coord::Type=ICRS)
     for sym in [:ra, :dec, :pmra, :pmdec, :radial_velocity, :distance]
         if !hasproperty(df, sym)
             error("DataFrame must have a column named $sym")
         end
     end
 
-    return [coord(row.ra, row.dec, row.distance, row.pmra, row.pmdec, row.radial_velocity) for row in eachrow(df)]
+    return [coord(ra=row.ra, dec=row.dec, distance=row.distance, 
+        pmra=row.pmra, pmdec=row.pmdec, radial_velocity=row.radial_velocity)
+            for row in eachrow(df)]
 end
 
 

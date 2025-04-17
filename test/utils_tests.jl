@@ -1,4 +1,6 @@
-@testset "const vector" begin
+# needs robust tests for the most part
+
+@testset "ConstVector" begin
     @testset "initialization" begin
         a = 234
         N=10
@@ -11,9 +13,10 @@
         @test all(v .== a)
         @test collect(v) == [a for _ in 1:N]
 
-        #@test_throws InexactError lguys.ConstVector(a, -32)
+        @test_throws ArgumentError lguys.ConstVector(a, -32)
 
-        @test false broken = true #println
+        s = sprint(print, v)
+        @test s == "234.0"
     end
 
     @testset "left-multiplication" begin
@@ -56,6 +59,21 @@ end
 
 end
 
+
+@testset "collapse_errors" begin
+    d = Dict("a" => 1, "b" => 2.0, "b_em" => 0.1, "b_ep" => 0.15, "c" => -2.2, "c_err"=>0.5, "another_key" => [1,2,3])
+
+    d1 = LilGuys.collapse_errors(d)
+
+    @test d["a"] == d1["a"]
+    @test d1["b"] ≈ LilGuys.Measurement(2.0, 0.1, 0.15)
+    @test d1["c"] ≈ LilGuys.Measurement(-2.2, 0.5)
+    @test "b_em" ∉ keys(d1)
+    @test "c_err" ∉ keys(d1)
+    @test d1["another_key"] == [1,2,3]
+end
+
+
 @testset "mean" begin
     # mean is imported from statsbase
     @test lguys.mean([1,2,3]) == 2
@@ -92,7 +110,7 @@ end
 end
 
 
-@testset "rand unit vector" begin
+@testset "rand_unit" begin
     N = 1000
     xs = lguys.rand_unit(N)
 
@@ -109,17 +127,30 @@ end
 
 
 @testset "gradient: simple cases" begin
-    x = LinRange(-1, 1, 100)
-    y = x .^ 2
-    g = lguys.gradient(y, x)
-    @test g ≈ 2x atol=0.05
+    @testset "quadratic" begin
+        x = LinRange(-1, 1, 100)
+        y = x .^ 2
+        g = lguys.gradient(y, x)
+        @test g ≈ 2x atol=0.05
 
-    dx = x[2] - x[1]
+        dx = x[2] - x[1]
 
-    g = lguys.gradient(y)
-    @test g ≈ 2x * dx atol=0.05
+        g = lguys.gradient(y)
+        @test g ≈ 2x * dx atol=0.05
+    end
+
+    @testset "exponential" begin
+        x = LinRange(-1, 1, 100)
+        y = exp.(-x/2)
+        g = lguys.gradient(y, x)
+        @test g ≈ -1/2*exp.(-x ./2) atol=0.05
+
+        dx = x[2] - x[1]
+
+        g = lguys.gradient(y)
+        @test g ≈ -1/2 * exp.(-x ./2)* dx atol=0.05
+    end
 end
-
 
 
 
@@ -206,6 +237,14 @@ end
 end
 
 
+@testset "logit" begin
+    @test lguys.logit(0) === -Inf
+    @test lguys.logit(1) === Inf
+    @test lguys.logit(NaN) === NaN
+    @test lguys.logit(0.5) == 0
+    @test lguys.logit(0.75) ≈ log(3)
+end
+
     
 # centroid tests
 #
@@ -237,6 +276,7 @@ end
 end
 
 
+
 @testset "centroid weights" begin
     x = [ 1. 4  10;
           0  3   0;
@@ -265,6 +305,7 @@ end
     @test cen ≈ cen2
     @test err ≈ err2
 end
+
 
 
 @testset "centroid stat" begin
@@ -321,4 +362,12 @@ end
 
     w = [1,2,3]
     @test lguys.effective_sample_size(w) ≈ 36 / (1 + 2^2 + 3^2)
+end
+
+
+@testset "effective_sample_size" begin
+    @test lguys.effective_sample_size([1,2,3], nothing) == 3
+
+    @test lguys.effective_sample_size([1,2,3], [0.5, 0.5, 0.5]) == 3
+    @test lguys.effective_sample_size([1,2,3], [0.5, 0.0, 0.0]) == 1
 end

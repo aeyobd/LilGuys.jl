@@ -347,7 +347,7 @@ function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
 
 	ra .-= 360 * (ra .> 180)
 
-	ra, dec
+	60ra, 60dec
 end
 
 

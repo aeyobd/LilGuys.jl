@@ -214,14 +214,14 @@ end
 
 
 """
-    read_struct_from_hdf5(filename, T[, group=""])
+    read_struct_from_hdf5(filename, T[, group="/"])
 
 Reads a struct from an HDF5 file. Expects the struct to be stored
 in the group `group` and each field in the hdf5 file (or group)
 to be named after the field in the struct.
 The type is then called by `T(; kwargs...)`.
 """
-function read_struct_from_hdf5(filename::String, T; group="")
+function read_struct_from_hdf5(filename::String, T; group="/")
     local st
     h5open(filename, "r") do f
         st = read_struct_from_hdf5(f, T, group=group)
@@ -231,7 +231,7 @@ function read_struct_from_hdf5(filename::String, T; group="")
 end
 
 
-function read_struct_from_hdf5(h5::HDF5.File, T; group="")
+function read_struct_from_hdf5(h5::HDF5.File, T; group="/")
     kwargs = Dict{Symbol, Any}()
     for k in keys(h5[group])
         if Symbol(k) ∉ fieldnames(T)

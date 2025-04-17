@@ -30,17 +30,17 @@ public
 
     mean, 
     std, 
-    midpoints, 
     quantile, 
     variance,
+    midpoints, 
 
     expinti, 
     erf,
 
     integrate, 
+    curve_fit,
 
     histogram, 
-    effective_sample_size, 
     bins_default,
     bins_equal_number,
     bins_both,
@@ -66,7 +66,8 @@ public
     logistic, 
     logit,
     centroid, 
-    centroid_err
+    centroid_err,
+    effective_sample_size
 
 include("utils.jl")
 

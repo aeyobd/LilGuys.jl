@@ -9,6 +9,13 @@ Memory efficient vector which is constant (useful for type-enforced vectors, e.g
 struct ConstVector <: AbstractArray{F, 1}
     value::F
     size::Int
+
+    function ConstVector(v, s) 
+        if s < 0
+            throw(ArgumentError("size must be positive, got $s"))
+        end
+        return new(v, s)
+    end
 end
 
 
@@ -55,6 +62,11 @@ function struct_to_dict(S, split_errors=true)
     return d
 end
 
+"""
+    collapse_errors(d::Dict)
+
+Replace sets of a key with suffixes _em and_ep with a single Measurement.   
+"""
 function collapse_errors(d::Dict)
     d_new = deepcopy(d)
     ks = keys(d) 
@@ -63,10 +75,11 @@ function collapse_errors(d::Dict)
             em = pop!(d_new, key*"_em")
             ep = pop!(d_new, key*"_ep")
             d_new[key] = Measurement.(d_new[key], em, ep)
+        elseif key * "_err" ∈ ks
+            e = pop!(d_new, key*"_err")
+            d_new[key] = Measurement.(d_new[key], e)
         end
-
     end
-
     return d_new
 end
 
@@ -300,8 +313,6 @@ end
 
 
 
-
-
 """
     sample_surface_density(f::Function, N::Integer = 1; log_R=nothing)
 
@@ -389,3 +400,28 @@ macro assert_3vector(x)
 end
 
 
+@doc raw"""
+    effective_size(data, weights)
+
+Computes the effective size of a set of weights. If all weights are equal, than
+the effective sample size is simply the number of observations (the length of
+the weights). However, for more variable weight distributions, the effective
+sample size will decrease.
+
+The equation (Kish) is given by
+```math
+n_{eff} = \frac{ \left( \sum w \right)^2 }{ \sum w^2 } 
+```
+"""
+function effective_sample_size(weights::AbstractVector{<:Real})
+    return sum(weights)^2 / sum(weights .^ 2)
+end
+
+
+function effective_sample_size(data::AbstractVector{<:Real}, weights::Nothing)
+    return length(data)
+end
+
+function effective_sample_size(data::AbstractVector{<:Real}, weights::AbstractVector{<:Real})
+    return effective_sample_size(weights)
+end

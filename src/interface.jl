@@ -6,12 +6,12 @@ especially as Julia is still young.
 """
 module Interface
 
-export mean, std, midpoints, weights, StatsBase, quantile, varience
+export mean, std, midpoints, weights, StatsBase, quantile, variance
 export erf, expinti
 
 export integrate, curve_fit, find_zero
 
-export histogram, effective_sample_size, bins_default, bins_equal_number, bins_both, bins_equal_width
+export histogram, bins_default, bins_equal_number, bins_both, bins_equal_width
 export default_bin_width, default_n_per_bin
 export DataFrame
 
@@ -31,6 +31,7 @@ import DensityEstimators
 
 import Roots: find_zero
 import DataFrames: DataFrame
+import ..effective_sample_size
 
 
 midpoints = sb.midpoints
@@ -324,35 +325,8 @@ end
 Returns the pth quantile of x with weights w
 """
 function quantile(x, w, p)
-    ws = sb.weights(w)
     return sb.quantile(x, sb.weights(w), p)
 end
 
-
-@doc raw"""
-    effective_size(data, weights)
-
-Computes the effective size of a set of weights. If all weights are equal, than
-the effective sample size is simply the number of observations (the length of
-the weights). However, for more variable weight distributions, the effective
-sample size will decrease.
-
-The equation (Kish) is given by
-```math
-n_{eff} = \frac{ \left( \sum w \right)^2 }{ \sum w^2 } 
-```
-"""
-function effective_sample_size(weights::AbstractVector{<:Real})
-    return sum(weights)^2 / sum(weights .^ 2)
-end
-
-
-function effective_sample_size(data::AbstractVector{<:Real}, weights::Nothing)
-    return length(data)
-end
-
-function effective_sample_size(data::AbstractVector{<:Real}, weights::AbstractVector{<:Real})
-    return effective_sample_size(weights)
-end
 
 end

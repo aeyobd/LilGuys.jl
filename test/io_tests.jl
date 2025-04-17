@@ -43,21 +43,32 @@ end
 end
 
 
+@testset "to_dict" begin
+    @test false broken=true
+end
 
-@testset "write and read structs_from_hdf5" begin
+
+
+@testset "structs i/o" begin
+    @Base.kwdef struct TestStruct
+        a::Int
+        b::Float64
+        c::String
+        v::Vector{Float64}
+    end
+
+    s1 = TestStruct(1, 2.0, "a", [1.0, 2.0, 3.0])
+    s2 = TestStruct(0, π, "b", [4.0, 5.0, -2.2])
+    structs = ["1"=>s1, "2"=>s2]
+
+    @testset "read/write struct" begin
+        filename = joinpath(tdir, "test.hdf5")
+        lguys.write_struct_to_hdf5(filename, s1)
+        s1_recovered = lguys.read_struct_from_hdf5(filename, TestStruct)
+        struct_approx_equal(s1, s1_recovered)
+    end
 
     @testset "simple" begin
-        @Base.kwdef struct TestStruct
-            a::Int
-            b::Float64
-            c::String
-            v::Vector{Float64}
-        end
-
-        s1 = TestStruct(1, 2.0, "a", [1.0, 2.0, 3.0])
-        s2 = TestStruct(0, π, "b", [4.0, 5.0, -2.2])
-
-        structs = ["1"=>s1, "2"=>s2]
 
         filename = joinpath(tdir, "test.hdf5")
         lguys.write_structs_to_hdf5(filename, structs)
@@ -71,4 +82,12 @@ end
 
     end
 
+    @testset "structs_to_int_pairs" begin
+        structs_new = lguys.structs_to_int_pairs(structs[[2,1]])
+
+        for i in 1:2
+            struct_approx_equal(structs_new[i].second, [s1, s2][i])
+            @test structs_new[i].first == i
+        end
+    end
 end
