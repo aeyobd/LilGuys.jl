@@ -44,12 +44,12 @@ function main()
 
 	cen = lguys.calc_centre(lguys.StaticState, snap)
     # radii bins
-    radii = lguys.calc_r(snap, cen.position)
+    radii = lguys.radii(snap, cen.position)
     masses = snap.masses
-    Φs = lguys.calc_radial_discrete_Φ(radii, masses)
-    vs = lguys.calc_r(snap.velocities, cen.velocity)
+    Φs = lguys.potential_spherical_discrete(radii, masses)
+    vs = lguys.radii(snap.velocities, cen.velocity)
     ϵs = @. -Φs - 1/2*vs^2
-    Φs_nbody = isnothing(snap.Φs) ? fill(NaN, length(Φs)) : snap.Φs
+    Φs_nbody = isnothing(snap.potential) ? fill(NaN, length(Φs)) : snap.potential
 
     snap_df = DataFrame(
         index = snap.index,

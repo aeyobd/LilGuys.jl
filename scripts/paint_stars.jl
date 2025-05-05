@@ -76,7 +76,7 @@ function main()
     ψ = df_df.psi
     print_missing(df_snap.radii, radii, profile)
 
-    ρ = lguys.calc_ρ.(profile, radii)
+    ρ = lguys.density.(profile, radii)
     f_s = lguys.DistributionFunction(ρ, ψ, radii)
 
 
@@ -142,12 +142,12 @@ end
 Given the stellar mass function M_s, returns total missing stars
 """
 function print_missing(radii, r_bins, profile)
-    r_h = lguys.calc_r_h(profile)
+    r_h = lguys.r_h(profile)
     @info "r_h = $r_h"
     @info " $(sum(radii .< r_h)) stars within (3D) half-light radius"
 
-    M_s_tot = lguys.get_M_tot(profile)
-    M_s(r) = lguys.calc_M(profile, r) / M_s_tot
+    M_s_tot = lguys.mass(profile)
+    M_s(r) = lguys.mass(profile, r) / M_s_tot
 
 	N_s_out = 1 - M_s(r_bins[end])
 	N_s_in = M_s(r_bins[1])

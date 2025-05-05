@@ -51,11 +51,11 @@ function main()
     radii = make_radii_bins(energy_df, args)
 
     M = sum(energy_df.mass)
-    M_scale = M / lguys.calc_M(prof, radii[end]) 
+    M_scale = M / lguys.mass(prof, radii[end]) 
     println("M_scale = $M_scale")
 
-    ρ = M_scale * lguys.calc_ρ.(prof, radii)
-    ψ = -M_scale * lguys.calc_Φ.(prof, radii)
+    ρ = M_scale * lguys.density.(prof, radii)
+    ψ = -M_scale * lguys.potential.(prof, radii)
 
     f = lguys.DistributionFunction(ρ, ψ, radii)
     f_ϵ = f.(ψ)
@@ -66,6 +66,7 @@ function main()
 
     lguys.write_hdf5_table(dist_filename, df_dist; overwrite=true)
 end
+
 
 function make_radii_bins(energy_df, params)
     r = sort(energy_df.radii)
@@ -85,7 +86,6 @@ function make_radii_bins(energy_df, params)
     @assert x_min < log10(r[1])
     return radii
 end
-
 
 
 

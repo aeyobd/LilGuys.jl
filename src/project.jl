@@ -327,14 +327,14 @@ end
 
 
 """
-    to_orbit_coords(ra, dec, ra0, dec0, PA) 
+    to_orbit_coords(ra, dec, ra0, dec0, PA; unit=:degree) 
 
-Given the position angle of an orbit vector at (ra0, dec0) calculates a rotated
+Given the position angle of an orbit vector at (ra0, dec0) calculate a rotated
 sky frame centred on RA, DEC and with the x-axis aligned with the orbit.
 The orbital position angle can be found in the orbit properties file from
-analyze_orbit.jl notebook.
+analyze_orbit.jl notebook. Returns coordinates in the units specified by `unit`
 """
-function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
+function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real; unit=:degree)
 	# want to rotate to dec, ra of centre, then rotate 
 	α = deg2rad(ra0)
 	δ = deg2rad(dec0)
@@ -347,7 +347,13 @@ function to_orbit_coords(ra, dec, ra0::Real, dec0::Real, PA::Real)
 
 	ra .-= 360 * (ra .> 180)
 
-	60ra, 60dec
+    if unit == :arcmin
+        return 60ra, 60dec
+    elseif unit == :degree
+        return ra, dec
+    else
+        @error "unknown unit $unit"
+    end
 end
 
 

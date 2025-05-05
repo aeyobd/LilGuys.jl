@@ -270,81 +270,6 @@ end
 end
 
 
-@testset "to_orbit_coords" begin
-    @testset "identity" begin
-        N = 1000
-        ra = -180 .+ 360rand(N)
-        dec = 180rand(N) .- 90
-
-        ra2, dec2 = lguys.to_orbit_coords(ra, dec, 0., 0., 90.)
-
-        @test ra2 ≈ ra
-        @test dec2 ≈ dec
-
-        radec = lguys.to_orbit_coords.(ra, dec, ra, dec, 0.)
-        ra3 = first.(radec)
-        dec3 = last.(radec)
-        @test ra3 ≈ zeros(N) atol = 1e-12
-        @test dec3 ≈ zeros(N) atol = 1e-12
-    end
-
-    @testset "direction" begin
-        N = 1000
-        ra = -180 .+ 360rand(N)
-        dec = 160rand(N) .- 80
-
-        # these have to be very small for this to work
-        δ = 0.01 * rand(N)
-        α = 0.01 * rand(N)
-
-        ra1 = ra .+ α
-        dec1 = dec .+ δ
-        α_exp = lguys.angular_distance.(ra, dec, ra1, dec)
-        δ_exp = lguys.angular_distance.(ra, dec, ra, dec1)
-
-        # if the PA is 0, then positive in the new axis should be positive in dec
-        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 0.)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ δ_exp atol=1e-6
-        @test dec2 ≈ zeros(N) atol=1e-5
-
-
-        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 0.)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ zeros(N) atol=1e-5
-        @test dec2 ≈ -α_exp atol=1e-6
-        
-
-        # if PA is 90, then positive in the new axis should be positive in ra
-        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 90.)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ α_exp atol=1e-6
-        @test dec2 ≈ zeros(N) atol=1e-5
-
-        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 90.)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ zeros(N) atol=1e-6
-        @test dec2 ≈ δ_exp atol=1e-5
-
-        # 180 deg
-        radec = lguys.to_orbit_coords.(ra, dec1, ra, dec, 180)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ -δ_exp atol=1e-6
-        @test dec2 ≈ zeros(N) atol=1e-5
-
-        radec = lguys.to_orbit_coords.(ra1, dec, ra, dec, 180)
-        ra2 = first.(radec)
-        dec2 = last.(radec)
-        @test ra2 ≈ zeros(N) atol=1e-5
-        @test dec2 ≈ α_exp atol=1e-6
-    end
-end
-
 
 @testset "integration with exp profile" begin
     Σ(r) = exp(-r)/2π
@@ -354,10 +279,15 @@ end
     mass = 0.5 .+ 0.5rand(N)
     M = sum(mass)
 
-    obs = LilGuys.StellarDensityProfile(r, normalization=:none, weights=mass)
+    obs = LilGuys.StellarDensityProfile(r, normalization=:none, weights=mass,
+        annotations = Dict("sigma" => π/3, "note" => "hi")
+    )
 
     mass_per_annulus = 10 .^ obs.log_Sigma .* diff(π * 10 .^ 2obs.log_R_bins)
     @test sum(LilGuys.middle.(mass_per_annulus)) ≈ sum(mass)
+
+    @test obs.annotations["sigma"] ≈ π/3
+    @test obs.annotations["note"] == "hi"
 
     @test issorted(obs.log_R)
     @test sum(obs.counts) ≈ N
@@ -429,4 +359,66 @@ end
             @test all(isapprox.(v1, v2, nans=true, rtol=1e-10))
         end
     end
+end
+
+
+
+@testset "find longest consecutive_finite" begin
+    @testset "simple cases" begin
+        x = [1, NaN, 2, 3, 0, -1, Inf, 2, 3, NaN, 7, 8, 9]
+        @test LilGuys.find_longest_consecutive_finite(x) == 3:6
+
+        x = [0.23, -99.42, 5]
+        @test LilGuys.find_longest_consecutive_finite(x) == 1:3
+
+        @test LilGuys.find_longest_consecutive_finite([]) === 1:0
+    end
+
+end
+
+
+@testset "edge_from_midpoint_filter" begin
+    mids = 1:1
+    @test LilGuys.edge_from_midpoint_filter(mids) == 1:2
+
+
+    mids = 1:0
+    @test LilGuys.edge_from_midpoint_filter(mids) == 1:1
+
+
+    mids = 6:8
+    @test LilGuys.edge_from_midpoint_filter(mids) == 6:9
+end
+
+
+@testset "filter_by_bin" begin
+    prof = LilGuys.StellarDensityProfile(
+        R_units="",
+        log_R = [1.0, 1.5, 2.0],
+        log_R_bins = [0.75, 1.25, 1.75, 2.25],
+        counts = [1, 3, 2],
+        log_Sigma = [Inf, 0.6, -0.2],
+    )
+
+    prof2 = LilGuys.filter_by_bin(prof, 1:1)
+
+    @test prof2.log_R_bins ≈ [0.75, 1.25]
+
+    @test prof2.log_R ≈ [1.0]
+    @test prof2.counts ≈ [1]
+    @test LilGuys.middle.(prof2.log_Sigma) ≈ [Inf]
+
+
+    prof2 = LilGuys.filter_by_bin(prof, 2:3)
+
+    @test prof2.log_R_bins ≈ [1.25, 1.75, 2.25]
+
+    @test prof2.log_R ≈ [1.5, 2.0]
+    @test prof2.counts ≈ [3, 2]
+    @test LilGuys.middle.(prof2.log_Sigma) ≈ [0.6, -0.2]
+end
+
+
+@testset "Γ_max" begin
+    @test false broken=true
 end

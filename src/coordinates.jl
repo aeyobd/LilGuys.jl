@@ -253,7 +253,7 @@ end
 
 
 
-function Base.show(io::IO, coord::AbstractSkyCoord) 
+function Base.show(io::IO, ::MIME"text/plain", coord::AbstractSkyCoord) 
     print(io, "$(typeof(coord)) at ")
     @printf io "(%4.2f, %4.2f) deg" coord.ra coord.dec
     if coord.distance !== NaN
@@ -344,7 +344,7 @@ end
 
 
 
-function Base.show(io::IO, pp::Cartesian{T}) where {T}
+function Base.show(io::IO, ::MIME"text/plain", pp::Cartesian{T}) where {T}
     print(io, "$T point at ")
     @printf io "(%4.2f, %4.2f, %4.2f) kpc, " pp.x pp.y pp.z
 

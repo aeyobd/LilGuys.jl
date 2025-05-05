@@ -70,6 +70,7 @@ Calculate the properties of a density profile given the radii `Rs` and the units
 - `bins_centre`: The number of bins to use for centre normalization.
 - `distance`: distance (optional)
 - `R_units`: The units of the radii, entirely for self-documentation currently.
+- `annotations`: Additional notes to be added to the profile.
 """
 function StellarDensityProfile(Rs; 
         weights=nothing, 
@@ -79,7 +80,7 @@ function StellarDensityProfile(Rs;
         R_units="", 
         distance=NaN,
         errors=:weighted,
-        kwargs...
+        annotations=Dict{String, Any}(),
     )
 
     if weights === nothing
@@ -120,6 +121,8 @@ function StellarDensityProfile(Rs;
 
     Γ = calc_Γ(Measurement.(log_R_m, δ_log_R), log_Sigma)
 
+    annotations["normalization"] = string(normalization)
+
     prof = StellarDensityProfile(;
         R_units = R_units,
         log_R = log_R_m,
@@ -127,9 +130,7 @@ function StellarDensityProfile(Rs;
         counts = counts,
         log_Sigma = log_Sigma,
         Gamma = Γ,
-        annotations = Dict(
-            "normalization" => string(normalization),
-           ),
+        annotations = annotations
     )
 
     prof = normalize(prof, mass_per_annulus, normalization, bins_centre=bins_centre)
@@ -174,8 +175,8 @@ function StellarDensityProfile(snap::Snapshot;
     xi, eta = to_tangent(ra, dec, ra0, dec0)
     r = sqrt.(xi .^ 2 + eta .^ 2)
 
-    annotations = Dict("time" => snap.time)
-    if :annotations ∈ [k for (k, v) in kwargs]
+    annotations = Dict{String, Any}("time" => snap.time)
+    if :annotations ∈ keys(kwargs)
         for (key, val) in kwargs[:annotations]
             annotations[string(key)] = val
         end
@@ -210,16 +211,6 @@ end
 
 
 """
-    nan_uncertainty(v)
-
-Returns the uncertainty of a value `v` with zero uncertainties as NaN
-"""
-function nan_uncertainty(v::AbstractVector{<:Real})
-    return fill(NaN, length(v))
-end
-
-
-"""
     ellipticity_to_aspect(ellipticity)
 
 Converts the ellipticity to the aspect ratio (b/a) of an ellipse.
@@ -246,19 +237,19 @@ function calc_Σ_from_hist(log_R_bin::AbstractVector{<:Real}, mass_per_annulus::
 end
 
 
-"""
-    calc_Σ_from_1D_density(log_R_bin, density1d)
-
-Calculate the surface density given the radii `log_R_bin` and the 1D density `density1d`.
-"""
-function calc_Σ_from_1D_density(log_R_bin::AbstractVector{<:Real}, density1d::AbstractVector{<:Real})
-    r = 10 .^ log_R_bin
-    As = π * diff(r .^ 2)
-
-    Σ = density ./ (2π * log(10) * r .^ 2)
-    return Σ
-end
-
+# not presently used
+# """
+#     calc_Σ_from_1D_density(log_R_bin, density1d)
+# 
+# Calculate the surface density given the radii `log_R_bin` and the 1D density `density1d`.
+# """
+# function calc_Σ_from_1D_density(log_R_bin::AbstractVector{<:Real}, density1d::AbstractVector{<:Real})
+#     r = 10 .^ log_R_bin
+# 
+#     Σ = density ./ (2π * log(10) * r .^ 2)
+#     return Σ
+# end
+# 
 
 """
     calc_Γ(log_Rs, Σs)
@@ -270,26 +261,6 @@ function calc_Γ(log_Rs::AbstractVector{<:Real}, log_Σ::AbstractVector{<:Measur
     d_log_Σ = gradient(log_Σ)
 
     return d_log_Σ ./ d_log_R
-end
-
-
-"""
-    calc_M_partial(log_Rs, log_R_bins, log_R_min; weights)
-
-Computes the amount of mass between each bin and the next bin midpoints
-"""
-function calc_M_partial(log_Rs, log_R_bins, log_R_m; weights=ones(length(log_Rs)))
-    M_partials = zeros(length(log_R_m))
-    M_errs = zeros(length(log_R_m))
-
-    for i in eachindex(M_partials)
-        filt = log_Rs .< log_R_m[i]
-        filt .&= log_Rs .>= log_R_bins[i]
-        M_partials[i] = sum(weights[filt])
-        M_errs[i] = sqrt.(sum(weights[filt] .^ 2))
-    end
-
-    return M_partials .± M_errs
 end
 
 
@@ -373,7 +344,7 @@ end
 """
 filters a profile by the given bitarray (indexed by bin)
 """
-function filter_by_bin(prof::StellarDensityProfile, bin_selection)
+function filter_by_bin(prof::StellarDensityProfile, bin_selection::UnitRange)
     edge_filt = edge_from_midpoint_filter(bin_selection)
     filt = bin_selection
 
@@ -395,14 +366,13 @@ end
 function filter_empty_bins(prof::StellarDensityProfile)
     idxs = find_longest_consecutive_finite(prof.log_Sigma)
 
-    filt = eachindex(prof.log_R) .∈ Ref(idxs)
-    return filter_by_bin(prof, filt)
+    return filter_by_bin(prof, idxs)
 end
 
 
 "returns the bin edges if x is a bitarray filter on bins"
-function edge_from_midpoint_filter(x)
-    return [false; x] .| [x; false]
+function edge_from_midpoint_filter(x::UnitRange)
+    return (x.start):(x.stop+1)
 end
 
 
@@ -411,6 +381,7 @@ end
 
 Returns the longest consecutive sequence of finite elements in x
 as a int-range.
+Returns nothing if there are no finite elements in x.
 """
 function find_longest_consecutive_finite(x)
     max_len = 0
@@ -441,6 +412,10 @@ function find_longest_consecutive_finite(x)
         max_start = current_start
         max_end = lastindex(x)
     end
-
-    return max_len > 0 ? (max_start:max_end) : nothing
+    
+    if max_len > 0
+        return max_start:max_end
+    else
+        return 1:0 # null selection
+    end
 end

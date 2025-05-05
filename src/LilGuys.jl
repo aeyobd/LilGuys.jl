@@ -25,6 +25,26 @@ export
 include("measurements.jl")
 
 
+
+
+public 
+    ConstVector,
+    struct_to_dict, 
+    dict_to_tuple,
+    collapse_errors,
+    randu, rand_unit,
+    gradient,
+    lerp,
+    normal_cdf, 
+    gaussian, 
+    logistic, 
+    logit,
+    centroid, 
+    centroid_err,
+    effective_sample_size
+
+include("utils.jl")
+
 public 
     DataFrame,
 
@@ -51,26 +71,6 @@ public
 
 include("interface.jl")
 using .Interface
-
-
-public 
-    ConstVector,
-    struct_to_dict, 
-    dict_to_tuple,
-    collapse_errors,
-    randu, rand_unit,
-    gradient,
-    lerp,
-    normal_cdf, 
-    gaussian, 
-    logistic, 
-    logit,
-    centroid, 
-    centroid_err,
-    effective_sample_size
-
-include("utils.jl")
-
 
 public 
     CoordinateFrame, 
