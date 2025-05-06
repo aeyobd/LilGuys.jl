@@ -1,4 +1,7 @@
 #!/usr/bin/env julia
+import Pkg
+using Logging, LoggingExtras
+
 using ArgParse
 
 using LilGuys
@@ -11,6 +14,8 @@ using CSV, DataFrames
 @info "loading agama"
 using PythonCall
 agama = pyimport("agama")
+
+include("script_utils.jl")
 
 
 function get_args()
@@ -108,6 +113,19 @@ end
 
 function main()
     args = get_args()
+
+    logfile = splitext(args["output"])[1] * ".log"
+    @assert logfile != args["output"]
+
+    logger = TeeLogger(global_logger(), FileLogger(logfile))
+
+    with_logger(logger) do
+        Pkg.version()
+        read_and_project(args)
+    end
+end
+
+function read_and_project(args)
     times = args["times"]
 
     if isfile(args["output"])
@@ -143,7 +161,6 @@ function main()
             end
         end
     end
-
 end
 
 

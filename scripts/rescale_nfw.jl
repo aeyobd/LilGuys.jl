@@ -4,8 +4,8 @@ using LilGuys
 using ArgParse
 import TOML
 
+include("script_utils.jl")
 
-SCRIPT_VERSION = "0.1.1"
 
 function get_args()
     s = ArgParseSettings(description="Rescales a snapshot in mass and radius accordint to the halo parameters.")
@@ -37,12 +37,7 @@ function get_args()
 end
 
 
-function main()
-    @info "LilGuys $(pkgversion(LilGuys))"
-    @info "rescale_nfw.jl v$SCRIPT_VERSION"
-
-    args = get_args()
-
+function main(args)
     if isfile(args["output"])
         @info "Removing old output file $(args["output"])"
         rm(args["output"], force=true)
@@ -91,5 +86,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

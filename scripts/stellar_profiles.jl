@@ -6,8 +6,7 @@ using LilGuys
 import DensityEstimators
 import TOML
 
-SCRIPT_VERSION = "v0.1.0"
-include("bin_args.jl")
+include("script_utils.jl")
 
 function get_args()
     s = ArgParseSettings(
@@ -53,18 +52,15 @@ end
 
 
 
-function main()
-    @info "$(@__FILE__) version: $SCRIPT_VERSION"
-    @info "LilGuys version: $(pkgversion(LilGuys))"
-    args = get_args()
+function main(args)
     bins = bins_from_args(args)
-    println("bins = ", bins)
+    @info "bins = $bins"
 
     @info "loading sample"
     stars = LilGuys.read_hdf5_table(args["stars"])
     out = Output(args["input"], weights=stars.probability)
 
-    profiles = Pair{String, LilGuys.StellarProfile}[]
+    profiles = Pair{String, LilGuys.StellarDensityProfile}[]
 
     idx = collect(1:args["skip"]:length(out))
     if idx[end] != length(out)
@@ -83,7 +79,7 @@ function main()
         @info "processing snapshot $i"
         snap = out[i]
 
-        prof = LilGuys.StellarProfile(snap, bins=bins,
+        prof = LilGuys.StellarDensityProfile(snap, bins=bins,
             r_units = "kpc"
           )
 
@@ -99,5 +95,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

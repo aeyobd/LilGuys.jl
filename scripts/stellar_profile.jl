@@ -5,7 +5,7 @@ using Polyhedra
 using LilGuys
 using PyFITS
 
-include("bin_args.jl")
+include("script_utils.jl")
 
 function get_args()
     s = ArgParseSettings(

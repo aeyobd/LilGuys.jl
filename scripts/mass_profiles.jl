@@ -1,11 +1,10 @@
 #!/usr/bin/env julia
-#
 using ArgParse
 
 using LilGuys 
 using HDF5
 
-include("bin_args.jl")
+include("script_utils.jl")
 
 
 function get_args()
@@ -39,12 +38,10 @@ function get_args()
     return args
 end
 
-
-function main()
-    args = get_args()
+function calc_profiles(args)
     bins = bins_from_args(args)
-
     out = Output(args["input"])
+
     if args["zero-centre"]
         out.x_cen .= zeros(size(out.x_cen))
         out.v_cen .= zeros(size(out.v_cen))
@@ -65,12 +62,11 @@ function main()
         end
     end
 
-
-    LilGuys.write_structs_to_hdf5(args["output"], profiles)
+    return profiles
 end
 
-
-
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+
+    run_script_with_output(calc_profiles, args)
 end

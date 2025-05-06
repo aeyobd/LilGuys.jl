@@ -6,7 +6,7 @@ using LilGuys
 using HDF5
 import TOML
 
-include("bin_args.jl")
+include("script_utils.jl")
 
 SCRIPT_VERSION = "v0.1.0"
 
@@ -54,12 +54,7 @@ computes the 3D stellar profiles for each snapshot.
 end
 
 
-function main()
-    @info "$(@__FILE__) version: $SCRIPT_VERSION"
-    @info "LilGuys version: $(pkgversion(LilGuys))"
-
-    args = get_args()
-
+function main(args)
     bins = bins_from_args(args)
 
     weights = LilGuys.read_hdf5_table(args["starsfile"]).probability
@@ -92,7 +87,7 @@ function main()
         r_scale = 1
     end
 
-    profiles = Pair{String, LilGuys.StellarProfile3D}[]
+    profiles = Pair{String, LilGuys.StellarDensity3D}[]
 
     snap_idx = collect(eachindex(out)[1:args["skip"]:end])
     if snap_idx[end] != length(out)
@@ -110,12 +105,12 @@ function main()
             delta_t = NaN
         end
 
-        prof = LilGuys.StellarProfile3D(out[i], delta_t=delta_t, bins=bins, r_max=1/r_scale)
+        prof = LilGuys.StellarDensity3D(out[i], delta_t=delta_t, bins=bins, r_max=1/r_scale)
 
-        @info "v = $(prof.sigma_vx)"
+        @info prof.annotations
+        @info "v scaled = $(prof.annotations["sigma_vx"])"
         if args["scale"] != nothing
             prof = LilGuys.scale(prof, r_scale, v_scale, M_scale)
-            @info "v scaled = $(prof.sigma_vx)"
         end
         push!(profiles, string(i) => prof)
     end
@@ -127,5 +122,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

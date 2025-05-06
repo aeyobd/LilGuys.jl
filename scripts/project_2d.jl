@@ -1,4 +1,7 @@
 #!/usr/bin/env julia
+import Pkg
+using Logging, LoggingExtras
+
 using ArgParse
 
 using LilGuys
@@ -6,6 +9,8 @@ using LilGuys
 using StatsBase
 using LinearAlgebra: cross
 using HDF5
+
+include("script_utils.jl")
 
 
 function get_args()
@@ -67,13 +72,7 @@ end
 
 
 
-function main()
-    args = get_args()
-
-    if isfile(args["output"])
-        rm(args["output"])
-    end
-
+function main(args)
     @info "loading files"
 
     if args["stars"] != nothing
@@ -118,9 +117,8 @@ function main()
 
         end
     end
-
-    println()
 end
+
 
 function get_xy(out, idx; x_vec=[0, 1, 0], y_vec = [0, 0, 1])
     # shortcut for hdf5
@@ -159,5 +157,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

@@ -13,6 +13,8 @@ import DensityEstimators
 
 using ArgParse
 
+include("script_utils.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -43,8 +45,7 @@ given a snapshot and a halo.
 end
 
 
-function main()
-    args = get_args()
+function main(args)
     energy_df = lguys.read_hdf5_table(args["energies"])
 
     prof = lguys.load_profile(args["profile"])
@@ -52,7 +53,7 @@ function main()
 
     M = sum(energy_df.mass)
     M_scale = M / lguys.mass(prof, radii[end]) 
-    println("M_scale = $M_scale")
+    @info "M_scale = $M_scale"
 
     ρ = M_scale * lguys.density.(prof, radii)
     ψ = -M_scale * lguys.potential.(prof, radii)
@@ -91,5 +92,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

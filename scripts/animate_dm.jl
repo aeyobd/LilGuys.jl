@@ -1,10 +1,14 @@
 #!/usr/bin/env julia
-using ArgParse
-using LilGuys
-using CairoMakie
+import Pkg
 using Printf
+using Logging, LoggingExtras
+
+using ArgParse
+
 using HDF5
-using Arya
+using CairoMakie, Arya
+using LilGuys
+
 
 const white = Makie.RGBA{Float32}(1.0f0, 1.0f0, 1.0f0, 1.0f0)
 const yellow = COLORS[7]
@@ -24,8 +28,8 @@ const DEFAULT_COLORS = [
 
 function get_args()
     s = ArgParseSettings(
-         description="Animates the dark matter from a (projected) bird's eye view",
-        version="0.2.0"
+        description="Animate Gadget-4 N-body simulation dark matter from a (projected) bird's eye view",
+        version="0.2.1"
     )
 
     @add_arg_table s begin
@@ -37,7 +41,7 @@ function get_args()
             help="Colors for each input file (e.g., red,green,blue). Defaults to predefined colors."
             nargs='+'
         "--scalings", "-s"
-            help="Scaling factors for each input file. Defaults to 1.0 for each. May be a float, `max` or `match#` where # is the index of the file to match the scaling to."
+            help="Scaling factors for each input file. Defaults to 1.0 for each. May be a float, `###max` or `match#` where # is the index of the file to match the scaling to."
             nargs='+'
         "-o", "--output"
             help="Output directory for animation frames. Defaults to figures/dm_animation/"
@@ -85,6 +89,8 @@ function validate_args!(args)
     end
 end
 
+
+"DM scaling factor"
 struct Scaling
     factor::Float64
     match::Int
@@ -119,6 +125,7 @@ function Scaling(s::String)
 end
 
 
+"retrieve the scaling factor values based on the densities in h5files"
 function parse_scalings(scalings, h5files)
     scalings = Scaling.(scalings)
 
@@ -175,7 +182,7 @@ Checks that all files have the same x and y bins.
 TODO: eventually allow for ability to just rescale/resample 
 densities.
 """
-function have_same_bins(h5files, staticfiles=[])
+function has_same_bins(h5files, staticfiles=[])
     key1 = keys(h5files[1])[1]
     xbins1 = h5files[1]["/$(key1)/xbins"][:]
     ybins1 = h5files[1]["/$(key1)/ybins"][:]
@@ -234,13 +241,29 @@ end
 function main()
     args = get_args()
 
+    logfile = joinpath(args["output"], "info.log")
+    logger = TeeLogger(global_logger(), FileLogger(logfile))
+    with_logger(logger) do
+        animate_dm(args)
+    end
+
+end
+
+
+function animate_dm(args)
+    clean_outputs(args["output"])
     input_files = args["input"]
+    for file in input_files
+        if isfile(file)
+            rm(file)
+        end
+    end
+
     colors = args["colors"] |> parse_colors
     scalings = args["scalings"]
     output_dir = args["output"]
     dm_power = args["power"]
     scalebar_length = args["scalebar"]
-    clean_outputs(args["output"])
 
     # Convert color strings to RGBA
     color_rgba = [Makie.to_color(c) for c in colors]
@@ -248,33 +271,33 @@ function main()
     # Open all HDF5 files
     h5_files = [h5open(file, "r") for file in input_files]
 
-
     try
-        static_perm = collect(1:length(h5_files))
+            static_perm = collect(1:length(h5_files))
 
-        scalings = parse_scalings(scalings, h5_files)
+            scalings = parse_scalings(scalings, h5_files)
 
-        @info "Checking for static files"
-        static_filt = is_static.(h5_files)
-        @info "Static files: $(static_filt)"
-        static_files = h5_files[static_filt]
-        files = h5_files[.!static_filt]
-        static_perm = vcat(static_perm[.!static_filt], static_perm[static_filt])
-        @info "Static perm: $static_perm"
+            @info "Checking for static files"
+            static_filt = is_static.(h5_files)
+            @info "Static files: $(static_filt)"
+            static_files = h5_files[static_filt]
+            files = h5_files[.!static_filt]
+            static_perm = vcat(static_perm[.!static_filt], static_perm[static_filt])
+            @info "Static perm: $static_perm"
 
-        @info "checking bins"
-        if !have_same_bins(files, static_files)
-            error("All input files must have the same bins.")
+            @info "checking bins"
+            if !has_same_bins(files, static_files)
+                error("All input files must have the same bins.")
+            end
+
+            scalings = scalings[static_perm]
+            color_rgba = color_rgba[static_perm]
+            animate_multiple(files, static_files, output_dir;
+                scalebar=scalebar_length,
+                dm_power=dm_power,
+                colors=color_rgba,
+                scalings=scalings
+            )
         end
-
-        scalings = scalings[static_perm]
-        color_rgba = color_rgba[static_perm]
-        animate_multiple(files, static_files, output_dir;
-            scalebar=scalebar_length,
-            dm_power=dm_power,
-            colors=color_rgba,
-            scalings=scalings
-        )
     finally
         # Ensure all files are closed
         for f in h5_files
@@ -431,7 +454,7 @@ function add_scalebar!(ax, xrange, yrange, scalebar::Float64; font="Arial", font
 end
 
 
-# Function to map intensities to RGB channels based on a single color
+"Function to map intensities to RGB channels based on a single color"
 function map_intensities(Sigma_dm, color::Makie.RGBA{Float32})
     color = normalize_color(color)
     color_R = I_to_SI.(clamp.(Sigma_dm .* color.r, 0.0f0, 1.0f0))
@@ -440,13 +463,15 @@ function map_intensities(Sigma_dm, color::Makie.RGBA{Float32})
     return color_R, color_G, color_B
 end
 
-# Normalize color to ensure it's within [0,1]
+
+"Normalize color to ensure it's within [0,1]"
 function normalize_color(color::Makie.RGBA{Float32})
     return Makie.RGBA{Float32}(clamp(color.r, 0.0f0, 1.0f0),
                               clamp(color.g, 0.0f0, 1.0f0),
                               clamp(color.b, 0.0f0, 1.0f0),
                               clamp(color.alpha, 0.0f0, 1.0f0))
 end
+
 
 """
 Map luminosity intensity to sRGB scaling
@@ -466,6 +491,7 @@ function I_to_SI(I)
         return I^(1/2.4) * 1.055 - 0.055
     end
 end
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()

@@ -5,6 +5,9 @@ import LilGuys as lguys
 using CSV
 using DataFrames
 
+include("script_utils.jl")
+
+
 """
 Sets a particle in the orbit given by x_vec_0 and v_vec_0 (kpc and km/s)
 """
@@ -13,8 +16,8 @@ function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
     centred = deepcopy(snap)
     centred.positions .-= cen.position
     centred.velocities .-= cen.velocity
-    println("dx cen", cen.position)
-    println("dv cen", cen.velocity)
+    @info "dx cen = $(cen.position)"
+    @info "dv cen = $(cen.velocity)"
 
     if max_radius !== nothing
         r = lguys.calc_r(centred.positions)
@@ -30,7 +33,7 @@ function set_in_orbit(snap, x_vec, v_vec, max_radius=nothing)
     return centred
 end
 
-function parse_arguments()
+function get_args()
     s = ArgParseSettings()
     @add_arg_table! s begin
         "input"
@@ -61,16 +64,15 @@ function parse_arguments()
 end
 
 function main()
-    args = parse_arguments()
     snap = lguys.Snapshot(args["input"]) 
     if args["file"] !== nothing
         df = CSV.read(args["file"], DataFrame)
         row = df[1, :]
         position = [row.x, row.y, row.z]
         velocity = [row.v_x, row.v_y, row.v_z]
-        println("reading from file ", args["file"])
-        println("position: ", position)
-        println("velocity: ", velocity)
+        @info "reading from file " * args["file"]
+        @info "position = $position"
+        @info "velocity = $velocity"
     else
         position = read(file["position"])
         velocity = read(file["velocity"])
@@ -81,6 +83,7 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end
 

@@ -14,8 +14,8 @@ import DensityEstimators
 
 using ArgParse
 
+include("script_utils.jl")
 
-SCRIPT_VERSION = "v0.1.0"
 
 function get_args()
     s = ArgParseSettings(
@@ -62,12 +62,20 @@ are set to zero.
 end
 
 
-function main()
-    @info "script version $SCRIPT_VERSION"
-    @info "LilGuys version $(pkgversion(LilGuys))"
+function main(args)
+    rm(args["out"] * "_stars.hdf5", force=true)
+    rm(args["out"] * "_df.hdf5", force=true)
 
-    args = get_args()
+    df_snap, df_df = get_probabilities(args)
 
+    @info "writing outputs"
+
+    lguys.write_hdf5_table(args["out"] * "_stars.hdf5", df_snap; overwrite=true)
+    lguys.write_hdf5_table(args["out"] * "_df.hdf5", df_df; overwrite=true)
+end
+
+
+function get_probabilities(args)
     profile = lguys.load_profile(args["profile"])
     df_snap = lguys.read_hdf5_table(args["energy_file"])
     df_df = lguys.read_hdf5_table(args["distribution_function"])
@@ -78,7 +86,6 @@ function main()
 
     ρ = lguys.density.(profile, radii)
     f_s = lguys.DistributionFunction(ρ, ψ, radii)
-
 
     f_s_e = f_s.(df_df.psi)
     f_dm_e = df_df.f
@@ -108,16 +115,16 @@ function main()
 
     df_snap[!, :probability] = Vector{Float64}(probs)
 
-    # write outputs
-    @info "writing outputs"
     sort!(df_snap, :index)
-    lguys.write_hdf5_table(args["out"] * "_stars.hdf5", df_snap; overwrite=true)
+
 
     df_df[!, :probability] = Vector{Float64}(prob_e)
     df_df[!, :f_s] = Vector{Float64}(f_s_e)
     df_df[!, :rho_s] = Vector{Float64}(ρ)
-    lguys.write_hdf5_table(args["out"] * "_df.hdf5", df_df; overwrite=true)
+
+    return df_snap, df_df
 end
+
 
 
 function normalize_probabilities(ps)
@@ -164,5 +171,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args, args["out"])
 end

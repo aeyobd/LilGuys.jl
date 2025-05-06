@@ -1,10 +1,14 @@
 #!/usr/bin/env julia
 
+import Pkg
+using Logging, LoggingExtras
 
 using LilGuys
 using ArgParse
 import TOML
 
+
+include("script_utils.jl")
 
 
 
@@ -33,9 +37,25 @@ function get_args()
 end
 
 
-function main()
-    args = get_args()
+function main(args)
+    logfile = splitext(args["output"])[1] * ".log"
+    @assert logfile != args["output"]
 
+    logger = TeeLogger(global_logger(), FileLogger(logfile))
+
+    with_logger(logger) do
+        Pkg.version()
+
+        if isfile(args["output"])
+            rm(args["output"])
+        end
+
+        rescale_snapshot(args)
+    end
+end
+
+
+function rescale_snapshot(args)
     snap = Snapshot(args["input"])
 
     r_scale = args["radius"] 
@@ -49,7 +69,9 @@ function main()
     lguys.save(args["output"], scaled)
 end
 
+
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end
 

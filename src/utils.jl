@@ -61,13 +61,14 @@ function struct_to_dict(S, split_errors=true)
     return d
 end
 
+
 """
     collapse_errors(d::Dict)
 
 Replace sets of a key with suffixes _em and_ep with a single Measurement.   
 """
-function collapse_errors(d::Dict)
-    d_new = deepcopy(d)
+function collapse_errors(d::Dict{String, <:Any})
+    d_new = Dict{String, Any}(deepcopy(d))
     ks = keys(d) 
     for (key, val) in d
         if [key * "_em", key*"_ep"] ⊆ ks
@@ -84,6 +85,12 @@ function collapse_errors(d::Dict)
     return d_new
 end
 
+
+function collapse_errors(d::Dict{Symbol, <:Any})
+    d_str = Dict(string(k) => v for (k, v) in d)
+    d_str = collapse_errors(d_str)
+    return Dict(Symbol(k) => v for (k, v) in d_str)
+end
 
 
 """

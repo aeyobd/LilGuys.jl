@@ -4,6 +4,8 @@ using ArgParse
 using LilGuys
 import TOML
 
+include("script_utils.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -60,8 +62,8 @@ function get_kwargs(args)
 end
 
 
-function main()
-    args = get_args()
+
+function main(args)
     kwargs = get_kwargs(args)
     println(kwargs)
 
@@ -116,5 +118,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

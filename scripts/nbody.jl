@@ -3,6 +3,9 @@ using ArgParse
 import QuadGK: quadgk
 import LilGuys as lguys
 
+include("script_utils.jl")
+
+
 function get_args()
     # Parse command line arguments
     s = ArgParseSettings(description = "generates an exopential n-body equilibrium profile. Uses that 1R = 1 half light radius in 2D, and mass integrates to 1. ")

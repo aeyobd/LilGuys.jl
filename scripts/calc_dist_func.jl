@@ -13,6 +13,8 @@ import DensityEstimators
 
 using ArgParse
 
+include("script_utils.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -46,9 +48,7 @@ through eddington inversion.
 end
 
 
-function main()
-    args = get_args()
-
+function main(args)
     energy_df = lguys.read_hdf5_table(args["energies"])
     sort!(energy_df, :radii)
 
@@ -113,5 +113,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

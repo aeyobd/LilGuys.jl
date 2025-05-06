@@ -1,5 +1,7 @@
 using LilGuys: bins_equal_width, bins_equal_number, bins_both
 using ArgParse
+using Logging, LoggingExtras
+using Pkg
 
 
 """
@@ -63,3 +65,27 @@ function add_bin_args(settings::ArgParseSettings)
     return settings
 end
 
+
+"""
+    run_script_with_output(func, args, outfile)
+
+Run the function func taking one argument args using a logger to
+a logfile like `outfile*.log` and removes the output
+"""
+function run_script_with_output(func::Function, args::Dict, outfile::String=args["output"])
+    logfile = splitext(outfile)[1] * ".log"
+    @assert logfile != outfile
+
+    io = open(logfile, "w")
+    logger = TeeLogger(global_logger(), SimpleLogger(io))
+
+    with_logger(logger) do
+        Pkg.status(io=io)
+
+        if isfile(outfile)
+            rm(outfile)
+        end
+
+        func(args)
+    end
+end

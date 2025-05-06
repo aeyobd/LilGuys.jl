@@ -1,9 +1,10 @@
 #!/usr/bin/env julia
 
-
 using LilGuys
 using ArgParse
 import TOML
+
+include("script_utils.jl")
 
 
 function get_args()
@@ -21,8 +22,7 @@ function get_args()
 end
 
 
-function main()
-    args = get_args()
+function main(args)
 
     snap = Snapshot(args["input"])
 
@@ -38,5 +38,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
+    args = get_args()
     main()
 end

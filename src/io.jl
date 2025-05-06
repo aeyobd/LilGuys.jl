@@ -69,11 +69,11 @@ end
 
 Sets the header of an HDF5 file using the given dictionary.
 """
-function set_header!(h5f::HDF5.File, header::Dict{String,Any})
+function set_header!(h5f::HDF5.File, header::Dict{String,Any}, group="/")
     if "Header" ∉ keys(h5f)
-        HDF5.create_group(h5f, "Header")
+        HDF5.create_group(h5f, "$group/Header")
     end
-    h5_header = h5f["Header"]
+    h5_header = h5f["$group/Header"]
     for (key, val) in header
         set_header_attr(h5f, key, val)
     end
@@ -97,8 +97,8 @@ end
 
 Returns the header of an HDF5 file as a dictionary.
 """
-function get_header(h5f::HDF5.H5DataStore)
-    return Dict(HDF5.attrs(h5f["Header"]))
+function get_header(h5f::HDF5.H5DataStore, group="/")
+    return Dict(HDF5.attrs(h5f["$group/Header"]))
 end
 
 
@@ -155,12 +155,18 @@ Expects each struct to be stored in a separate group and
 T to be initializable by kwdef by the combination of 
 values stored in each group.
 """ 
-function read_structs_from_hdf5(filename::String, T)
+function read_structs_from_hdf5(filename::String, T; use_measurements=:auto)
     structs = Pair{String, T}[]
 
     h5open(filename, "r") do f
         for k in keys(f)
-            s = read_struct_from_hdf5(f, T, group=k)
+            @debug "reading key $k"
+            if k == "Header"
+                @info "skipping header"
+                continue
+            end
+
+            s = read_struct_from_hdf5(f, T, group=k, use_measurements=use_measurements)
             push!(structs, k => s)
         end
     end
@@ -208,7 +214,17 @@ function write_struct_to_hdf5(h5::HDF5.File, obj; group="")
 
     for field in fieldnames(typeof(obj))
         val = getfield(obj, field)
-        set_vector!(h5, group * "/" * String(field), val)
+        if eltype(val) <: Measurement
+            set_vector!(h5, group * "/" * String(field), middle.(val))
+            set_vector!(h5, group * "/" * String(field) * "_em", lower_error.(val))
+            set_vector!(h5, group * "/" * String(field) * "_ep", upper_error.(val))
+        elseif val isa AbstractVector
+            set_vector!(h5, group * "/" * String(field), val)
+        elseif field == :annotations
+            set_header!(h5, val)
+        else
+            set_vector!(h5, group * "/" * String(field), val)
+        end
     end
 end
 
@@ -221,25 +237,48 @@ in the group `group` and each field in the hdf5 file (or group)
 to be named after the field in the struct.
 The type is then called by `T(; kwargs...)`.
 """
-function read_struct_from_hdf5(filename::String, T; group="/")
+function read_struct_from_hdf5(filename::String, T; group="/", use_measurements=:auto)
     local st
     h5open(filename, "r") do f
-        st = read_struct_from_hdf5(f, T, group=group)
+        st = read_struct_from_hdf5(f, T, group=group, use_measurements=use_measurements)
     end
 
     return st
 end
 
 
-function read_struct_from_hdf5(h5::HDF5.File, T; group="/")
+function read_struct_from_hdf5(h5::HDF5.File, T; group="/", use_measurements=:auto)
     kwargs = Dict{Symbol, Any}()
     for k in keys(h5[group])
         if Symbol(k) ∉ fieldnames(T)
-            @warn "Field $k not found in struct $T"
+            if use_measurements == false
+                @warn "Field $k not found in struct $T"
+            elseif endswith(k, "_em") && k[1:end-3] ∈ keys(h5[group])
+                use_measurements = true
+            elseif endswith(k, "_err") && k[1:end-3] ∈ keys(h5[group])
+                use_measurements = true
+            else
+                # pass
+            end
         end
         field = Symbol(k)
         kwargs[field] = get_vector(h5, "$group/$k")
     end
+
+    if use_measurements == :auto
+        use_measurements = false
+    elseif !(use_measurements isa Bool)
+        @error "invalid use_measurements"
+    end
+
+    header = get_header(h5)
+    if :header ∈ keys(kwargs)
+        kwargs[:annotations] = pop!(kwargs, :header)
+    end
+    if use_measurements
+        kwargs = collapse_errors(kwargs)
+    end
+    @debug "final kwargs for struct: $(keys(kwargs))"
 
     return T(; kwargs...)
 end

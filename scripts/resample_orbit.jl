@@ -4,6 +4,9 @@ using ArgParse
 using CSV, DataFrames
 using LilGuys
 
+include("script_utils.jl") 
+
+
 function get_args()
     s = ArgParseSettings(description="resamples a CSV orbit")
     @add_arg_table s begin
@@ -35,9 +38,8 @@ function get_args()
     return parse_args(s)
 end
 
-function main()
-    args = get_args()
 
+function resample_orbit(args)
     # Parse inputs
     filename = args["input"]
     outputname = args["output"]
@@ -95,5 +97,7 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+
+    run_script_with_output(resample_orbit, args)
 end

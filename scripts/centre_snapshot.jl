@@ -1,10 +1,9 @@
 #!/usr/bin/env julia
 
-
 using ArgParse
-# using JSON
-
 import LilGuys as lguys
+
+include("script_utils.jl")
 
 
 function main()

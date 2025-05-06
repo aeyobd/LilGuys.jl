@@ -13,6 +13,8 @@ import DensityEstimators
 
 using ArgParse
 
+include("script_utils.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -44,8 +46,7 @@ Eddington inversion on the density profile.
 end
 
 
-function main()
-    params = get_args()
+function main(args)
     halo = lguys.load_profile(params["input"])
 
     r = 10 .^ LinRange(-5, 5, 10_000)
@@ -140,5 +141,6 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

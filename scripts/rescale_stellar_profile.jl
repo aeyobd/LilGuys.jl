@@ -3,6 +3,7 @@
 using LilGuys
 using ArgParse
 
+include("script_utils.jl")
 
 function get_args()
     s = ArgParseSettings(description="rescales a stellar profile")
@@ -27,8 +28,7 @@ function get_args()
 end
 
 
-function main()
-    args = get_args()
+function main(args)
     prof = StellarProfile(args["input"])
 
     r_scale = args["radius"]
@@ -38,4 +38,10 @@ function main()
     scaled.r_units = args["radius-units"]
 
     lguys.save(args["output"], scaled)
+end
+
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    args = get_args()
+    run_script_with_output(main, args)
 end

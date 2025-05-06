@@ -13,6 +13,8 @@ import DensityEstimators
 
 using ArgParse
 
+include("script_utils.jl")
+
 
 function get_args()
     s = ArgParseSettings(
@@ -38,11 +40,10 @@ Note, best practice is to pull the snapshot from a combined.hdf5 file with centr
 end
 
 
-function main()
-    args = get_args()
+function main(args)
     snap = lguys.Snapshot(args["snapshot"])
 
-	cen = lguys.calc_centre(lguys.StaticState, snap)
+    cen = lguys.calc_centre(lguys.StaticState, snap)
     # radii bins
     radii = lguys.radii(snap, cen.position)
     masses = snap.masses
@@ -62,9 +63,10 @@ function main()
     )
 
     lguys.write_hdf5_table(args["output"] , snap_df; overwrite=true)
-
 end
 
+
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+    run_script_with_output(main, args)
 end

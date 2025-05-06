@@ -43,6 +43,7 @@ def get_filenames(path):
 
     return ids, filenames
 
+
 def write_combined(outfile, ids, filenames, centre_path):
     if os.path.exists(outfile):
         os.remove(outfile)
@@ -53,7 +54,6 @@ def write_combined(outfile, ids, filenames, centre_path):
         if centre_path:
             f["x_cen"] = h5py.ExternalLink(centre_path, "/positions")
             f["v_cen"] = h5py.ExternalLink(centre_path, "/velocities")
-
 
 
 if __name__ == "__main__":

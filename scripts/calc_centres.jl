@@ -4,13 +4,11 @@ using ArgParse
 
 using LilGuys
 
-SCRIPT_VERSION = "v0.1.2"
+include("script_utils.jl")
 
-function main()
-    @info "script version $SCRIPT_VERSION"
-    @info "LilGuys version $(pkgversion(LilGuys))"
 
-    args = get_args()
+
+function main(args)
     check_overwrite(args)
 
     @info "reading output"
@@ -38,7 +36,7 @@ function main()
         "velocity_errs" => [cen.velocity_err for cen in cens],
     )
 
-    println("writing centres")
+    @info "writing centres"
     write_centres(args["output"], df)
 end
 
@@ -137,8 +135,8 @@ function get_args()
     return args
 end
 
-function write_centres(filename, df)
 
+function write_centres(filename, df)
     rm(filename; force=true)
 
     LilGuys.h5open(filename, "w") do f
@@ -151,5 +149,7 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    args = get_args()
+
+    run_script_with_output(main, args)
 end
