@@ -226,7 +226,10 @@ public radial_velocities
 include("density_3d.jl")
 
 
-export StellarDensity3D
+export StellarDensity3D,
+    StellarScalars
+
+public break_radius
 
 include("stellar_density_3d.jl")
 

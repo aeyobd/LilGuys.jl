@@ -69,15 +69,28 @@ end
 
 Sets the header of an HDF5 file using the given dictionary.
 """
-function set_header!(h5f::HDF5.File, header::Dict{String,Any}, group="/")
+function set_header!(h5f::HDF5.H5DataStore, header::Dict{String,<:Any})
     if "Header" ∉ keys(h5f)
-        HDF5.create_group(h5f, "$group/Header")
+        HDF5.create_group(h5f, "Header")
     end
-    h5_header = h5f["$group/Header"]
+    h5_header = h5f["Header"]
     for (key, val) in header
-        set_header_attr(h5f, key, val)
+        set_attr!(h5_header, key, val)
     end
 end
+
+
+"""
+    set_attrs!(h5f, header)
+
+Sets the attributes of the given hdf5 data store to the provided dict
+"""
+function set_attrs!(h5f::HDF5.H5DataStore, header::Dict{String, <:Any})
+    for (key, val) in header
+        set_attr!(h5f, key, val)
+    end
+end
+    
 
 
 """
@@ -85,8 +98,8 @@ end
 
 Sets an attribute in the header of an HDF5 file.
 """
-function set_header_attr(h5f::HDF5.File, key::String, val)
-    header = HDF5.attrs(h5f["Header"])
+function set_attr!(h5f::HDF5.H5DataStore, key::String, val)
+    header = HDF5.attrs(h5f)
     header[key] = val
 end
 
@@ -97,8 +110,16 @@ end
 
 Returns the header of an HDF5 file as a dictionary.
 """
-function get_header(h5f::HDF5.H5DataStore, group="/")
-    return Dict(HDF5.attrs(h5f["$group/Header"]))
+function get_header(h5f::HDF5.H5DataStore)
+    return get_attrs(h5f["Header"])
+end
+
+
+"""
+    get_attrs(h5f, group)
+"""
+function get_attrs(h5f::HDF5.H5DataStore)
+    return Dict(HDF5.attrs(h5f))
 end
 
 
@@ -161,10 +182,6 @@ function read_structs_from_hdf5(filename::String, T; use_measurements=:auto)
     h5open(filename, "r") do f
         for k in keys(f)
             @debug "reading key $k"
-            if k == "Header"
-                @info "skipping header"
-                continue
-            end
 
             s = read_struct_from_hdf5(f, T, group=k, use_measurements=use_measurements)
             push!(structs, k => s)
@@ -172,6 +189,15 @@ function read_structs_from_hdf5(filename::String, T; use_measurements=:auto)
     end
 
     return structs
+end
+
+
+"""
+    read_ordered_structs(filename, T; kwargs...)
+"""
+function read_ordered_structs(filename::String, T; kwargs...)
+    structs = read_structs_from_hdf5(filename, T; kwargs...)
+    return structs_to_int_pairs(structs)
 end
 
 
@@ -221,7 +247,7 @@ function write_struct_to_hdf5(h5::HDF5.File, obj; group="")
         elseif val isa AbstractVector
             set_vector!(h5, group * "/" * String(field), val)
         elseif field == :annotations
-            set_header!(h5, val)
+            set_attrs!(h5, val)
         else
             set_vector!(h5, group * "/" * String(field), val)
         end
@@ -271,10 +297,11 @@ function read_struct_from_hdf5(h5::HDF5.File, T; group="/", use_measurements=:au
         @error "invalid use_measurements"
     end
 
-    header = get_header(h5)
-    if :header ∈ keys(kwargs)
-        kwargs[:annotations] = pop!(kwargs, :header)
+    header = get_attrs(h5[group])
+    if length(header) > 0
+        kwargs[:annotations] = header
     end
+
     if use_measurements
         kwargs = collapse_errors(kwargs)
     end

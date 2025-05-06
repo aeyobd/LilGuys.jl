@@ -10,6 +10,7 @@ All properties are in code units.
 @kwdef struct DensityProfile3D
     "Log radius of bin middles"
     log_r::Vector{F}
+
     "Log radius of bin edges"
     log_r_bins::Vector{F}
 
@@ -17,14 +18,15 @@ All properties are in code units.
     counts::Vector{Int}
 
     "Density in each bin"
-    rho::Vector{F}
+    rho::Vector{Measurement{F}}
 
-    "Density standard (poisson) error in each shell"
-    rho_err::Vector{F}
-
+    "3D velocity dispersion"
     sigma_v::Vector{F} = []
+
+    "anisotropy parameter"
     beta::Vector{F} = []
 
+    "snapshot time"
     time::F = NaN
 end
 
