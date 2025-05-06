@@ -38,6 +38,8 @@ def get_filenames(path):
     idx = np.argsort(ids)
     ids = ids[idx]
     filenames = np.array(filenames)[idx]
+    if len(filenames) < 1:
+        raise Exception("no output files found ")
 
     return ids, filenames
 

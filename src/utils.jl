@@ -1,6 +1,5 @@
 import Base: *
 
-
 """
     ConstVector(value, size)
 
@@ -72,17 +71,39 @@ function collapse_errors(d::Dict)
     ks = keys(d) 
     for (key, val) in d
         if [key * "_em", key*"_ep"] ⊆ ks
-            em = pop!(d_new, key*"_em")
-            ep = pop!(d_new, key*"_ep")
-            d_new[key] = Measurement.(d_new[key], em, ep)
+            m = d_new[key] |> float
+            em = pop!(d_new, key*"_em") |> float
+            ep = pop!(d_new, key*"_ep") |> float
+            d_new[key] = Measurement.(m, em, ep)
         elseif key * "_err" ∈ ks
-            e = pop!(d_new, key*"_err")
-            d_new[key] = Measurement.(d_new[key], e)
+            m = d_new[key] |> float
+            e = pop!(d_new, key*"_err") |> float
+            d_new[key] = Measurement.(m, e)
         end
     end
     return d_new
 end
 
+
+
+"""
+    get_uncertainty(d::AbstractDict, key)
+
+Retrieve the uncertainty of the provided key as specified in the 
+dictionary. Assumed to be uncertainties of the form key_err or
+key_em, key_ep.
+"""
+function get_uncertainty(d::AbstractDict, key::String)
+    if key * "_em" ∈ keys(d)
+        δx = max(d[key*"_em"], d[key * "_ep"])
+    elseif key * "_err" ∈ keys(d)
+        δx = d[key*"_err"]
+    else
+        @error "associate uncertainty of $key not found in dict"
+    end
+
+    return δx
+end
 
 """
 general method to convert a dictionary to a named tuple

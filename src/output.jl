@@ -213,7 +213,7 @@ Extracts a vector from the output at the given index.
 If the index is array-like, then the returned vector is a 3xNpxNt array.
 Otherwise the returned vector is a 3xNt array.
 """
-function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group="PartType1")
+function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group="PartType1", verbose=false)
     Nt = length(out)
     result = Array{F}(undef, dim, Nt)
 
@@ -225,6 +225,10 @@ function extract_vector(out::Output, symbol::Symbol, idx::Int; dim::Int=3, group
             error("index $idx not found in snapshot")
         end
         result[:, i] = h5f["$group/$(h5vectors[symbol])"][:, idx_sort]
+
+        if verbose && (i%10 == 0)
+            @info "snapshot $i"
+        end
     end
     return result
 end
@@ -233,7 +237,7 @@ end
 
 
 
-function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")
+function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1", verbose=true)
     if idx == (:)
         idx = 1:length(out[1].index)
     elseif idx isa BitArray
@@ -254,6 +258,10 @@ function extract_vector(out::Output, symbol::Symbol, idx=(:); group="PartType1")
         for j in eachindex(idx_sort)
             result[:, j, i] .= h5f["$group/$(h5vectors[symbol])"][:, idx_sort[j]]
         end
+
+        if verbose && (i%10 == 0)
+            @info "snapshot $i"
+        end
     end
 
     return result
@@ -273,17 +281,26 @@ Returns a dataframe with the columns
 - `t_last_peris` the time of the last pericentre passage
 - `t_last_apos` the time of the last apocentre passage
 """
-function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
+function peris_apos(out::Output; x0=zeros(3), t_min::Real=-Inf, t_max::Real=Inf, verbose::Bool=false)
+    idxs = eachindex(out)
+    filt = @. t_min <= out.times[idxs] .<= t_max
+    if sum(.!filt) > 0
+        @info "excluding $(sum(.!filt))/$(length(filt)) snapshots with time of $t_min---$t_max"
+    end
 
-    idx0 = sort(out[1].index)
+    idxs = idxs[filt]
+
+    idx_i = idxs[1]
+
+    index_0 = sort(out[idx_i].index)
 
     if length(size(x0)) == 2
-        x = x0[:, 1]
+        x = x0[:, idx_i]
     else
         x = x0
     end
 
-    r0 = radii(out[1].positions, x)[sortperm(out[1].index)]
+    r0 = radii(out[idx_i].positions, x)[sortperm(index_0)]
     rm1 = copy(r0)
     rm2 = copy(r0)
     peris = copy(r0)
@@ -296,8 +313,8 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
     end
 
 
-    N = length(out)
-    for i in 2:N
+    N = length(idxs)
+    for i in idxs[2:end]
         if verbose && i % 100 == 0
             @info "processing snapshot $(i)/$(N)"
         end
@@ -305,7 +322,7 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
         snap = out[i]
         idx = sortperm(snap.index)
 
-        @assert snap.index[idx] == idx0 "snapshots have different indices"
+        @assert snap.index[idx] == index_0 "snapshots have different indices"
 
         if length(size(x0)) == 2
             x = x0[:, i]
@@ -336,7 +353,7 @@ function peris_apos(out::Output; x0=zeros(3), verbose::Bool=false)
     end
 
     return DataFrame(
-        :index => idx0,
+        :index => index_0,
         :pericentre => peris,
         :apocentre => apos,
         :t_last_peri => t_last_peris,
