@@ -86,8 +86,7 @@ function DensityProfile3D(snap::Snapshot;
         log_r=log_r,
         log_r_bins=log_r_bins,
         counts=counts,
-        rho=rho,
-        rho_err=rho_err,
+        rho=Measurement{F}.(rho, rho_err),
     )
 end
 
@@ -185,7 +184,7 @@ Compute the spherical unit vectors at the given position. Return
 function spherical_unit_vectors(pos::AbstractVector{<:Real}, rs=radii(pos))
     r_hat = pos ./ rs
 
-    ϕ_vec = cross(rh, [0,0,1])
+    ϕ_vec = r_hat × [0,0,1]
     ϕ_norm = radii(ϕ_vec)
     if ϕ_norm ≈ 0
         ϕ_hat = zeros(3)
@@ -217,7 +216,7 @@ function to_spherical_velocities(positions, velocities, rs=radii(positions))
     for i in 1:N
         pos = positions[:, i]
         vel = velocities[:, i]
-        r_hat, θ_hat, ϕ_hat = spherical_unit_vector(pos, rs[i])
+        r_hat, θ_hat, ϕ_hat = spherical_unit_vectors(pos, rs[i])
 
         v_r[i] = vel ⋅ r_hat
         v_θ[i] = vel ⋅ θ_hat

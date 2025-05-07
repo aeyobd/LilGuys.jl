@@ -107,7 +107,7 @@ function main()
     @info "centre: $(ra0) $(dec0)"
 
     @info "calculating profile"
-    r_ell = LilGuys.calc_r_ell_sky(sample.ra, sample.dec,
+    r_ell = LilGuys.calc_R_ell_sky(sample.ra, sample.dec,
         args["ellipticity"], args["PA"], centre=(ra0, dec0))
 
     filt = .!isnan.(r_ell)
@@ -125,13 +125,15 @@ function main()
         σv = NaN
     end
 
-    profile = LilGuys.StellarProfile(r_ell[filt], 
+    profile = LilGuys.StellarDensityProfile(r_ell[filt], 
         bins=bins, 
         weights=weights[filt], 
         normalization=Symbol(args["normalization"]), 
-        r_centre=args["r-centre"],
         distance=distance,
-        sigma_v=σv,
+        annotations = Dict{String, Any}(
+        "sigma_v" => σv,
+        "r_centre" => args["r-centre"],
+       )
     )
 
 
@@ -140,7 +142,7 @@ function main()
 		print(f, profile)
 	end
 
-    @info "wrote data to ", abspath(args["output"])
+    @info "wrote data to $(abspath(args["output"]))"
 end
 
 

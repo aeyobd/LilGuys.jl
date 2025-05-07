@@ -109,7 +109,7 @@ function surface_density end
 
 Calculates the mass enclosed within 3D radius r
 """
-function M end
+function mass end
 
 
 

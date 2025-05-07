@@ -102,7 +102,9 @@ export
     read_struct_from_hdf5, 
     read_structs_from_hdf5,
     write_struct_to_hdf5, 
-    write_structs_to_hdf5
+    write_structs_to_hdf5,
+    read_ordered_structs
+
 
 include("io.jl")
 

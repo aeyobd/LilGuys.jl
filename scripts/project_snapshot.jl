@@ -2,6 +2,7 @@
 
 using ArgParse
 using LilGuys
+using PyFITS
 import TOML
 
 include("script_utils.jl")
@@ -111,7 +112,7 @@ function main(args)
     df[!, :radial_velocity_gsr] = df_gsr.radial_velocity
 
     @info "Writing output"
-    LilGuys.write_fits(args["output"], df)
+    write_fits(args["output"], df)
 
     @info "Done"
 end

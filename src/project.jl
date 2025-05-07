@@ -94,7 +94,7 @@ function shift_snapshot_to_distance(snap::Snapshot, set_to_distance::Real)
     snap.x_cen .+= vec_shift
     snap.positions .+= vec_shift
 
-    offset = calc_r(snap.x_cen, sun_vec) - set_to_distance
+    offset = radii(snap.x_cen, sun_vec) - set_to_distance
 
     @assert abs(offset) < 1e-3 "Offset is too large: $offset"
 
