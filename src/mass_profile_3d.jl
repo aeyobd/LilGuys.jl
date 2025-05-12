@@ -2,11 +2,8 @@ import TOML
 import LinearAlgebra: ×, ⋅
 
 
-# TODO: split MassProfile3D in half
-
-
 """
-    MassProfile3D(<keyword arguments>)
+    MassProfile(<keyword arguments>)
 
 A struct representing a 3-dimensional 
 mass profile and cummulative / summative properties
@@ -14,26 +11,35 @@ mass profile and cummulative / summative properties
 
 All properties are in code units.
 """
-@kwdef struct MassProfile3D
+@kwdef struct MassProfile
     "Radius for v_circ"
     radii::Vector{F}
 
     "The number of particles within each radius"
     counts::Vector{F}
 
-    "Circular velocity"
-    v_circ::Vector{F}
+    "Enclosed mass"
+    M_in::Vector{Measurement{F}}
 
-    "Circular velocity error"
-    v_circ_err::Vector{F}
+    "Snapshot time"
+    time::F = NaN
 
-    # quantiles (for convenience)
-    "the radius at which q of the total mass is enclosed foreach quantile"
-    r_quantile::Vector{F}
+    "Additional annotations"
+    annotations::Dict{String, Any} = Dict{String, Any}()
+end
 
-    "quantiles used for `r_quantile`"
-    quantiles::Vector{F}
+radii(prof::MassProfile) = prof.radii
+masses(prof::MassProfile) = prof.mass
+circular_velocity(prof::MassProfile) = @. √(G*prof.M_in / prof.radii)
 
+
+"""
+    MassScalars
+
+A struct representing properties of an entire gravitation system
+(like energies, angular momentum, and maximum circular velocity).
+"""
+@kwdef struct MassScalars
     # scalars
     """ Total Energy """
     E::F
@@ -56,55 +62,85 @@ All properties are in code units.
     "Number of bound particles"
     N_bound::Int
 
+    "bound mass"
+    bound_mass::F
+
     "Snapshot time"
     time::F = NaN
 end
 
 
 
-function Base.print(io::IO, prof::MassProfile3D)
+
+
+function Base.print(io::IO, prof::MassProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
 
-function MassProfile3D(filename::String)
+function MassProfile(filename::String)
     t = dict_to_tuple(TOML.parsefile(filename))
-    return MassProfile3D(;t...)
+    return MassProfile(;t...)
 end
 
 
 
 """
-    MassProfile3D(snap; bins=100, filt_bound=true)
+    MassProfile(snap; bins=100, filt_bound=true)
 
 Given a snapshot, computes the density, circular velocity, and energy; 
-returning an MassProfile3D object.
+returning an MassProfile object.
 
 `bins` may be an integer, array, or function and is passed to `histogram`
 """
-function MassProfile3D(snap::Snapshot;
+function MassProfile(snap::Snapshot;
         bins=nothing,
-        filt_bound=true,
+        filt_bound=:recursive_1D,
         quantiles=[0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999],
         skip = nothing,
     )
 
-    if filt_bound
-        filt = bound_particles(snap)
-        snap = snap[filt]
+    r = radii(snap)
+    m = snap.masses
+
+    if filt_bound != :false
+        filt = bound_particles(snap, method=filt_bound)
+        r = r[filt]
+        m = m[filt]
     end
 
-    N_bound = length(snap)
-    if N_bound == 0
-        throw(ArgumentError("No bound particles in snapshot"))
+    if length(r) == 0
+        throw(DomainError("No bound particles in snapshot"))
     end
 
-    log_r_snap = log10.(radii(snap))
+    idx = sortperm(r)
+    m = snap.masses[idx]
+    r = r[idx]
+    M = cumsum(m)
+
+
     if isnothing(skip)
-        skip = min(round(Int, default_n_per_bin(log_r_snap) / 1.5), 200)
-        @info "MassProfile3D binsize: $skip"
+        skip = min(round(Int, default_n_per_bin(r) / 1.5), 200)
+        @info "MassProfile binsize: $skip"
     end
 
+    idx_skip = skip:skip:length(r)
+    counts = sqrt.(idx_skip)
+    r = r[idx_skip]
+    M = M[idx_skip]
+    M_err = @. 1/sqrt(counts) * M
+
+
+    return MassProfile(
+        radii = r,
+        M_in = Measurement.(M, M_err),
+        counts = counts,
+        time = snap.time,
+    )
+end
+
+
+function MassScalars(snap, prof::MassProfile)
     K = kinetic_energy(snap)
 
     if !isnothing(snap.potential)
@@ -117,24 +153,16 @@ function MassProfile3D(snap::Snapshot;
 
     L = angular_momentum(snap)
 
-
-    r_circ, v_c, n_circ = v_circ(snap, skip=skip)
-    v_circ_err = v_c ./ sqrt.(n_circ)
-
-    fit = fit_v_r_circ_max(r_circ, v_c)
+    fit = fit_v_r_circ_max(radii(prof), middle.(circular_velocity(prof)))
     v_circ_max = fit.v_circ_max
     r_circ_max = fit.r_circ_max
 
-    r_quantile = 10 .^ quantile(log_r_snap, quantiles)
 
-    return MassProfile3D(
-        radii=r_circ,
-        counts=n_circ,
-        v_circ=v_c,
-        v_circ_err=v_circ_err,
-        # quantiles
-        r_quantile=r_quantile,
-        quantiles=quantiles,
+    filt = bound_particles(snap)
+    N_bound = sum(filt)
+    bound_mass = sum(snap.masses[filt])
+
+    return MassScalars(
         # scalars
         v_circ_max=v_circ_max,
         r_circ_max=r_circ_max,
@@ -143,56 +171,10 @@ function MassProfile3D(snap::Snapshot;
         W=W,
         L=L,
         N_bound=N_bound,
-        time=snap.time,
-    )
+        bound_mass = bound_mass
+   )
 end
 
-
-"""
-    v_circ(snap; filter_bound=:recursive_1d, skip=10)
-
-Returns a list of the sorted radii and circular velocity from a snapshot for the given centre.
-Skips every `skip` particles (i.e. each radius contains n times skip particles inclusive)
-filter_bound may be
-- :recursive_1d: recursively removes unbound particles, recomputing the potential each time assuming spherical symmetry
-- :recursive: like recursive_1d but computes the full potential
-- :simple: only removes unbound particles once
-- :false: does not filter particles
-"""
-function v_circ(snap::Snapshot; filter_bound=:recursive_1d, skip::Integer=10)
-    r = radii(snap)
-    m = snap.masses
-
-    if filter_bound != :false
-        if filter_bound == :simple
-            filt = bound_particles(snap)
-        elseif filter_bound == :recursive_1d
-            filt = bound_particles_recursive_1D(snap)
-        else
-            throw(ArgumentError("Unknown filter_bound: $filter_bound"))
-        end
-
-        r = r[filt]
-        m = m[filt]
-    end
-
-    if sum(r) == 0
-        @warn "No bound particles in snapshot"
-        return zeros(0), zeros(0), zeros(0)
-    end
-
-    idx = sortperm(r)
-    m = snap.masses[idx]
-    r = r[idx]
-    M = cumsum(m)
-
-    idx_skip = skip:skip:length(r)
-    r = r[idx_skip]
-    M = M[idx_skip]
-    v_c = v_circ.(r, M)
-
-    return r, v_c, idx_skip
-end
 
 
 

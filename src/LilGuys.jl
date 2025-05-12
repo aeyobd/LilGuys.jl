@@ -10,7 +10,7 @@ public
     F, G,
     arcmin2kpc, kpc2arcmin, 
     pm2kms, kms2pm, 
-    dm2dist, dist2dm
+    dm2kpc, kpc2dm
 
 include("units.jl")
 
@@ -40,7 +40,7 @@ public
     logistic, 
     logit,
     centroid, 
-    centroid_err,
+    centroid_err, # RENAME
     effective_sample_size
 
 include("utils.jl")
@@ -142,11 +142,11 @@ public transform
 include("coord_trans.jl")   
 
 
-export radii, speed
+export radii, speeds # todo check
 public 
     L_tot, 
     L_spec, 
-    calc_E_tot, 
+    calc_E_tot,  # TODO: rename / check these
     calc_E_spec,
     calc_ϵ, 
     calc_K_spec,

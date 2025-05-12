@@ -41,7 +41,7 @@ end
 
 
 
-@testset "DensityProfile3D (integration)" begin
+@testset "DensityProfile (integration)" begin
     N = 30_000
     M_s = 2
     r_s = 5
@@ -61,13 +61,14 @@ end
     radii = lguys.radii(snap)
     bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
 
-    profile = lguys.DensityProfile3D(snap, bins=bins)
+    profile = lguys.DensityProfile(snap, bins=bins)
 
     @test sum(profile.counts) ≈ N
 
-    r = 10 .^ profile.log_r[2:end-1]
+    r = lguys.radii(profile)[2:end-1]
     ρ_exp = lguys.density.(halo, r)
-    @test_χ2 profile.rho[2:end-1] profile.rho_err[2:end-1] ρ_exp
+    ρ_act = lguys.densities(profile)[2:end-1]
+    @test_χ2 ρ_act ρ_exp
 end
 
 

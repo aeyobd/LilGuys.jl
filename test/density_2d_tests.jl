@@ -32,8 +32,8 @@ end
 
 
 @testset "stellar profile" begin
-    @test_throws DomainError LilGuys.StellarDensityProfile([-1, 2, 3])
-    @test_throws ArgumentError LilGuys.StellarDensityProfile([1])
+    @test_throws DomainError LilGuys.SurfaceDensityProfile([-1, 2, 3])
+    @test_throws ArgumentError LilGuys.SurfaceDensityProfile([1])
 
     @testset "normalization" begin
         radii = [1, 3, 4, 4.5, 6, 10]
@@ -57,26 +57,26 @@ end
 
 
         # default is no normalization
-        prof = LilGuys.StellarDensityProfile(radii, bins=bins)
+        prof = LilGuys.SurfaceDensityProfile(radii, bins=bins)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma nans=true
         e = LilGuys.lower_error.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
-        prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:mass)
+        prof = LilGuys.SurfaceDensityProfile(radii, bins=bins, normalization=:mass)
         Mtot = 6
         e = LilGuys.lower_error.(prof.log_Sigma)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
-        prof = LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:central, bins_centre=1)
+        prof = LilGuys.SurfaceDensityProfile(radii, bins=bins, normalization=:central, bins_centre=1)
         Mtot = 2 / (π * 3.5^2)
         @test LilGuys.middle.(prof.log_Sigma) ≈ log_Sigma .- log10(Mtot) nans=true atol=1e-8
         e = LilGuys.lower_error.(prof.log_Sigma)
         @test e[1:3] ≈ log_Sigma_em[1:3] atol=1e-8
 
 
-        @test_throws Exception LilGuys.StellarDensityProfile(radii, bins=bins, normalization=:jaberwocky)
+        @test_throws Exception LilGuys.SurfaceDensityProfile(radii, bins=bins, normalization=:jaberwocky)
     end
 
 
@@ -93,13 +93,13 @@ end
         snap = LilGuys.Snapshot(positions, velocities, ones(4))
         snap.weights = masses
 
-        prof = LilGuys.StellarDensityProfile(snap)
+        prof = LilGuys.SurfaceDensityProfile(snap)
 
-        prof = LilGuys.StellarDensityProfile(snap, x_vec = [0, 1, 0], y_vec = [0, 0, 1])
+        prof = LilGuys.SurfaceDensityProfile(snap, x_vec = [0, 1, 0], y_vec = [0, 0, 1])
 
-        prof = LilGuys.StellarDensityProfile(snap, R_units="arcmin")
+        prof = LilGuys.SurfaceDensityProfile(snap, R_units="arcmin")
 
-        prof = LilGuys.StellarDensityProfile(snap, normalization=:none)
+        prof = LilGuys.SurfaceDensityProfile(snap, normalization=:none)
         @test false broken=true
     end
 end
@@ -110,7 +110,7 @@ end
     N = 10_000
     R = LilGuys.sample_surface_density(Σ, N, log_R=LinRange(-5, 5, 1000))
 
-    obs = LilGuys.StellarDensityProfile(R, normalization=:none)
+    obs = LilGuys.SurfaceDensityProfile(R, normalization=:none)
     
     Σs = 10 .^ LilGuys.middle.(obs.log_Sigma)
     mass_per_annulus = sum(Σs .* diff(π * 10 .^ 2obs.log_R_bins))
@@ -147,7 +147,7 @@ end
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.StellarDensityProfile(filename)
+        obs2 = LilGuys.SurfaceDensityProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)
@@ -279,7 +279,7 @@ end
     mass = 0.5 .+ 0.5rand(N)
     M = sum(mass)
 
-    obs = LilGuys.StellarDensityProfile(r, normalization=:none, weights=mass,
+    obs = LilGuys.SurfaceDensityProfile(r, normalization=:none, weights=mass,
         annotations = Dict("sigma" => π/3, "note" => "hi")
     )
 
@@ -312,7 +312,7 @@ end
             LilGuys.print(f, obs)
         end
 
-        obs2 = LilGuys.StellarDensityProfile(filename)
+        obs2 = LilGuys.SurfaceDensityProfile(filename)
 
         for name in fieldnames(typeof(obs))
             v = getproperty(obs, name)
@@ -338,13 +338,13 @@ end
     m = rand(N)
 
     bins = LinRange(-1, 1, 5)
-    prof_1 = LilGuys.StellarDensityProfile(r, weights=m, bins=bins, normalization=:none)
+    prof_1 = LilGuys.SurfaceDensityProfile(r, weights=m, bins=bins, normalization=:none)
 
     M_scale = 0.232
     r_scale = 1.992
     prof_1 = LilGuys.scale(prof_1, r_scale, M_scale)
 
-    prof_2 = LilGuys.StellarDensityProfile(r * r_scale, weights=m * M_scale, bins=bins .+ log10(r_scale), normalization=:none)
+    prof_2 = LilGuys.SurfaceDensityProfile(r * r_scale, weights=m * M_scale, bins=bins .+ log10(r_scale), normalization=:none)
 
     for key in fieldnames(typeof(prof_1))
         v1 = getproperty(prof_1, key)
@@ -392,7 +392,7 @@ end
 
 
 @testset "filter_by_bin" begin
-    prof = LilGuys.StellarDensityProfile(
+    prof = LilGuys.SurfaceDensityProfile(
         R_units="",
         log_R = [1.0, 1.5, 2.0],
         log_R_bins = [0.75, 1.25, 1.75, 2.25],

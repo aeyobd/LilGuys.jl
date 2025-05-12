@@ -1,16 +1,13 @@
 import Base: @kwdef, filter
 import TOML
-
 import LinearAlgebra: diag, dot, norm, normalize, ⋅, × 
 
-F = Float64
-
 
 """
-An observed 2D density profile
+An observed 2D stellar density profile
 
 """
-@kwdef mutable struct StellarDensityProfile
+@kwdef mutable struct SurfaceDensityProfile
     R_units::String
     mass_units::String = ""
 
@@ -30,10 +27,20 @@ An observed 2D density profile
 end
 
 
+units(prof::SurfaceDensityProfile) = (length => prof.R_units, mass => prof.mass_units)
+log_radii(prof::SurfaceDensityProfile) = prof.log_R
+radii(prof::SurfaceDensityProfile) = 10 .^ prof.log_R
+log_surface_density(prof::SurfaceDensityProfile) = prof.log_Sigma
+surface_density(prof::SurfaceDensityProfile) = 10 .^prof.log_Sigma
+log_surface_density_err(prof::SurfaceDensityProfile) = sym_error.(prof.log_Sigma)
+surface_density_err(prof::SurfaceDensityProfile) = sym_error.(density_2D(prof))
+
+
+
 """
 An observed 2D mass profile (cumulative)
 """
-@kwdef mutable struct StellarMassProfile
+@kwdef mutable struct CylMassProfile
     R_units::String
     mass_units::String = ""
 
@@ -54,7 +61,7 @@ end
 
 
 """
-    StellarDensityProfile(radii; arguments...)
+    SurfaceDensityProfile(radii; arguments...)
 
 Calculate the properties of a density profile given the radii `Rs` and the units of the radii `R_units`.
 
@@ -72,7 +79,7 @@ Calculate the properties of a density profile given the radii `Rs` and the units
 - `R_units`: The units of the radii, entirely for self-documentation currently.
 - `annotations`: Additional notes to be added to the profile.
 """
-function StellarDensityProfile(Rs; 
+function SurfaceDensityProfile(Rs; 
         weights=nothing, 
         bins=nothing, 
         normalization=:none,
@@ -123,7 +130,7 @@ function StellarDensityProfile(Rs;
 
     annotations["normalization"] = string(normalization)
 
-    prof = StellarDensityProfile(;
+    prof = SurfaceDensityProfile(;
         R_units = R_units,
         log_R = log_R_m,
         log_R_bins = log_R_bin,
@@ -139,14 +146,14 @@ end
 
 
 """
-    StellarDensityProfile(snap::Snapshot; R_units="kpc", x_vec=[1, 0, 0], y_vec=[0, 1, 0], kwargs...)
+    SurfaceDensityProfile(snap::Snapshot; R_units="kpc", x_vec=[1, 0, 0], y_vec=[0, 1, 0], kwargs...)
 
-Creates a StellarDensityProfile from a snapshot. 
+Creates a SurfaceDensityProfile from a snapshot. 
 If the units is set to kpc, than the profile is calculated in the xy plane defined
 by the vectors x_vec and y_vec. Otherwise, the snapshot is projected as is to the sky by `to_gaia` and then the profile is calculated using the circular radius
-of the on-sky tangent plane. Kwarguments are passed to the StellarDensityProfile constructor for a list of radii.
+of the on-sky tangent plane. Kwarguments are passed to the SurfaceDensityProfile constructor for a list of radii.
 """
-function StellarDensityProfile(snap::Snapshot;
+function SurfaceDensityProfile(snap::Snapshot;
         R_units = "kpc",
         x_vec = [1, 0, 0],
         y_vec = [0, 1, 0],
@@ -182,28 +189,29 @@ function StellarDensityProfile(snap::Snapshot;
         end
     end
 
-    return StellarDensityProfile(r; R_units=R_units, weights=weights, annotations=annotations)
+    return SurfaceDensityProfile(r; R_units=R_units, weights=weights, annotations=annotations)
 end
 
 
 
-function Base.print(io::IO, prof::StellarDensityProfile)
+function Base.print(io::IO, prof::SurfaceDensityProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
 
 """
-    StellarDensityProfile(filename::String; kwargs...)
+    SurfaceDensityProfile(filename::String; kwargs...)
 
-Reads a StellarDensityProfile from a TOML file.
+Reads a SurfaceDensityProfile from a TOML file.
 """
-function StellarDensityProfile(filename::String; kwargs...)
+function SurfaceDensityProfile(filename::String; kwargs...)
     t = TOML.parsefile(filename)
-    t = merge(t, kwargs)
+    t = merge(t, Dict(string(k) => v for (k, v) in kwargs))
+    t = Dict{String, Any}(t)
     t = collapse_errors(t)
     t = dict_to_tuple(t)
 
-    return StellarDensityProfile(;t...)
+    return SurfaceDensityProfile(;t...)
 end
 
 
@@ -289,14 +297,14 @@ end
 
 
 """
-    normalize(prof::StellarDensityProfile, normalization=:none)
+    normalize(prof::SurfaceDensityProfile, normalization=:none)
 
 Returns a normalized version of the stellar profile.
 Options are
 - `:mass` normalizes profile by total mass
 
 """
-function normalize(prof::StellarDensityProfile, mass_per_annulus, normalization=:none; bins_centre=3)
+function normalize(prof::SurfaceDensityProfile, mass_per_annulus, normalization=:none; bins_centre=3)
     if normalization isa String
         normalization = Symbol(normalization)
     end
@@ -321,12 +329,12 @@ function normalize(prof::StellarDensityProfile, mass_per_annulus, normalization=
 end
 
 """
-    scale(prof::StellarDensityProfile, R_scale::Real, m_scale::Real)
+    scale(prof::SurfaceDensityProfile, R_scale::Real, m_scale::Real)
 
 Scales the profile by a factor of `R_scale` in radius and `m_scale` in mass,
 returning a new profile.
 """
-function scale(prof::StellarDensityProfile, R_scale::Real, m_scale::Real; _normalization=nothing)
+function scale(prof::SurfaceDensityProfile, R_scale::Real, m_scale::Real; _normalization=nothing)
     prof_new = deepcopy(prof)
     prof_new.log_m_scale += log10(m_scale)
     prof_new.log_R_scale += log10(R_scale)
@@ -344,7 +352,7 @@ end
 """
 filters a profile by the given bitarray (indexed by bin)
 """
-function filter_by_bin(prof::StellarDensityProfile, bin_selection::UnitRange)
+function filter_by_bin(prof::SurfaceDensityProfile, bin_selection::UnitRange)
     edge_filt = edge_from_midpoint_filter(bin_selection)
     filt = bin_selection
 
@@ -363,8 +371,8 @@ end
 
 
 
-function filter_empty_bins(prof::StellarDensityProfile)
-    idxs = find_longest_consecutive_finite(prof.log_Sigma)
+function filter_empty_bins(prof::SurfaceDensityProfile)
+    idxs = find_longest_consecutive_finite(log_density_2D(prof))
 
     return filter_by_bin(prof, idxs)
 end

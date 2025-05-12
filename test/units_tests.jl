@@ -56,22 +56,22 @@ end
 end
 
 
-@testset "dm2dist" begin
-    @test LilGuys.dm2dist(0) ≈ 0.01
-    @test LilGuys.dm2dist(5.0) ≈ 0.1
-    @test LilGuys.dm2dist(25) ≈ 1000
-    @test LilGuys.dm2dist(-5) ≈ 0.001
-    @test LilGuys.dm2dist(-Inf) ≈ 0.0
-    @test LilGuys.dm2dist(Inf) ≈ Inf
-    @test LilGuys.dm2dist(NaN) === NaN
+@testset "dm2kpc" begin
+    @test LilGuys.dm2kpc(0) ≈ 0.01
+    @test LilGuys.dm2kpc(5.0) ≈ 0.1
+    @test LilGuys.dm2kpc(25) ≈ 1000
+    @test LilGuys.dm2kpc(-5) ≈ 0.001
+    @test LilGuys.dm2kpc(-Inf) ≈ 0.0
+    @test LilGuys.dm2kpc(Inf) ≈ Inf
+    @test LilGuys.dm2kpc(NaN) === NaN
 end
 
-@testset "dist2dm" begin
-    @test LilGuys.dist2dm(0.010) ≈ 0
-    @test LilGuys.dist2dm(0.1) ≈ 5
-    @test LilGuys.dist2dm(1000) ≈ 25
-    @test LilGuys.dist2dm(1e-3) ≈ -5
-    @test LilGuys.dist2dm(0) ≈ -Inf
-    @test LilGuys.dist2dm(Inf) ≈ Inf
-    @test LilGuys.dist2dm(NaN) === NaN
+@testset "kpc2dm" begin
+    @test LilGuys.kpc2dm(0.010) ≈ 0
+    @test LilGuys.kpc2dm(0.1) ≈ 5
+    @test LilGuys.kpc2dm(1000) ≈ 25
+    @test LilGuys.kpc2dm(1e-3) ≈ -5
+    @test LilGuys.kpc2dm(0) ≈ -Inf
+    @test LilGuys.kpc2dm(Inf) ≈ Inf
+    @test LilGuys.kpc2dm(NaN) === NaN
 end

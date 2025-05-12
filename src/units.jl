@@ -83,20 +83,20 @@ end
 
 
 """
-    dist2dm(dm::Real)
+    kpc2dm(dm::Real)
 
 Convert a distance in kpc to a distance modulus.
 """
-function dist2dm(dist::Real)
+function kpc2dm(dist::Real)
     return 5 * (log10(dist)  - 1 + 3)
 end
 
 
 """
-    dm_to_dist(dm::Real)
+    dm2kpc(dm::Real)
 
 Convert a distance modulus to a distance in kpc
 """
-function dm2dist(dm::Real)
+function dm2kpc(dm::Real)
     return 10 .^ (dm / 5 + 1 - 3)
 end

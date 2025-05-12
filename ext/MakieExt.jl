@@ -272,7 +272,7 @@ end
 
 
 
-function convert_arguments(p::Type{<:Scatter}, h::LilGuys.StellarDensityProfile)
+function convert_arguments(p::Type{<:Scatter}, h::LilGuys.SurfaceDensityProfile)
     return (h.log_R, LilGuys.middle.(h.log_Sigma))
 end
 
@@ -285,10 +285,10 @@ end
 """
     plot_log_Σ!(ax, p; kwargs...)
 
-Plot a density profile from a LilGuys.StellarDensityProfile.
+Plot a density profile from a LilGuys.SurfaceDensityProfile.
 kwargs passed to Arya.errorscatter!
 """
-function plot_log_Σ!(ax, p::LilGuys.StellarDensityProfile; kwargs...)
+function plot_log_Σ!(ax, p::LilGuys.SurfaceDensityProfile; kwargs...)
     x = p.log_R
     y = LilGuys.middle.(p.log_Sigma)
     yerror = LilGuys.error_interval.(p.log_Sigma)
@@ -306,7 +306,7 @@ end
 
 
 """
-Plot a density profile from a LilGuys.StellarDensityProfile using Makie.
+Plot a density profile from a LilGuys.SurfaceDensityProfile using Makie.
 """
 @recipe GammaPlot begin
     log_R = true
@@ -322,7 +322,7 @@ Plot a density profile from a LilGuys.StellarDensityProfile using Makie.
 end
 
 
-function Makie.plot!(plot::GammaPlot{<:Tuple{LilGuys.StellarDensityProfile}})
+function Makie.plot!(plot::GammaPlot{<:Tuple{LilGuys.SurfaceDensityProfile}})
 
     # Process data
     p = plot[1][]

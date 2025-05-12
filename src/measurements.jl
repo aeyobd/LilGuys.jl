@@ -1,4 +1,4 @@
-import Base: +, *, ^, -, /, log10, <
+import Base: +, *, ^, -, /, log10, <, sqrt
 
 """
     Measurement(middle, lower, upper, kind)
@@ -74,6 +74,16 @@ end
 
 
 """
+    sym_error(x::Measurement)
+
+Return a symmertric uncertainty from the measurement, assuming the larger uncertainty.
+"""
+function sym_error(x::Measurement)
+    return maximum(error_interval(x))
+end
+
+
+"""
     lower_error(x::Measurement)
 
 Return the lower error/uncertainty/credible range deviation of x.
@@ -131,6 +141,17 @@ function (^)(b::Real, a::Measurement)
     return Measurement(m, m-l, h-m, a.kind)
 end
 
+
+function (^)(b::Measurement, a::Real)
+    m = (b.middle)^a
+    l = (b.middle - b.lower)^a
+    h = (b.middle + b.lower)^a
+    return Measurement(m, m-l, h-m, b.kind)
+end
+
+function sqrt(b::Measurement)
+    return b ^ 0.5
+end
 
 function (+)(x::Measurement, y::Real)
     return Measurement(x.middle+y, x.lower, x.upper, x.kind)

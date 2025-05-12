@@ -7,7 +7,7 @@ A struct representing a 3-dimensional
 mass profile (likely of a simulation snapshot).
 All properties are in code units.
 """
-@kwdef struct DensityProfile3D
+@kwdef struct DensityProfile
     "Log radius of bin middles"
     log_r::Vector{F}
 
@@ -16,6 +16,9 @@ All properties are in code units.
 
     "Number of particles in each bin"
     counts::Vector{Int}
+
+    "Effective sample size in bin (if weighted)"
+    ess::Vector{F} = F[]
 
     "Density in each bin"
     rho::Vector{Measurement{F}}
@@ -28,31 +31,52 @@ All properties are in code units.
 
     "snapshot time"
     time::F = NaN
+
+    "Additional annotations"
+    annotations::Dict{String, Any} = Dict{String, Any}()
 end
 
+"the radii representing the middle of each bin for the profile"
+log_radii(prof::DensityProfile) = prof.log_r
+radii(prof::DensityProfile) = 10 .^ log_radii(prof)
 
-function Base.print(io::IO, prof::DensityProfile3D)
+log_radius_bins(prof::DensityProfile) = prof.log_r_bins
+radius_bins(prof::DensityProfile) = 10 .^ log_radius_bins(prof)
+
+counts_per_bin(prof::DensityProfile) = prof.counts
+
+densities(prof::DensityProfile) = prof.rho
+densities_err(prof::DensityProfile) = maximum.(error_interval.(prof.rho))
+log_densities(prof::DensityProfile) = log10.(densities(prof))
+log_densities_err(prof::DensityProfile) = maximum.(error_interval.(log10.(densities(prof))))
+
+velocity_dispersion_3D(prof::DensityProfile) = prof.sigma_v
+anisotropies(prof::DensityProfile) = prof.beta
+effective_sample_sizes(prof::DensityProfile) = prof.ess
+
+
+function Base.print(io::IO, prof::DensityProfile)
     TOML.print(io, struct_to_dict(prof))
 end
 
 
-function DensityProfile3D(filename::String)
+function DensityProfile(filename::String)
     t = dict_to_tuple(TOML.parsefile(filename))
-    return DensityProfile3D(;t...)
+    return DensityProfile(;t...)
 end
 
 
 """
-    DensityProfile3D(snap; bins=100, filt_bound=true)
+    DensityProfile(snap; bins=100, filt_bound=true)
 
 Given a snapshot, computes the density, circular velocity, and energy; 
-returning an DensityProfile3D object.
+returning an DensityProfileobject.
 
 `bins` may be an integer, array, or function and is passed to `histogram`
 
 Note: does not include binning error currently.
 """
-function DensityProfile3D(snap::Snapshot;
+function DensityProfile(snap::Snapshot;
         bins=nothing,
         filt_bound=true,
     )
@@ -82,11 +106,66 @@ function DensityProfile3D(snap::Snapshot;
     rho = density_from_hist(r_bins, mass_in_shell)
     rho_err = rho .* rel_err 
 
-    return DensityProfile3D(
+    return DensityProfile(
         log_r=log_r,
         log_r_bins=log_r_bins,
         counts=counts,
         rho=Measurement{F}.(rho, rho_err),
+    )
+end
+
+
+"""
+    DensityProfile(snap, weights; bins, filt_bound)
+
+Weighted 3D density profile.
+"""
+function DensityProfile(snap::Snapshot, weights::AbstractVector{<:Real};
+        bins=nothing,
+        filt_bound=false,
+    )
+
+    if filt_bound
+        filt = bound_particles(snap)
+        snap = snap[filt]
+    end
+
+    if length(snap) == 0
+        throw(ArgumentError("No bound particles in snapshot"))
+    end
+
+    log_r_snap = log10.(radii(snap))
+
+    bins, hist, err = histogram(log_r_snap, bins, weights=weights, errors=:weighted)
+    log_r_bins = bins
+    mass_in_shell = hist 
+    mass_in_shell_err  = err
+
+    Nb = length(mass_in_shell)
+    ess = zeros(Nb)
+    counts = zeros(Nb)
+    for i in 1:length(Nb)
+        filt = log_r_snap .>= log_r_bins[i]
+        filt .&= log_r_snap .< log_r_bins[i+1]
+        w = snap.weights[filt]
+        counts[i] = sum(filt)
+        ess[i] = effective_sample_size(w)
+    end
+
+    log_r = midpoints(log_r_bins)
+    r_bins = 10 .^ log_r_bins
+    rel_err = mass_in_shell_err ./ mass_in_shell
+
+    rho = density_from_hist(r_bins, mass_in_shell)
+    rho_err = rho .* rel_err 
+
+    return DensityProfile(
+        log_r=log_r,
+        log_r_bins=log_r_bins,
+        counts=counts,
+        rho=Measurement{F}.(rho, rho_err),
+        ess = ess,
+        time = snap.time
     )
 end
 
@@ -228,3 +307,25 @@ end
 
 
 
+"""
+    scale(prof::DensityProfile3D, r_scale, m_scale, m_scale_pot)
+
+Scale the profile by the given factors, returning a new
+"""
+function scale(prof::DensityProfile, r_scale::Real,  m_scale::Real, m_scale_pot::Real)
+    ρ_scale = m_scale / r_scale^3
+    v_scale = sqrt(m_scale_pot / r_scale)
+
+
+    return DensityProfile(
+        log_r = prof.log_r .+ log10(r_scale),
+        log_r_bins = prof.log_r_bins .+ log10(r_scale),
+        rho = prof.rho .* ρ_scale,
+        counts = prof.counts,
+        ess = prof.ess,
+        sigma_v = prof.sigma_v .* v_scale,
+        beta = prof.beta,
+        time = prof.time,
+        annotations = prof.annotations
+   )
+end

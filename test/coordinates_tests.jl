@@ -180,7 +180,7 @@ end
         "radial_velocity_err" => 0.4
        )
 
-    dist = lguys.dm2dist(df["distance_modulus"])
+    dist = lguys.dm2kpc(df["distance_modulus"])
     dist_err = dist * df["distance_modulus_err"] / 5 * log(10)
     coords = lguys.rand_coords(df, N)
 

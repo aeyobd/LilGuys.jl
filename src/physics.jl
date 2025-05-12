@@ -231,8 +231,14 @@ end
 
 Return a filter for particles that are bound to the snapshot.
 """
-function bound_particles(snap::Snapshot)
-    return specific_energy(snap) .>= 0
+function bound_particles(snap::Snapshot; method=:simple, kwargs...)
+    if method == :simple
+        return specific_energy(snap) .>= 0
+    elseif method == :recursive_1D
+        return bound_particles_recursive_1D(snap; kwargs...)
+    else
+        throw(ArgumentError("Method $method not known"))
+    end
 end
 
 

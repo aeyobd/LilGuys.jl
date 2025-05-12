@@ -41,3 +41,33 @@ macro test_χ2(measurements, errors, expected, p=0.9995)
         χ2
     end
 end
+
+macro test_χ2(measurements, expected)
+    p = 0.9995
+    return quote
+        using Test
+        import LilGuys: middle, error_interval
+
+        y1 = $(esc(measurements))
+        y2 = $(esc(expected))
+
+        @assert length(y1) == length(y2)
+
+        err = maximum.(error_interval.(y1))
+        y1 = middle.(y1)
+
+        χ2 = ((y1 .- y2) ./ err).^2
+        filt = @. isfinite(y1) & isfinite(y2) & isfinite(err)
+        χ2 = sum(χ2[filt])
+        ndof = sum(filt) - 1
+        
+        chimax = quantile(Chisq(ndof), $p)
+        # A simple test for consistency: chi2 should not exceed a chosen threshold, say 3 times ndof
+        if !(χ2 < chimax)
+            @warn "χ2 = $χ2 > $chimax"
+        end
+
+        @test χ2 < chimax 
+        χ2
+    end
+end
