@@ -800,3 +800,14 @@ function σv_star_mean(dm_profile::SphericalProfile, stellar_profile::SphericalP
 end
 
 
+"""
+    potential_energy(prof::SphericalProfile)
+
+Potential energy of self gravitating system.
+"""
+function potential_energy(prof::SphericalProfile)
+    integrand(r) = density(prof, r) * mass(prof, r) * r
+
+    return -4π * G * integrate(integrand, 0, Inf)
+end
+

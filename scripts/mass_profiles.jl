@@ -3,6 +3,7 @@ using ArgParse
 
 using LilGuys 
 using HDF5
+using PyFITS
 
 include("script_utils.jl")
 
@@ -39,9 +40,15 @@ function get_args()
 end
 
 function calc_profiles(args)
-    bins = bins_from_args(args)
-    out = Output(args["input"])
+    outfile_dens = splitext(args["output"])[1] * "_densities.hdf5"
+    outfile_scalars = splitext(args["output"])[1] * "_scalars.fits"
     rm(args["output"], force=true)
+    rm(outfile_dens, force=true)
+    rm(outfile_scalars, force=true)
+
+    bins = bins_from_args(args)
+
+    out = Output(args["input"])
 
     if args["zero-centre"]
         out.x_cen .= zeros(size(out.x_cen))
@@ -49,26 +56,30 @@ function calc_profiles(args)
     end
 
     snap_idx = eachindex(out)[1:args["skip"]:end]
-    profiles = Vector{Pair{String, LilGuys.MassProfile3D}}(undef, length(snap_idx))
-    density_profiles = Vector{Pair{String, LilGuys.DensityProfile3D}}(undef, length(snap_idx))
+    profiles = Vector{Pair{String, LilGuys.MassProfile}}(undef, length(snap_idx))
+    density_profiles = Vector{Pair{String, LilGuys.DensityProfile}}(undef, length(snap_idx))
+    scalars = Vector{LilGuys.MassScalars}(undef, length(snap_idx))
 
-    Threads.@threads for i in snap_idx
+    Threads.@threads for i in eachindex(snap_idx)
+        j = snap_idx[i]
         @info "computing profile for snapshot $i"
         try
-            prof = LilGuys.MassProfile3D(out[i], bins=bins)
-            dens_prof = LilGuys.DensityProfile3D(out[i])
-            profiles[i] = string(i) => prof
-            density_profiles[i] = string(i) => dens_prof
+            prof = LilGuys.MassProfile(out[j], bins=bins)
+            dens_prof = LilGuys.DensityProfile(out[j])
+            profiles[i] = string(j) => prof
+            density_profiles[i] = string(j) => dens_prof
+            scalars[i] = MassScalars(out[j], prof)
         catch e
             @warn "failed to compute profile for snapshot $i"
             @warn e
-            profiles[i] = string(i) => nothing
+            profiles[i] = string(j) => nothing
         end
     end
 
     LilGuys.write_structs_to_hdf5(args["output"], profiles)
-    outfile_dens = splitext(args["output"])[1] * "_densities.hdf5"
     LilGuys.write_structs_to_hdf5(outfile_dens, density_profiles)
+    df_scalars = LilGuys.to_frame(scalars)
+    write_fits(outfile_scalars, df_scalars)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

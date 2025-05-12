@@ -146,11 +146,11 @@ end
     for i in 1:N
         for j in i+1:N
             r = lguys.radii(pos[:, i], pos[:, j])
-            W += m[i] * m[j] / r
+            W += -m[i] * m[j] / r
         end
     end
 
     actual = lguys.potential_energy(snap)
     @test actual ≈ W
-    @test actual ≈ -0.5 * sum(snap.potential .* snap.masses)
+    @test actual ≈ 0.5 * sum(snap.potential .* snap.masses)
 end

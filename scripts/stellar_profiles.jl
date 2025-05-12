@@ -60,7 +60,7 @@ function main(args)
     stars = LilGuys.read_hdf5_table(args["stars"])
     out = Output(args["input"], weights=stars.probability)
 
-    profiles = Pair{String, LilGuys.StellarDensityProfile}[]
+    profiles = Pair{String, LilGuys.SurfaceDensityProfile}[]
 
     idx = collect(1:args["skip"]:length(out))
     if idx[end] != length(out)
@@ -71,7 +71,7 @@ function main(args)
     if args["scale"] != nothing
         scales = TOML.parsefile(args["scale"])
         M_scale = 1.0
-        v_scale = scales["v_scale"]
+        M_scal_pot = scales["M_scale"]
         r_scale = scales["r_scale"]
     end
 
@@ -79,8 +79,8 @@ function main(args)
         @info "processing snapshot $i"
         snap = out[i]
 
-        prof = LilGuys.StellarDensityProfile(snap, bins=bins,
-            r_units = "kpc"
+        prof = LilGuys.SurfaceDensityProfile(snap, bins=bins,
+            R_units = "kpc"
           )
 
         if args["scale"] != nothing

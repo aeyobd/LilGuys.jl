@@ -370,4 +370,7 @@ function mass(profile::CoredNFW, r::Real)
 end
 
 
+function mass(profile::CoredNFW)
+    return mass(profile, 300*profile.r_t)
+end
 

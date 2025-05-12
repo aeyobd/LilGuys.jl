@@ -1,5 +1,4 @@
 
-
 @testset "calc_Σ" begin
     log_R = [-Inf, 0]
     mass = [1]
@@ -13,8 +12,6 @@
 end
 
 
-@testset "calc_Σ_from_1D_density" begin
-end
 
 @testset "calc_Σ_mean" begin
     log_R = [-1., 0.]
@@ -80,11 +77,15 @@ end
     end
 
 
+end
 
-    @testset "snapshot" begin
+
+@testset "surface density of snapshot" begin
+    @testset "simple test" begin
         x = [0., 0.5, 1.0, -1.0]
         y = [1.0, 0.0, -2.5, 3.0]
         z = [0.0, 1.0, 0.5, -1.0]
+
 
         positions = [x y z]'
         velocities = zeros(3, 4)
@@ -108,9 +109,9 @@ end
 @testset "integration with exp profile unweighted" begin
     Σ(R) = exp(-R)/2π
     N = 10_000
-    R = LilGuys.sample_surface_density(Σ, N, log_R=LinRange(-5, 5, 1000))
+    Rs = LilGuys.sample_surface_density(Σ, N, log_R=LinRange(-5, 5, 1000))
 
-    obs = LilGuys.SurfaceDensityProfile(R, normalization=:none)
+    obs = LilGuys.SurfaceDensityProfile(Rs, normalization=:none)
     
     Σs = 10 .^ LilGuys.middle.(obs.log_Sigma)
     mass_per_annulus = sum(Σs .* diff(π * 10 .^ 2obs.log_R_bins))
@@ -123,8 +124,7 @@ end
     sigma_exp = N * Σ.(R)
     log_sigma_exp = log10.(sigma_exp)
     
-    err = maximum.(LilGuys.error_interval.(obs.log_Sigma))
-    @test_χ2 LilGuys.middle.(obs.log_Sigma) err log_sigma_exp
+    @test_χ2 obs.log_Sigma log_sigma_exp
 
     Gamma_exp = -R
     err = maximum.(LilGuys.error_interval.(obs.Gamma))
@@ -162,13 +162,49 @@ end
             end
         end
     end
+
+    @testset "snapshot" begin
+        theta = 2π*rand(N)
+        x = @. Rs * cos(theta)
+        y = @. Rs * sin(theta)
+        z = Rs .* randn(N)
+        positions = [x y z]'
+        snap = Snapshot(positions, zeros(size(positions)), 1)
+        obs2 = SurfaceDensityProfile(snap, normalization=:none, bins=obs.log_R_bins)
+        @test obs.log_R ≈ obs2.log_R 
+        @test obs.log_Sigma ≈ obs2.log_Sigma atol=0.08 nans=true
+
+    end
 end
 
 
 
 @testset "integration (weighted)" begin
-    @test false broken=true
+    N = 100_000
+    radii = sqrt.(rand(N)) # uniform distribution
+    bins = log10.(sqrt.(LinRange(minimum(radii), 1., 20)))
+
+    obs = lguys.SurfaceDensityProfile(radii, bins=bins)
+    sigma_exp = fill(N / π, length(obs.log_R))
+    @test_χ2 obs.log_Sigma log10.(sigma_exp)
+
+    prof = lguys.Plummer(r_s=0.2)
+    weights = lguys.surface_density.(prof, radii)
+
+    obs = lguys.SurfaceDensityProfile(radii, weights=weights, bins=bins)
+
+    R = lguys.radii(obs)
+    sigma_exp = N /π * surface_density.(prof, R)
+    log_sigma_exp = log10.(sigma_exp)
+    
+    log_Sigma = lguys.log_surface_density(obs) .|> float
+    log_Sigma_err = lguys.log_surface_density_err(obs) 
+
+    # innermost bin severely underestimates uncertainty,
+    # likely due to density gradient
+    @test_χ2 log_Sigma[2:end] log_Sigma_err[2:end] log_sigma_exp[2:end]
 end
+
 
 
 @testset "shear_points_to_ellipse" begin

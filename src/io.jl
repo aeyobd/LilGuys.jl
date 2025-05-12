@@ -1,5 +1,6 @@
 import DataFrames: DataFrame
 import HDF5
+using OrderedCollections
 
 h5open = HDF5.h5open
 
@@ -57,11 +58,90 @@ end
 Converts a Dataframe to a Dict{String, Any} object.
 """
 function to_dict(frame::DataFrame)
-    df = Dict(String(name) => frame[:, name] for name in names(frame))
+    df = OrderedDict(String(name) => frame[:, name] for name in names(frame))
 
     return df
 end
 
+
+"""
+    remove_nonscalars(d)
+
+return a copy of the dictionary except only retaining
+strings, floats, and splatting arrays
+"""
+function remove_nonscalars(d::AbstractDict)
+    d_clean = copy(d)
+    for (k, val) in d
+        if val isa AbstractDict
+            @debug "removing dict value $k"
+            delete!(d_clean, k)
+        elseif val isa AbstractArray
+            if eltype(val) <: Union{Real, String}
+                for (i, v) in enumerate(val)
+                    d_clean[Symbol("$(k)_$i")] = v
+                end
+                delete!(d_clean, k)
+            else
+                @warn "type $(typeof(val)) not implemented"
+            end
+        elseif val isa String
+        elseif val isa Real
+        else
+            @warn "type $(typeof(val)) not implemented"
+        end
+    end
+    
+    return d_clean
+end
+
+
+"""
+    to_frame(structs)
+
+Takes a vector of scalar structs and converts them to a dataframe
+"""
+function to_frame(A::AbstractVector{<:T}) where T
+    cols = propertynames(A[1])
+    df = DataFrame()
+    for col in cols
+        val = getproperty.(A, col)
+        
+        if val[1] isa Union{Real, String}
+            df[!, Symbol(col)] = val
+        elseif val[1] isa AbstractVector{<:Real}
+            @assert all(x->length(x) == length(val[1]), val)
+            for i in eachindex(val[1])
+                colname = Symbol("$(col)_$i")
+                @assert colname ∉ names(df)
+                df[!, colname] = [v[i] for v in val]
+            end
+        else
+            @info "Skipping column $col"
+        end 
+    end
+
+    return df
+end
+
+
+"""
+    to_structs(df, type)
+
+Converts a dictionary into a list of structs of the type
+assuming the struct can be initialized with kwargs equal
+to the names of the dataframe.
+"""
+function to_structs(df::DataFrame, T::Type)
+    out = Vector{T}(undef, size(df, 1))
+
+    for (i, row) in enumerate(eachrow(df))
+        kwargs = Dict(Symbol(k) => row[k] for k in names(df))
+        out[i] = T(; kwargs...)
+    end
+
+    return out
+end
 
 
 """
@@ -119,7 +199,7 @@ end
     get_attrs(h5f, group)
 """
 function get_attrs(h5f::HDF5.H5DataStore)
-    return Dict(HDF5.attrs(h5f))
+    return OrderedDict(HDF5.attrs(h5f))
 end
 
 

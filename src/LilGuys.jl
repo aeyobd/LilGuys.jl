@@ -56,7 +56,6 @@ public
 
     expinti, 
     erf,
-
     integrate, 
     curve_fit,
 
@@ -212,41 +211,61 @@ public
 include("project.jl")
 
 
-export StellarDensityProfile
+export SurfaceDensityProfile,
+    # CylMassProfile, TODO: add this in...
+    units,
+    log_radii, 
+    radii,
+    log_radii_bins, 
+    radii_bins,
+    log_surface_density,
+    log_surface_density_err,
+    surface_density,
+    surface_density_err
+
 public filter_empty_bins
 
-include("density_2d.jl")
+include("surface_density_profile.jl")
 
 
-export MassProfile3D
+export MassProfile,
+    MassScalars,
+    MassQuantiles,
+    MassWithinRadii
 
-include("mass_profile_3d.jl")
+include("mass_profile.jl")
 
-export DensityProfile3D
+
+export DensityProfile,
+    log_radius_bins,
+    radius_bins,
+    counts_per_bin,
+    densities,
+    densities_err,
+    log_densities,
+    log_densities_err
+
 public radial_velocities
 
-include("density_3d.jl")
+include("density_profile.jl")
 
 
-export StellarDensity3D,
-    StellarScalars
-
+export StellarScalars
 public break_radius
 
-include("stellar_density_3d.jl")
+include("stellar_scalars.jl")
 
 
-# orbits
-export Orbit
-public to_frame, resample, leap_frog
+# orbits, will add with tests in future version
+# export Orbit
+# public to_frame, resample, leap_frog
+# 
+# include("orbits.jl")
+# include("potentials.jl")
 
-include("orbits.jl")
-
-include("potentials.jl")
 
 include("centres/Centres.jl")
 using .Centres
-
 
 
 # Empty function definitions for MakieExt

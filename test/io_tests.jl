@@ -91,3 +91,19 @@ end
         end
     end
 end
+
+
+@testset "frame_to_scalar_structs" begin
+    df = lguys.DataFrame(:delta_t=>[1,2], :r_break=>[0.5, 0.8], :sigma_v=>[NaN, 0.5], :r_max_sigma=>[2., 3,], :bound_mass=>[100, 150], :time=>[0.2, 0.5])
+
+    ss = lguys.to_structs(df, StellarScalars)
+
+    @test ss[1].delta_t ≈ 1
+    @test ss[2].delta_t ≈ 2
+    @test lguys.break_radius.(ss) ≈ [0.5, 0.8]
+
+    df2 = lguys.to_frame(ss)
+
+    @test df ≈ df2 nans=true
+end
+

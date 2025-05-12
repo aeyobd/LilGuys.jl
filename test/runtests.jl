@@ -6,7 +6,7 @@ tests = ["units", "utils",
          "io", "interface",
          "snapshot", "output",
          "spherical", "coordinates", "coord_trans",
-         "density_2d", "density_3d", "mass_profile_3d"
+         "surface_density", "density_profile", "mass_profile",
          "stellar_density_3d", "project",
          "nfw",
          "physics", "gravity", 

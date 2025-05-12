@@ -32,7 +32,6 @@ mass(s::StellarScalars) = s.bound_mass
 Compute essential scalar properties of the snapshot.
 
 - `delta_t::Real=NaN`: The time since the last pericentre (optional). Used for break radius
-- `quantiles::Vector{Real}`: The mass quantiles to calculate radii of
 - `r_max::Real=1`: The maximum radius to calculate the velocity dispersion for
 """
 function StellarScalars(snap::Snapshot;
@@ -56,19 +55,6 @@ function StellarScalars(snap::Snapshot;
 end
 
 
-
-"""
-    find_r_quantile_star(snap, p)
-
-Find the radius(ii) containing a given fraction of the total stellar mass of the system
-`p` may be a real or a vector of real representing the fractions.
-"""
-function find_r_quantile_star(snap::Snapshot, p)
-    r = radii(snap)
-    m = snap.weights ./ sum(snap.weights)
-
-    return quantile(r, m, p)
-end
 
 
 
@@ -143,8 +129,6 @@ function scale(prof::StellarScalars, r_scale::Real,  m_scale::Real, m_scale_pot:
         sigma_v = prof.sigma_v * v_scale,
         r_max_sigma = prof.r_max_sigma * r_scale,
         bound_mass = prof.bound_mass * m_scale,
-        r_quantiles = prof.r_quantiles .* r_scale,
-        quantiles = prof.quantiles,
         time = prof.time,
        )
 

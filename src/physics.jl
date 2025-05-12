@@ -104,11 +104,11 @@ end
 
 Total potential energy of a snapshot
 ```math
-    W = -\frac{1}{2} \sum m_i Φ_i
+    W = \frac{1}{2} \sum m_i Φ_i
 ```
 """
 function potential_energy(snapshot::Snapshot)
-    return -1/2 * sum(snapshot.masses .* snapshot.potential)
+    return 1/2 * sum(snapshot.masses .* snapshot.potential)
 end
 
 

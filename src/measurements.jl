@@ -52,6 +52,11 @@ function Measurement{T}(middle, lower::Real, upper::Real) where T <: Real
 end
 
 
+function Measurement(middle, lower, upper, kind)
+    Measurement(promote(float.((middle, lower, upper))...)..., kind)
+end
+
+
 """
     middle(x::Measurement)
 
@@ -112,7 +117,6 @@ function common_kind(a::Measurement, b::Measurement)
     end
 
     return kind
-
 end
 
 
@@ -129,7 +133,7 @@ end
 function log10(a::Measurement)
     m = log10(a.middle)
     l = log10(a.middle - a.lower)
-    h = log10(a.middle + a.lower)
+    h = log10(a.middle + a.upper)
     return Measurement(m, m-l, h-m, a.kind)
 end
 
@@ -137,7 +141,7 @@ end
 function (^)(b::Real, a::Measurement)
     m = b^(a.middle)
     l = b^(a.middle - a.lower)
-    h = b^(a.middle + a.lower)
+    h = b^(a.middle + a.upper)
     return Measurement(m, m-l, h-m, a.kind)
 end
 
@@ -145,12 +149,23 @@ end
 function (^)(b::Measurement, a::Real)
     m = (b.middle)^a
     l = (b.middle - b.lower)^a
-    h = (b.middle + b.lower)^a
+    h = (b.middle + b.upper)^a
     return Measurement(m, m-l, h-m, b.kind)
 end
 
+function (^)(b::Measurement, a::Integer)
+    m = (b.middle)^a
+    l = (b.middle - b.lower)^a
+    h = (b.middle + b.upper)^a
+    return Measurement(m, m-l, h-m, b.kind)
+end
+
+
 function sqrt(b::Measurement)
-    return b ^ 0.5
+    m = sqrt(b.middle)
+    l = sqrt(b.middle - b.lower)
+    h = sqrt(b.middle + b.upper)
+    return Measurement(m, m-l, h-m, b.kind)
 end
 
 function (+)(x::Measurement, y::Real)
@@ -207,6 +222,20 @@ function Base.isapprox(a::Measurement, b::Measurement; kwargs...)
         isapprox(a.lower, b.lower; kwargs...) && 
         isapprox(a.upper, b.upper; kwargs...)
        )
+end
+
+function Base.isapprox(a::Measurement, b::Real; kwargs...)
+    return isapprox(a.middle, b; kwargs...)
+end
+
+function Base.isapprox(b::Real, a::Measurement; kwargs...)
+    return Base.isapprox(a, b; kwargs...)
+end
+
+
+
+function Base.float(a::Measurement)
+    return a.middle
 end
 
 

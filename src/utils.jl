@@ -1,4 +1,5 @@
 import Base: *
+using OrderedCollections
 
 """
     ConstVector(value, size)
@@ -43,7 +44,7 @@ Base.IndexStyle(::Type{<:ConstVector}) = IndexLinear()
 general method to convert a struct to a dictionary
 """
 function struct_to_dict(S, split_errors=true)
-    d = Dict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
+    d = OrderedDict(key=>getfield(S, key) for key in fieldnames(typeof(S)))
 
     if split_errors
         for (key, val) in d

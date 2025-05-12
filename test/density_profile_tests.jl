@@ -46,29 +46,37 @@ end
     M_s = 2
     r_s = 5
 
-    halo = lguys.TruncNFW(M_s=M_s, r_s=r_s, trunc=100)
-    M_0 = lguys.mass(halo)
+    halo = lguys.TruncNFW(M_s=2, r_s=5, trunc=100)
+    for halo in [lguys.TruncNFW(M_s=2, r_s=5, trunc=11), 
+            lguys.Plummer(0.05, 0.23), 
+            lguys.CoredNFW(M_s=0.95, r_s=3.3, r_t=33, r_c=2.9)
+        ]
 
-    ρ(r) = lguys.density(halo, r)
+        M_0 = lguys.mass(halo)
+        ρ(r) = lguys.density(halo, r)
 
-    r = lguys.sample_density(ρ, N, log_r=LinRange(-5, 5, 10_000))
+        r = lguys.sample_density(ρ, N, log_r=LinRange(-5, 5, 10_000))
+        mass = M_0/N  * (1 .+ 0.0randn(N))
 
-    mass = M_0/N  * (1 .+ 0.0randn(N))
-    M = sum(mass)
+        M = sum(mass)
 
-    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
+        snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
 
-    radii = lguys.radii(snap)
-    bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
+        radii = lguys.radii(snap)
+        bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
 
-    profile = lguys.DensityProfile(snap, bins=bins)
+        profile = lguys.DensityProfile(snap, bins=bins)
 
-    @test sum(profile.counts) ≈ N
+        @test sum(lguys.counts_per_bin(profile)) ≈ N
 
-    r = lguys.radii(profile)[2:end-1]
-    ρ_exp = lguys.density.(halo, r)
-    ρ_act = lguys.densities(profile)[2:end-1]
-    @test_χ2 ρ_act ρ_exp
+        r = lguys.radii(profile)[2:end-1]
+        ρ_exp = lguys.density.(halo, r)
+        ρ_act = lguys.densities(profile)[2:end-1]
+        @test_χ2 ρ_act ρ_exp
+        @test_χ2 log10.(ρ_act) lguys.log_densities(profile)[2:end-1]
+        @test lguys.log_radius_bins(profile) ≈ bins
+        @test lguys.radius_bins(profile) ≈ 10 .^ bins
+    end
 end
 
 
@@ -86,6 +94,9 @@ end
         vel = [ [2, 0, 0] [1, 0, 0.1]]
 
         @test lguys.radial_velocities(pos, vel) ≈ [2*3/5, 0.1 * -5/13]
+
+        snap = lguys.Snapshot(pos, vel, 1.)
+        @test lguys.radial_velocities(snap) ≈ [2*3/5, 0.1 * -5/13]
     end
 
 

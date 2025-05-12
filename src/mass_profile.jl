@@ -3,6 +3,71 @@ import LinearAlgebra: ×, ⋅
 
 
 """
+    Mass Quantiles(quantiles, radii)
+
+Representation of radii which contain a given quantile
+of (stellar) mass.
+"""
+@kwdef struct MassQuantiles
+    quantiles::Vector{F}
+    radii::Vector{F}
+
+    "Additional annotations"
+    annotations::Dict{String, Any} = Dict{String, Any}()
+end
+
+
+function MassQuantiles(radii::AbstractVector{<:Real}; quantiles=[0.001, 0.01, 0.16, 0.5, 0.84, 0.99, 0.999])
+    r_quant = quantile(radii, quantiles)
+
+    return MassQuantiles(quantiles=quantiles, radii=r_quant)
+end
+
+
+function MassQuantiles(radii::AbstractVector{<:Real}, weights; quantiles=[0.001, 0.01, 0.16, 0.5, 0.84, 0.99, 0.999])
+    r_quant = quantile(radii, weights, quantiles)
+
+    return MassQuantiles(quantiles=quantiles, radii=r_quant)
+end
+
+
+function MassQuantiles(snap::Snapshot, weights; kwargs...)
+    r = radii(snap)
+    return MassQuantiles(r, weights; kwargs...)
+end
+
+
+function MassQuantiles(snap::Snapshot; kwargs...)
+    r = radii(snap)
+    if snap.masses <: ConstVector
+        return MassQuantiles(r; kwargs...)
+    else
+        return MassQuantiles(r, snap.masses; kwargs...)
+    end
+end
+
+
+
+"""
+    MassWithinRadii
+
+Struct representing exact mass contained within radii
+"""
+@kwdef struct MassWithinRadii
+    radii::Vector{F}
+    M_in::Vector{Measurement{F}}
+
+    counts::Vector{F}
+    ess::Vector{F}
+
+    "Additional annotations"
+    annotations::Dict{String, Any} = Dict{String, Any}()
+end
+
+
+
+
+"""
     MassProfile(<keyword arguments>)
 
 A struct representing a 3-dimensional 
@@ -68,9 +133,6 @@ A struct representing properties of an entire gravitation system
     "Snapshot time"
     time::F = NaN
 end
-
-
-
 
 
 function Base.print(io::IO, prof::MassProfile)
@@ -242,16 +304,6 @@ function fit_v_r_circ_max(r::AbstractArray{<:Real}, v_circ::AbstractArray{<:Real
        )
 end
 
-
-"""
-    fit_v_r_max(snap; kwargs...)
-
-Fits circular velocity of snapshot
-"""
-function fit_v_r_circ_max(snap; kwargs...)
-    r, v_c = v_circ(snap)
-    return fit_v_r_circ_max(r, v_c; kwargs...)
-end
 
 
 

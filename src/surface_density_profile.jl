@@ -14,6 +14,7 @@ An observed 2D stellar density profile
     log_R::Vector{F}
     log_R_bins::Vector{F}
     counts::Vector{F} = F[]
+    ess::Vector{F} = F[]
 
     log_Sigma::Vector{Measurement{F}}
 
@@ -30,6 +31,9 @@ end
 units(prof::SurfaceDensityProfile) = (length => prof.R_units, mass => prof.mass_units)
 log_radii(prof::SurfaceDensityProfile) = prof.log_R
 radii(prof::SurfaceDensityProfile) = 10 .^ prof.log_R
+log_radii_bins(prof::SurfaceDensityProfile) = prof.log_R_bins
+radii_bins(prof::SurfaceDensityProfile) = 10 .^ prof.log_R_bins
+
 log_surface_density(prof::SurfaceDensityProfile) = prof.log_Sigma
 surface_density(prof::SurfaceDensityProfile) = 10 .^prof.log_Sigma
 log_surface_density_err(prof::SurfaceDensityProfile) = sym_error.(prof.log_Sigma)
@@ -37,26 +41,26 @@ surface_density_err(prof::SurfaceDensityProfile) = sym_error.(density_2D(prof))
 
 
 
-"""
-An observed 2D mass profile (cumulative)
-"""
-@kwdef mutable struct CylMassProfile
-    R_units::String
-    mass_units::String = ""
-
-    log_R::Vector{F}
-    M_in::Vector{F}
-    M_in_err::Vector{F}
-
-    Sigma_m::Vector{F} = []
-    Sigma_m_err::Vector{F} = []
-
-    log_m_scale::F = 0.
-    "log radius shift used for normalization"
-    log_R_scale::F = 0.
-
-    annotations::Dict = Dict()
-end
+# """
+# An observed 2D mass profile (cumulative)
+# """
+# @kwdef mutable struct CylMassProfile
+#     R_units::String
+#     mass_units::String = ""
+# 
+#     log_R::Vector{F}
+#     M_in::Vector{F}
+#     M_in_err::Vector{F}
+# 
+#     Sigma_m::Vector{F} = []
+#     Sigma_m_err::Vector{F} = []
+# 
+#     log_m_scale::F = 0.
+#     "log radius shift used for normalization"
+#     log_R_scale::F = 0.
+# 
+#     annotations::Dict = Dict()
+# end
 
 
 
@@ -110,6 +114,16 @@ function SurfaceDensityProfile(Rs;
     )
     _, counts, _ = histogram(log10.(Rs), log_R_bin, normalization=:none)
 
+    #Nb = length(mass_in_shell)
+    #ess = zeros(Nb)
+    #counts = zeros(Nb)
+    #for i in 1:length(Nb)
+    #    filt = log_r_snap .>= log_r_bins[i]
+    #    filt .&= log_r_snap .< log_r_bins[i+1]
+    #    w = snap.weights[filt]
+    #    counts[i] = sum(filt)
+    #    ess[i] = effective_sample_size(w)
+    #end
 
     # set nans one for now, revert later
     mass_per_annulus_err[counts .== 0] .= 1
@@ -189,7 +203,7 @@ function SurfaceDensityProfile(snap::Snapshot;
         end
     end
 
-    return SurfaceDensityProfile(r; R_units=R_units, weights=weights, annotations=annotations)
+    return SurfaceDensityProfile(r; R_units=R_units, weights=weights, annotations=annotations, kwargs...)
 end
 
 

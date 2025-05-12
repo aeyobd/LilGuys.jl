@@ -76,46 +76,64 @@ end
 end
 
 
+@testset "Mass Scalars" begin
+    halo = lguys.TruncNFW(M_s=2, r_s=5, trunc=10)
+    W_exp = lguys.potential_energy(halo)
 
-@testset "v_circ" begin
+    snap = LilGuys.sample_potential(halo, 10000)
+
+    snap.potential = LilGuys.potential_spherical_discrete(snap)
+    prof = LilGuys.MassProfile(snap)
+    ms = LilGuys.MassScalars(snap, prof)
+
+    @test ms.W ≈ W_exp rtol=1e-2
+    @test ms.N_bound ≈ 10_000
+    @test ms.bound_mass ≈ LilGuys.mass(halo) rtol=1e-2
+    # virial theorem
+    @test ms.K ≈ -W_exp/2 rtol=1e-2
+    @test ms.E ≈ W_exp/2 rtol=2e-2
 end
 
 
 @testset "MassProfile (integration)" begin
     N = 30_000
-    M_s = 2
-    r_s = 5
 
-    halo = lguys.TruncNFW(M_s=M_s, r_s=r_s, trunc=100)
-    M_0 = lguys.mass(halo)
+    for halo in [
+        lguys.TruncNFW(M_s=2, r_s=5, trunc=100),
+        lguys.Plummer(r_s=0.8, M=1.1),
+        lguys.CoredNFW(M_s=3, r_s=1.2, r_c=0.9, r_t=12),
+       ]
 
-    ρ(r) = lguys.density(halo, r)
+        snap = snap_from_density(halo, N)
+        M = sum(snap.masses)
 
-    r = lguys.sample_density(ρ, N, log_r=LinRange(-5, 5, 10_000))
+        bins = lguys.Interface.bins_both(log10.(radii(snap)), nothing, bin_width=0.05, num_per_bin=100)
 
-    mass = M_0/N  * (1 .+ 0.0randn(N))
-    M = sum(mass)
+        profile = lguys.MassProfile(snap, bins=bins)
+        sc = lguys.MassScalars(snap, profile)
 
-    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
+        @test profile.M_in[end].middle ≈ M rtol=1e-2
 
-    radii = lguys.radii(snap)
-    bins = lguys.Interface.bins_both(log10.(radii), nothing, bin_width=0.05, num_per_bin=100)
+        @test lguys.mass(halo) ≈ M rtol=1e-2
 
-    profile = lguys.MassProfile(snap, bins=bins)
-    sc = lguys.MassScalars(snap, profile)
+        @test sc.N_bound ≈ N
+        # everything is zeroed here
+        @test sc.K ≈ 0
+        @test sc.bound_mass ≈ M
 
-    @test sc.N_bound ≈ N
-    @test profile.M_in[end].middle ≈ M rtol=1e-2
+        if halo isa lguys.GeneralNFW
+            @test sc.v_circ_max ≈ lguys.v_circ_max(halo) rtol=1e-2
+            @test sc.r_circ_max ≈ lguys.r_circ_max(halo) rtol=1e-1
+        end
 
-    @test lguys.mass(halo) ≈ M rtol=1e-2
+        r = lguys.radii(profile)
+        M_exp = lguys.mass.(halo, r)
+        @test_χ2 profile.M_in M_exp
 
-    r = lguys.radii(profile)
-    M_exp = lguys.mass.(halo, r)
-    @test_χ2 profile.M_in M_exp
-
-    # errors tend to be overestimated here...
-    v_circ_exp = lguys.v_circ.(halo, lguys.radii(profile))
-    @test_χ2 lguys.circular_velocity(profile) v_circ_exp
+        # errors tend to be overestimated here...
+        v_circ_exp = lguys.v_circ.(halo, lguys.radii(profile))
+        @test_χ2 lguys.circular_velocity(profile) v_circ_exp
+    end
 
 end
 

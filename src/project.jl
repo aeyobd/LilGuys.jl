@@ -154,27 +154,6 @@ function phase_to_sky(pos::Vector{F}, vel::Vector{F}; invert_velocity=false, Sky
 end
 
 
-"""
-    to_frame(obs::AbstractVector{CoordinateFrame})
-
-Converts a list of observations to a DataFrame with the same column names
-"""
-function to_frame(obs::AbstractVector{T}) where T<:CoordinateFrame
-    cols = propertynames(obs[1])
-    df = DataFrame()
-    for col in cols
-        val = getproperty.(obs, col)
-        
-        if val[1] isa Union{Real, String}
-            df[!, Symbol(col)] = val
-        else
-            @info "Skipping column $col"
-        end 
-    end
-
-    return df
-end
-
 
 # Utility functions
 

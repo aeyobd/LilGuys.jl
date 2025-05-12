@@ -71,3 +71,16 @@ macro test_χ2(measurements, expected)
         χ2
     end
 end
+
+
+function snap_from_density(halo, N=10_000; log_r_interp=LinRange(-5, 5, 1000))
+    M_0 = lguys.mass(halo)
+    ρ(r) = lguys.density(halo, r)
+    r = lguys.sample_density(ρ, N, log_r=LinRange(-5, 5, 10_000))
+
+    mass = M_0/N  * (1 .+ 0.0randn(N))
+    M = sum(mass)
+
+    snap = lguys.Snapshot(positions=r' .* lguys.rand_unit(N), velocities=zeros(3, N), masses=mass, index=1:N, header=lguys.make_default_header(1, N), potential=-ones(N))
+
+end

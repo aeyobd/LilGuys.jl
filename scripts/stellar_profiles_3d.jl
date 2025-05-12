@@ -4,6 +4,7 @@ using ArgParse
 
 using LilGuys 
 using HDF5
+using PyFITS
 import TOML
 
 include("script_utils.jl")
@@ -59,7 +60,7 @@ function main(args)
 
     weights = LilGuys.read_hdf5_table(args["starsfile"]).probability
     out = Output(args["simulation_output"], weights=weights)
-    out_scalar = splitext(args["output"])[1] * "_scalars.hdf5"
+    out_scalar = splitext(args["output"])[1] * "_scalars.fits"
     rm(out_scalar, force=true)
 
     props_file = dirname(args["simulation_output"]) * "/orbital_properties.toml"
@@ -89,7 +90,7 @@ function main(args)
         r_scale = 1
     end
 
-    profiles = Pair{String, LilGuys.StellarDensity3D}[]
+    profiles = Pair{String, LilGuys.DensityProfile}[]
     all_scalars = Pair{String, LilGuys.StellarScalars}[]
 
     snap_idx = collect(eachindex(out)[1:args["skip"]:end])
@@ -97,7 +98,7 @@ function main(args)
         push!(snap_idx, length(out))
     end
 
-    for i in snap_idx
+    Threads.@threads for i in snap_idx
         @info "computing profile for snapshot $i"
         if (idx_peris != nothing) && (idx_peris[1] <= i)
             idx_last_peri = idx_peris[idx_peris .<= i][end]
@@ -108,14 +109,14 @@ function main(args)
             delta_t = NaN
         end
 
-        prof = LilGuys.StellarDensity3D(out[i], bins=bins)
+        prof = LilGuys.DensityProfile(out[i], out[i].weights, bins=bins)
         scalars = LilGuys.StellarScalars(out[i], delta_t=delta_t, r_max=1/r_scale)
 
         @info prof.annotations
         @info "σv original = $(scalars.sigma_v)"
 
         if args["scale"] != nothing
-            prof = LilGuys.scale(prof, r_scale, M_scale)
+            prof = LilGuys.scale(prof, r_scale, M_scale, M_halo_scale)
             scalars = LilGuys.scale(scalars, r_scale, M_scale, M_halo_scale)
             @info "v scaled = $(scalars.sigma_v)"
         end
@@ -126,7 +127,8 @@ function main(args)
 
     @info "writing to $(args["output"])"
     LilGuys.write_structs_to_hdf5(args["output"], profiles)
-    LilGuys.write_structs_to_hdf5(out_scalar, all_scalars)
+    df_scalars = LilGuys.to_frame(last.(all_scalars))
+    write_fits(out_scalar, df_scalars)
 end
 
 
