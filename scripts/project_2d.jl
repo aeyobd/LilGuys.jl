@@ -45,12 +45,12 @@ function get_args()
             help="x vector for projection"
             nargs=3
             arg_type=Float64
-            default=[0, 1, 0]
+            default=[sind(5), cosd(5), 0]
         "--y_vec"
             help="y vector for projection"
             nargs=3
             arg_type=Float64
-            default=[0, 0, 1]
+            default=[-sind(5), 0, cosd(5)]
         "-n", "--n_bins"
             help="number of bins for histogram"
             default=1001

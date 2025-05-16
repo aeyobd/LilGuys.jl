@@ -50,12 +50,12 @@ function get_args()
             help="x vector for projection"
             nargs=3
             arg_type=Float64
-            default=[0, 1, 0]
+            default=[sind(5), cosd(5), 0]
         "--y_vec"
             help="y vector for projection"
             nargs=3
             arg_type=Float64
-            default=[0, 0, 1]
+            default=[-sind(5), 0, cosd(5)]
         "-n", "--n_bins"
             help="Number of bins (same for both dimensions)"
             default=1001
@@ -120,7 +120,6 @@ function main()
     logger = TeeLogger(global_logger(), FileLogger(logfile))
 
     with_logger(logger) do
-        Pkg.version()
         read_and_project(args)
     end
 end
@@ -150,8 +149,9 @@ function read_and_project(args)
             h = project_agama_potential(pot, bins, time=times[1], x_vec=args["x_vec"], y_vec=args["y_vec"])
             write_single(f, h, xbins, ybins, times[1], args["x_vec"], args["y_vec"])
         else
-            for (frame, i) in enumerate(idx)
-                print("processing frame $frame / $(length(idx))\r")
+            for frame in eachindex(idx)
+                i = idx[frame]
+                @info "processing frame $frame / $(length(idx))"
                 h = project_agama_potential(pot, bins, time=times[i], x_vec=args["x_vec"], y_vec=args["y_vec"])
 
                 dset = "snap$i"
@@ -186,14 +186,15 @@ function project_agama_potential(potential, bins; x_vec=[0,1,0], y_vec=[0,0,1], 
 
     Σ_disk = Matrix{Float64}(undef, Nx, Ny)
 
-    for i in eachindex(xm)
-        x = fill(xm[i], Ny)
-        y = ym
-        pos = [x y]
+    pos = [repeat(xm, Ny) repeat(ym, inner=Nx)]
 
-        density = potential.projectedDensity(pos, alpha=alpha, beta=beta, gamma=gamma, t=time)
+    density = potential.projectedDensity(pos, alpha=alpha, beta=beta, gamma=gamma, t=time)
 
-        Σ_disk[i, :] .= pyconvert(Vector{Float64}, density)
+    for i in 1:Ny
+        # zero index for python
+        idx_i = (i-1)*Nx
+        idx_f = idx_i + Nx - 1
+        Σ_disk[:, i] .= pyconvert(Vector{Float64}, density[idx_i:idx_f])
     end
 
 

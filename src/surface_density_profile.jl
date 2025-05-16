@@ -44,7 +44,7 @@ surface_density_err(prof::SurfaceDensityProfile) = sym_error.(density_2D(prof))
 # """
 # An observed 2D mass profile (cumulative)
 # """
-# @kwdef mutable struct CylMassProfile
+# @kwdef mutable struct MassProfile2D
 #     R_units::String
 #     mass_units::String = ""
 # 
@@ -386,7 +386,7 @@ end
 
 
 function filter_empty_bins(prof::SurfaceDensityProfile)
-    idxs = find_longest_consecutive_finite(log_density_2D(prof))
+    idxs = find_longest_consecutive_finite(log_surface_density(prof))
 
     return filter_by_bin(prof, idxs)
 end

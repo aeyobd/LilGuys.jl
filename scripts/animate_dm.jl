@@ -11,14 +11,18 @@ using LilGuys
 
 
 const white = Makie.RGBA{Float32}(1.0f0, 1.0f0, 1.0f0, 1.0f0)
-const yellow = COLORS[7]
+const yellow = COLORS[9]
 const orange = COLORS[2]
-const red = COLORS[6]
-const pink = COLORS[4]
+const red = COLORS[4]
+const pink = colorant"#fcb1ed"
+const blue = colorant"#add3f3"
+const green = colorant"#5cffc4"
 # Define default colors
 const DEFAULT_COLORS = [
     white,
     yellow,
+    blue,
+    green,
     orange,
     red,
     pink
@@ -54,6 +58,10 @@ function get_args()
             help="Length of scalebar in kpc. Setting to 0 disables it"
             default=50
             arg_type=Float64
+        "--time-today"
+            help = "Today's time in Gyr (for time indicator"
+            arg_type = Float64
+            default = NaN
     end
 
     args = parse_args(s)
@@ -212,6 +220,8 @@ function has_same_bins(h5files, staticfiles=[])
 
     return true
 end
+
+
 function parse_colors(colors)
     if !(colors[1] isa String)
         return colors
@@ -241,6 +251,7 @@ end
 function main()
     args = get_args()
 
+    clean_outputs(args["output"])
     logfile = joinpath(args["output"], "info.log")
     logger = TeeLogger(global_logger(), FileLogger(logfile))
     with_logger(logger) do
@@ -251,13 +262,7 @@ end
 
 
 function animate_dm(args)
-    clean_outputs(args["output"])
     input_files = args["input"]
-    for file in input_files
-        if isfile(file)
-            rm(file)
-        end
-    end
 
     colors = args["colors"] |> parse_colors
     scalings = args["scalings"]
@@ -272,32 +277,32 @@ function animate_dm(args)
     h5_files = [h5open(file, "r") for file in input_files]
 
     try
-            static_perm = collect(1:length(h5_files))
+        static_perm = collect(1:length(h5_files))
 
-            scalings = parse_scalings(scalings, h5_files)
+        scalings = parse_scalings(scalings, h5_files)
 
-            @info "Checking for static files"
-            static_filt = is_static.(h5_files)
-            @info "Static files: $(static_filt)"
-            static_files = h5_files[static_filt]
-            files = h5_files[.!static_filt]
-            static_perm = vcat(static_perm[.!static_filt], static_perm[static_filt])
-            @info "Static perm: $static_perm"
+        @info "Checking for static files"
+        static_filt = is_static.(h5_files)
+        @info "Static files: $(static_filt)"
+        static_files = h5_files[static_filt]
+        files = h5_files[.!static_filt]
+        static_perm = vcat(static_perm[.!static_filt], static_perm[static_filt])
+        @info "Static perm: $static_perm"
 
-            @info "checking bins"
-            if !has_same_bins(files, static_files)
-                error("All input files must have the same bins.")
-            end
-
-            scalings = scalings[static_perm]
-            color_rgba = color_rgba[static_perm]
-            animate_multiple(files, static_files, output_dir;
-                scalebar=scalebar_length,
-                dm_power=dm_power,
-                colors=color_rgba,
-                scalings=scalings
-            )
+        @info "checking bins"
+        if !has_same_bins(files, static_files)
+            error("All input files must have the same bins.")
         end
+
+        scalings = scalings[static_perm]
+        color_rgba = color_rgba[static_perm]
+        animate_multiple(files, static_files, output_dir;
+            scalebar=scalebar_length,
+            dm_power=dm_power,
+            colors=color_rgba,
+            scalings=scalings,
+            time_today = args["time-today"]
+        )
     finally
         # Ensure all files are closed
         for f in h5_files
@@ -314,6 +319,7 @@ function clean_outputs(output_dir::String)
         rm(output_dir; recursive=true)
     end
 
+    @info "making $output_dir"
     mkpath(output_dir)
 end
 
@@ -323,6 +329,7 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
          scalings::Vector{Float64},
          scalebar::Float64,
          dm_power::Float64,
+         time_today::Float64,
     )
     ks_sorted = get_sorted_keys(files)
 
@@ -349,6 +356,10 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
         if scalebar > 0
             add_scalebar!(ax, xrange, yrange, scalebar)
         end
+        if !isnan(time_today)
+            time = attrs(files[1][ks_sorted[frame]])["time"] * T2GYR - time_today
+            add_time!(ax, time)
+        end
 
         # Save frame
         Makie.save(joinpath(animation_dir, "frame_$(frame).png"), fig)
@@ -356,36 +367,21 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
 end
 
 
-function combine_densities(files, Σ_static, scalings, colors, key; dm_power=0)
-    # Initialize RGB arrays
-    combined_R = zeros(Float32, size(files[1]["/$(key)/density"][:,:]))
-    combined_G = zeros(Float32, size(files[1]["/$(key)/density"][:,:]))
-    combined_B = zeros(Float32, size(files[1]["/$(key)/density"][:,:]))
+function combine_densities(densities, colors; dm_power=0)
 
-    local xbins, ybins
+    combined_R = zeros(Float32, size(densities[1]))
+    combined_G = zeros(Float32, size(densities[1]))
+    combined_B = zeros(Float32, size(densities[1]))
 
-    for i in eachindex(files)
-        density = files[i]["/$(key)/density"][:, :] * scalings[i]
-        # Map intensities with individual color
+    for (i, density) in enumerate(densities)
         color_R, color_G, color_B = map_intensities(density, colors[i])
 
-        xbins = files[i]["/$(key)/xbins"][:]
-        ybins = files[i]["/$(key)/ybins"][:]
         # Combine RGB channels
         combined_R .+= color_R
         combined_G .+= color_G
         combined_B .+= color_B
     end
 
-    for i in eachindex(Σ_static)
-        density = Σ_static[i]
-        # Map intensities with individual color
-        color_R, color_G, color_B = map_intensities(density, colors[i + length(files)])
-        # Combine RGB channels
-        combined_R .+= color_R
-        combined_G .+= color_G
-        combined_B .+= color_B
-    end
 
     # Normalize combined RGB to [0,1]
     combined_R = clamp.(combined_R, 0.0f0, 1.0f0)
@@ -398,7 +394,30 @@ function combine_densities(files, Σ_static, scalings, colors, key; dm_power=0)
     # Create RGB image
     rgb_image = RGBf.(combined_R, combined_G, combined_B)
 
-    return extrema(xbins), extrema(ybins), rgb_image
+    return rgb_image
+end
+
+
+function combine_densities(files::Vector{HDF5.File}, Σ_static, scalings, colors, key; dm_power=0)
+    local xbins, ybins
+
+    densities = []
+    for i in eachindex(files)
+        density = files[i]["/$(key)/density"][:, :] * scalings[i]
+        # Map intensities with individual color
+        color_R, color_G, color_B = map_intensities(density, colors[i])
+        push!(densities, density)
+
+        xbins = files[i]["/$(key)/xbins"][:]
+        ybins = files[i]["/$(key)/ybins"][:]
+    end
+
+    for i in eachindex(Σ_static)
+        density = Σ_static[i]
+        push!(densities, density)
+    end
+
+    return extrema(xbins), extrema(ybins), combine_densities(densities, colors; dm_power=dm_power)
 end
 
 
@@ -439,10 +458,17 @@ function get_sorted_keys(files)
     return ks_sorted
 end
 
+function add_time!(ax, time; font="Arial", fontsize=7.5)
+    label = @sprintf("today %+2.1f Gyr", time)
+    label = replace(label, "-" => "–") # nicer minus sign
+
+    text!(ax, 0.95, 0.05, text=label, color=:grey, align=(:right, :bottom),
+        font=font, fontsize=fontsize, space=:relative)
+end
 
 function add_scalebar!(ax, xrange, yrange, scalebar::Float64; font="Arial", fontsize=7.5)
-    x1 = xrange[1] + scalebar / 2
-    y1 = yrange[1] + scalebar / 2
+    x1 = xrange[1] + 0.05 * (xrange[2] - xrange[1])
+    y1 = yrange[1] + 0.05 * (yrange[2] - yrange[1])
     x2 = x1 + scalebar
     y2 = y1
 
@@ -486,9 +512,9 @@ function I_to_SI(I)
     @assert 0.0f0 <= I <= 1.0f0 "$I is out of range"
 
     if I < 0.03928 / 12.92
-        return I * 12.92
+        return Float32(I * 12.92)
     else
-        return I^(1/2.4) * 1.055 - 0.055
+        return Float32(I^(1/2.4) * 1.055 - 0.055)
     end
 end
 

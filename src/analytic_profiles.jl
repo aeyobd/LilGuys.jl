@@ -141,6 +141,9 @@ where M is the total mass and r_s is the scale radius.
 end
 
 
+function Plummer(M::Real, r_s::Real)
+    return Plummer(promote(M, r_s)...)
+end
 
 
 @doc raw"""
@@ -580,7 +583,6 @@ function mass(profile::SphericalProfile, r::Real)
 
     return mass_from_density(profile, r)
 end
-
 
 function mass_2D(profile::SphericalProfile, R::Real)
     return mass_from_density_2D(profile, R)
