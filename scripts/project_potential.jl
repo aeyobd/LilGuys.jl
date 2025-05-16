@@ -147,7 +147,7 @@ function read_and_project(args)
     h5open(args["output"], "w") do f
         if length(idx) == 1
             h = project_agama_potential(pot, bins, time=times[1], x_vec=args["x_vec"], y_vec=args["y_vec"])
-            write_single(f, h, xbins, ybins, times[1], args["x_vec"], args["y_vec"])
+            write_single(f, h, xbins, ybins, times[1], args["x_vec"], args["y_vec"], idx[1])
         else
             for frame in eachindex(idx)
                 i = idx[frame]
@@ -157,17 +157,19 @@ function read_and_project(args)
                 dset = "snap$i"
 
                 create_group(f, dset)
-                write_single(f[dset], h, xbins, ybins, times[i], args["x_vec"], args["y_vec"])
+                write_single(f[dset], h, xbins, ybins, times[i], args["x_vec"], args["y_vec"], i)
             end
         end
     end
 end
 
 
-function write_single(h5f, h, xbins, ybins, time, x_vec, y_vec)
+function write_single(h5f, h, xbins, ybins, time, x_vec, y_vec, snap)
     attrs = HDF5.attributes(h5f)
     attrs["x_vec"] = x_vec
     attrs["y_vec"] = y_vec
+    attrs["time"] = time
+    attrs["snapshot"] = snap
     h5f["xbins"] = xbins |> collect
     h5f["ybins"] = ybins |> collect
     h5f["density"] = h
