@@ -14,6 +14,7 @@ tests = ["units", "utils",
          "centre_static", "analytic_profiles", 
          "centre_output",
          "shrinking_spheres", 
+         "orbits",
          "plots",
         ]
 

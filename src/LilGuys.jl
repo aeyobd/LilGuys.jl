@@ -258,9 +258,10 @@ include("stellar_scalars.jl")
 
 # orbits, will add with tests in future version
 # export Orbit
-# public to_frame, resample, leap_frog
-# 
-# include("orbits.jl")
+public to_frame, resample, leap_frog, resample, stresses, accelerations
+export Orbit
+
+include("orbits.jl")
 # include("potentials.jl")
 
 

@@ -17,40 +17,57 @@ Base.@kwdef struct Orbit
     "Acceleration"
     accelerations::Union{Matrix{F}, Nothing} = nothing
 
-    "Tidal stress at each time. While stress is technically a 3x3 matrix, here, we store the components as xx, yy, zz, xy, yz, zx"
-    stresses::Union{Matrix{F}, Nothing} = nothing
-
     "pericentre with respect to origin"
-    pericenter::F = minimum(calc_r(positions))
+    pericenter::F = minimum(radii(positions))
 
     "apocentre with respect to origin"
-    apocenter::F = maximum(calc_r(positions))
+    apocenter::F = maximum(radii(positions))
+
+    function Orbit(times, positions, velocities, accelerations, pericenter, apocenter)
+        @assert_3vector positions
+        @assert_3vector velocities
+        @assert_same_size positions velocities 
+
+        if length(times) != size(positions, 2) 
+            throw(ArgumentError("times and positions should have same number of entries"))
+        end
+
+        if !isnothing(accelerations)
+            @assert_3vector accelerations
+            @assert_same_size positions accelerations
+        end
+
+
+        return new(times, positions, velocities, accelerations, pericenter, apocenter)
+    end
 end
 
 positions(a::Orbit) = a.positions
 velocities(a::Orbit) = a.velocities
 accelerations(a::Orbit) = a.accelerations
-stresses(a::Orbit) = a.stresses
+times(a::Orbit) = a.times
+
 pericenter(a::Orbit) = a.pericenter
 apocenter(a::Orbit) = a.apocenter
-
-
 Base.length(a::Orbit) = length(a.times)
+
 
 """ Loads an orbit from a CSV file. Expected columns are `time`, `x`, `y`, `z`, `v_x`, `v_y`, `v_z`. """
 function Orbit(filename::String)
-    df = CSV.read(filename)
-    positions = hcat(df.x, df.y, df.z)
-    velocities = hcat(df.v_x, df.v_y, df.v_z)
-    accelerations = haskey(df, "a_x") ? hcat(df.a_x, df.a_y, df.a_z) : nothing
-    stresses = haskey(df, "da_xx") ? hcat(df.da_xx, df.da_yy, df.da_zz, df.da_xy, df.da_yz, df.da_zx) : nothing
+    df = CSV.read(filename, DataFrame)
+    positions = hcat(df.x, df.y, df.z)'
+    velocities = hcat(df.v_x, df.v_y, df.v_z)'
+    if "a_x" ∈ names(df)
+        accelerations =  hcat(df.a_x, df.a_y, df.a_z)'
+    else
+        accelerations = nothing
+    end
 
     return Orbit(
-        times = df.times,
+        times = df.t,
         positions = positions,
         velocities = velocities,
         accelerations = accelerations,
-        stresses = stresses,
     )
 end
 
@@ -75,19 +92,9 @@ function to_frame(a::Orbit)
         ))
     end
 
-    if a.stresses !== nothing
-        df = hcat(df, DataFrame(
-            da_xx = a.stresses[1, :],
-            da_yy = a.stresses[2, :],
-            da_zz = a.stresses[3, :],
-            da_xy = a.stresses[4, :],
-            da_yz = a.stresses[5, :],
-            da_zx = a.stresses[6, :]
-        ))
-    end
-
     return df
 end
+
 
 """ Writes an orbit to a CSV file """
 function Base.write(filename::String, a::Orbit)
@@ -98,7 +105,7 @@ end
 
 """ Returns a new orbit which is `a` from `b`'s perspective (`b` is at 0,0). Note acceleration/etc. not currently implemented."""
 function (-)(a::Orbit, b::Orbit)
-    @assert isapprox(a.time, b.time, rtol=1e-6)
+    @assert isapprox(a.times, b.times, rtol=1e-6)
 
     return Orbit(times=a.times, positions=a.positions - b.positions, velocities=a.velocities - b.velocities)
 end
@@ -110,12 +117,11 @@ end
 Reverses the order in time of an orbit
 """
 function reverse(a::Orbit)
-    time = reverse(a.time)
+    time = reverse(a.times)
     positions = reverse(a.positions, dims=2)
     velocities = reverse(a.velocities, dims=2)
-    acceleration = a.accelerations === nothing ? nothing : reverse(a.accelerations, dims=2)
-    stresses = a.stresses === nothing ? nothing : reverse(a.stresses, dims=2)
-    return Orbit(times=time, positions=positions, velocities=velocities, accelerations=accelerations, stresses=stresses)
+    accelerations = a.accelerations === nothing ? nothing : reverse(a.accelerations, dims=2)
+    return Orbit(times=time, positions=positions, velocities=velocities, accelerations=accelerations)
 end
 
 
@@ -145,18 +151,18 @@ Computes the orbit of a Galactocentric object using the leap frog method.
 
 Parameters:
 - `gc::Galactocentric`: the initial conditions
-- `acceleration::Function`: the acceleration function
+- `acceleration::Function`: the acceleration function. should take a position vector, velocity vector, and the current time (for maximum flexibility).
 - `dt_max::Real=0.1`: the maximum timestep
 - `dt_min::Real=0.001`: the minimum timestep, will exit if timestep is below this
 - `time::Real=-10/T2GYR`: the time to integrate to
 - `timebegin::Real=0`: the time to start integrating from
 - `timestep::Symbol=:adaptive`: the timestep to use, either `:adaptive` or a real number
-- `η::Real=0.01`: the adaptive timestep parameter
+- `η::Real=0.01`: the adaptive timestep parameter. Adaptive timestep is based on sqrt(η/a) where a is the magnitude of the current acceleration.
 
 """
-function leap_frog(gc, acceleration; 
+function leap_frog(gc, f_acc; 
         dt_max=0.1, dt_min=0.001, timebegin=0, time=-10/T2GYR, 
-        timestep=:adaptive, η=0.01
+        timestep=:adaptive, η=0.01, reuse_acceleration=true
     )
 
     if timestep isa Real
@@ -165,9 +171,9 @@ function leap_frog(gc, acceleration;
 
     t = timebegin
 
-    # setup matricies
-
     Nt = round(Int, abs(time / dt_min))
+
+    # setup matricies
     positions = Vector{Vector{Float64}}()
     velocities = Vector{Vector{Float64}}()
     accelerations = Vector{Vector{Float64}}()
@@ -175,7 +181,7 @@ function leap_frog(gc, acceleration;
 
     push!(positions, [gc.x, gc.y, gc.z])
     push!(velocities, [gc.v_x, gc.v_y, gc.v_z] / V2KMS)
-    push!(accelerations, acceleration(positions[1], velocities[1], t))
+    push!(accelerations, f_acc(positions[1], velocities[1], t))
     push!(times, 0.)
     is_done = false
     backwards = time < 0
@@ -183,10 +189,10 @@ function leap_frog(gc, acceleration;
     for i in 1:Nt
         pos = positions[i]
         vel = velocities[i]
-        acc = acceleration(pos, vel, t)
+        acc = accelerations[i]
         
         if timestep == :adaptive
-            dt = min(sqrt(η / calc_r(acc)), dt_max)
+            dt = min(sqrt(η / radii(acc)), dt_max)
         elseif timestep isa Real
             dt = timestep
         end
@@ -196,15 +202,20 @@ function leap_frog(gc, acceleration;
         end
         if abs(dt) < dt_min
             @warn "timestep below minimum timestep"
-            break
-        end
-
-        if (backwards && t + dt <= time ) || (!backwards && t + dt >= time)
-            dt = time - t
             is_done = true
         end
 
-        pos_new, vel_new = step_dkd(pos, vel, acc, dt, t)
+        # last step ends at end of range
+        if (backwards && t + dt <= time ) || (!backwards && t + dt >= time)
+            dt = time - t 
+            is_done = true
+        end
+
+        if !reuse_acceleration
+            acc = f_acc(pos, vel, t)
+        end
+
+        pos_new, vel_new = step_kdk(pos, vel, acc, f_acc, dt, t)
 
         push!(positions, pos_new)
         push!(velocities, vel_new)
@@ -225,29 +236,12 @@ end
 
 
 
-function step_kdk(position::Vector{Float64}, velocity::Vector{Float64}, acceleration, dt::Real, t=0)
-    acc = acceleration(pos, vel, t)
-    vel_h = vel + 1/2 * dt * acc
-    pos_new = pos + dt*vel_h
-    acc = acceleration(pos_new, vel_h, t + dt/2)
+function step_kdk(position::Vector{Float64}, velocity::Vector{Float64}, acceleration, f, dt::Real, t=0)
+    vel_h = vel + dt/2 * acceleration
+    pos_new = position + dt * vel_h
+    acc = f(position, velocity, t + dt)
     vel_new = vel_h + 1/2 * dt * acc
 
-    return pos_new, vel_new
+    return pos_new, vel_new, acc
 end
 
-
-"""
-    step_dkd(position::Vector{Float64}, velocity::Vector{Float64}, acceleration, dt::Real, t=0)
-
-Computes a single step of the leap frog method (drift-kick-drift) for a single particle.
-Acceleration should be a function of (position, velocity, time)
-"""
-function step_dkd(position::Vector{Float64}, velocity::Vector{Float64}, acceleration, dt::Real, t=0)
-    pos_h = pos + 1/2*dt* vel
-    acc = acceleration(pos_new, vel_h, t + dt/2)
-    vel_new = vel + dt * acc
-
-    pos_new = pos_h + 1/2*dt* vel_new
-
-    return pos_new, vel_new
-end

@@ -8,7 +8,7 @@ The magnitude of a 3-vector or each vector in a matrix. Or, the distance between
 """
 function radii(x::AbstractMatrix{T}) where T<:Real
     if size(x, 1) != 3
-        throw(DimensionMismatch("matrix must have 3 rows"))
+        throw(ArgumentError("matrix must have 3 rows"))
     end
     return _radii(x)
 end
@@ -21,7 +21,7 @@ end
 
 function radii(x::AbstractVector{T}) where T<:Real
     if length(x) != 3
-        throw(DimensionMismatch("Vector must have length 3"))
+        throw(ArgumentError("Vector must have length 3"))
     end
     return _radii(x)
 end
