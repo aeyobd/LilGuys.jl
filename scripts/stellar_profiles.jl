@@ -60,13 +60,14 @@ function main(args)
     stars = LilGuys.read_hdf5_table(args["stars"])
     out = Output(args["input"], weights=stars.probability)
 
-    profiles = Pair{String, LilGuys.SurfaceDensityProfile}[]
 
     idx = collect(1:args["skip"]:length(out))
     if idx[end] != length(out)
         push!(idx, length(out))
+        idx = sort(idx)
     end
 
+    profiles = Vector{Pair{String, LilGuys.SurfaceDensityProfile}}(undef, length(idx))
 
     if args["scale"] != nothing
         scales = TOML.parsefile(args["scale"])
@@ -75,7 +76,8 @@ function main(args)
         r_scale = scales["r_scale"]
     end
 
-    for i in idx
+    Threads.@threads for idx_i in eachindex(idx)
+        i = idx[idx_i]
         @info "processing snapshot $i"
         snap = out[i]
 
@@ -86,7 +88,7 @@ function main(args)
         if args["scale"] != nothing
             prof = LilGuys.scale(prof, r_scale, M_scale)
         end
-        push!(profiles, ("$i" => prof))
+        profiles[idx_i] =  ("$i" => prof)
     end
 
     @info "writing data"

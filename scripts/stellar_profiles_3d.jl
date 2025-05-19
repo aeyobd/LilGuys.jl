@@ -90,15 +90,19 @@ function main(args)
         r_scale = 1
     end
 
-    profiles = Pair{String, LilGuys.DensityProfile}[]
-    all_scalars = Pair{String, LilGuys.StellarScalars}[]
 
     snap_idx = collect(eachindex(out)[1:args["skip"]:end])
     if snap_idx[end] != length(out)
         push!(snap_idx, length(out))
+        snap_idx = sort(snap_idx)
     end
 
-    Threads.@threads for i in snap_idx
+    N_idx = length(snap_idx)
+    profiles = Vector{Pair{String, LilGuys.DensityProfile}}(undef, N_idx)
+    all_scalars = Vector{Pair{String, LilGuys.StellarScalars}}(undef, N_idx)
+
+    Threads.@threads for i_idx in 1:N_idx
+        i = snap_idx[i_idx]
         @info "computing profile for snapshot $i"
         if (idx_peris != nothing) && (idx_peris[1] <= i)
             idx_last_peri = idx_peris[idx_peris .<= i][end]
@@ -120,8 +124,8 @@ function main(args)
             scalars = LilGuys.scale(scalars, r_scale, M_scale, M_halo_scale)
             @info "v scaled = $(scalars.sigma_v)"
         end
-        push!(profiles, string(i) => prof)
-        push!(all_scalars, string(i) => scalars)
+        profiles[i_idx] =  string(i) => prof
+        all_scalars[i_idx] =  string(i) => scalars
     end
 
 

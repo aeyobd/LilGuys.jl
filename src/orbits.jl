@@ -27,6 +27,13 @@ Base.@kwdef struct Orbit
     apocenter::F = maximum(calc_r(positions))
 end
 
+positions(a::Orbit) = a.positions
+velocities(a::Orbit) = a.velocities
+accelerations(a::Orbit) = a.accelerations
+stresses(a::Orbit) = a.stresses
+pericenter(a::Orbit) = a.pericenter
+apocenter(a::Orbit) = a.apocenter
+
 
 Base.length(a::Orbit) = length(a.times)
 

@@ -63,7 +63,7 @@ function get_args()
     return parse_args(s)
 end
 
-function main()
+function main(args)
     snap = lguys.Snapshot(args["input"]) 
     if args["file"] !== nothing
         df = CSV.read(args["file"], DataFrame)
@@ -78,7 +78,7 @@ function main()
         velocity = read(file["velocity"])
     end
     new_snap = set_in_orbit(snap, position, velocity, args["max_radius"])
-    lguys.save(args["output"], new_snap) 
+    lguys.write(args["output"], new_snap) 
 end
 
 

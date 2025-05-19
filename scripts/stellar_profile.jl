@@ -125,7 +125,7 @@ function main()
         σv = NaN
     end
 
-    profile = LilGuys.StellarDensityProfile(r_ell[filt], 
+    profile = LilGuys.SurfaceDensityProfile(r_ell[filt], 
         bins=bins, 
         weights=weights[filt], 
         normalization=Symbol(args["normalization"]), 
