@@ -47,6 +47,11 @@ velocities(a::Orbit) = a.velocities
 accelerations(a::Orbit) = a.accelerations
 times(a::Orbit) = a.times
 
+angular_momenta(a::Orbit) = angular_momenta(positions(a), velocities(a))
+
+radii(a::Orbit) = radii(a.positions)
+speeds(a::Orbit) = radii(a.velocities)
+
 pericenter(a::Orbit) = a.pericenter
 apocenter(a::Orbit) = a.apocenter
 Base.length(a::Orbit) = length(a.times)
@@ -157,12 +162,12 @@ Parameters:
 - `time::Real=-10/T2GYR`: the time to integrate to
 - `timebegin::Real=0`: the time to start integrating from
 - `timestep::Symbol=:adaptive`: the timestep to use, either `:adaptive` or a real number
-- `η::Real=0.01`: the adaptive timestep parameter. Adaptive timestep is based on sqrt(η/a) where a is the magnitude of the current acceleration.
+- `η::Real=0.003`: the adaptive timestep parameter. Adaptive timestep is based on sqrt(η*r/a) where a is the magnitude of the current acceleration and r is the distance from the origin.
 
 """
 function leap_frog(gc, f_acc; 
         dt_max=0.1, dt_min=0.001, timebegin=0, time=-10/T2GYR, 
-        timestep=:adaptive, η=0.01, reuse_acceleration=true
+        timestep=:adaptive, η=0.003, reuse_acceleration=true
     )
 
     if timestep isa Real
@@ -192,7 +197,7 @@ function leap_frog(gc, f_acc;
         acc = accelerations[i]
         
         if timestep == :adaptive
-            dt = min(sqrt(η / radii(acc)), dt_max)
+            dt = min(sqrt(η * radii(pos) / radii(acc)), dt_max)
         elseif timestep isa Real
             dt = timestep
         end
@@ -203,6 +208,7 @@ function leap_frog(gc, f_acc;
         if abs(dt) < dt_min
             @warn "timestep below minimum timestep"
             is_done = true
+            dt = dt_min
         end
 
         # last step ends at end of range
@@ -215,7 +221,7 @@ function leap_frog(gc, f_acc;
             acc = f_acc(pos, vel, t)
         end
 
-        pos_new, vel_new = step_kdk(pos, vel, acc, f_acc, dt, t)
+        pos_new, vel_new, acc = step_kdk(pos, vel, acc, f_acc, dt, t)
 
         push!(positions, pos_new)
         push!(velocities, vel_new)
@@ -231,13 +237,13 @@ function leap_frog(gc, f_acc;
     positions_matrix = hcat(positions...)
     velocities_matrix = hcat(velocities...)
     accelerations_matrix = hcat(accelerations...)
-    return Orbit(times=times, positions=positions_matrix, velocities=velocities_matrix, acceleration=accelerations_matrix)
+    return Orbit(times=times, positions=positions_matrix, velocities=velocities_matrix, accelerations=accelerations_matrix)
 end
 
 
 
-function step_kdk(position::Vector{Float64}, velocity::Vector{Float64}, acceleration, f, dt::Real, t=0)
-    vel_h = vel + dt/2 * acceleration
+function step_kdk(position::AbstractVector{<:Real}, velocity::AbstractVector{<:Real}, acceleration::AbstractVector{<:Real}, f::Function, dt::Real, t::Real=0)
+    vel_h = velocity + dt/2 * acceleration
     pos_new = position + dt * vel_h
     acc = f(position, velocity, t + dt)
     vel_new = vel_h + 1/2 * dt * acc

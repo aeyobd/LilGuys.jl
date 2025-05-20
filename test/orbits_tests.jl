@@ -146,22 +146,59 @@ end
 end
 
 
+@testset "resample" begin
+
+end
+
+
 @testset "leapfrog" begin
     @testset "isolation" begin
-        f_acc(pos, vel, acc) = pos, vel, acc
+        f_acc(pos, vel, acc) = zeros(3)
+        ic = Galactocentric([0,0,0], [0,0,0])
+        orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=10., timestep=0.7)
+        @test orbit.positions ≈ zeros(size(orbit.positions))
+        @test orbit.velocities ≈ zeros(size(orbit.velocities))
 
+        ic = Galactocentric([0.2, -0.5, 23.2], [-0.1, 0.0, 0.4] .* V2KMS)
+
+        orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=5., timestep=1.0)
+        @test orbit.positions ≈ [0.2    0.1     0.0     -0.1    -0.2    -0.3
+                                 -0.5   -0.5    -0.5    -0.5    -0.5    -0.5
+                                 23.2   23.6    24.0    24.4    24.8    25.2]
+        @test orbit.velocities ≈ hcat(fill(LilGuys.velocity(ic) ./ V2KMS, 6)...)
+        @test orbit.times ≈ [0., 1., 2., 3., 4., 5.]
     end
 
-    @testset "kepler" begin
 
+    @testset "kepler" begin
+        GM = 0.1
+        f_acc(pos, vel, acc) = -GM / radii(pos)^3 .* pos
+        potential(pos) = -GM ./ radii(pos)
+
+        ic = Galactocentric([1,0,0], [0.1,1,1]*V2KMS)
+        orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=10)
+
+        E = 1/2 * LilGuys.speeds(orbit) .^2  .+ potential(LilGuys.positions(orbit))
+        @test E ≈ fill(E[1], length(E)) rtol=3e-3
+        L = LilGuys.angular_momenta(orbit)
+
+        @test L ≈ hcat(fill(L[:, 1], size(L, 2))...) rtol=1e-2
     end
 
 
     @testset "plummer" begin
+        prof = LilGuys.Plummer(M=0.3, r_s=0.927)
+        f_acc(pos, vel, acc) = LilGuys.acceleration(prof, pos)
 
+        ic = Galactocentric([1,0,0], [0.1,1,1]*V2KMS)
+        orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=10)
+
+        @test false broken=true
     end
 
+
     @testset "disk" begin
+        @test false broken=true
 
     end
 end
