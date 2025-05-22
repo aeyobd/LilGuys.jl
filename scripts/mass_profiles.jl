@@ -56,9 +56,9 @@ function calc_profiles(args)
     end
 
     snap_idx = eachindex(out)[1:args["skip"]:end]
-    profiles = Vector{Pair{String, LilGuys.MassProfile}}(undef, length(snap_idx))
-    density_profiles = Vector{Pair{String, LilGuys.DensityProfile}}(undef, length(snap_idx))
-    scalars = Vector{LilGuys.MassScalars}(undef, length(snap_idx))
+    profiles = Vector{Pair{String, Union{Missing, LilGuys.MassProfile}}}(undef, length(snap_idx))
+    density_profiles = Vector{Pair{String, Union{Missing, LilGuys.DensityProfile}}}(undef, length(snap_idx))
+    scalars = Vector{Union{Missing, LilGuys.MassScalars}}(undef, length(snap_idx))
 
     Threads.@threads for i in eachindex(snap_idx)
         j = snap_idx[i]
@@ -71,10 +71,15 @@ function calc_profiles(args)
             scalars[i] = MassScalars(out[j], prof)
         catch e
             @warn "failed to compute profile for snapshot $i"
-            @warn e
-            profiles[i] = string(j) => nothing
+            profiles[i] = string(j) => missing
+            density_profiles[i] = string(j) => missing
+            scalars[i] = missing
         end
     end
+
+    profiles = filter(x ->!ismissing(last(x)), profiles)
+    density_profiles = filter(x ->!ismissing(last(x)), density_profiles)
+    scalars = filter(x ->!ismissing(x), scalars)
 
     LilGuys.write_structs_to_hdf5(args["output"], profiles)
     LilGuys.write_structs_to_hdf5(outfile_dens, density_profiles)

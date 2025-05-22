@@ -153,36 +153,13 @@ end
         @test lguys.density(halo, 0) === Inf
         @test lguys.density(halo, 1) ≈ 1/4π * 1/(2^2) * exp(-1/2)
         @test lguys.density(halo, 2) ≈ 1/4π * 1/(2*3^2) * exp(-2/2)
-    end
 
 
-    @testset "Mtot" begin
-        halo = lguys.TruncNFW(r_s=2.231, M_s=0.952, r_t=6)
+        halo = lguys.TruncNFW(r_s=3, M_s=0.8, r_t=6, xi=2)
 
-        @test lguys.mass(halo, 0) ≈ 0
-        @test lguys.mass(halo, 1000) ≈ lguys.mass(halo)
-        @test lguys.mass(halo, 10^4) ≈ lguys.mass(halo)
-
-    end
-
-    @testset "M" begin
-        profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
-        x = 10 .^ LinRange(-1, 2, 10)
-
-        M1 = lguys.mass.(profile, x)
-        M2 = lguys.mass_from_density.(profile, x)
-
-        @test M1 ≈ M2 rtol=1e-5
-    end
-
-    @testset "Φ" begin
-        profile = lguys.TruncNFW(r_s=1.21, M_s=√π, trunc=5)
-
-        x = 10 .^ LinRange(0, 1, 10)
-        Φ1 = lguys.potential.(profile, x)
-        Φ2 = lguys.potential_from_density.(profile, x)
-
-        @test Φ1 ≈ Φ2 rtol=1e-5
+        @test lguys.density(halo, 0) === Inf
+        @test lguys.density(halo, 3) ≈ 1/4π * 0.8/(2^2) * exp(-1/4) / 3^3
+        @test lguys.density(halo, 6) ≈ 1/4π * 0.8/(2*3^2) * exp(-1) / 3^3
     end
 end
 

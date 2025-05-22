@@ -254,10 +254,11 @@ struct TruncNFW <: GeneralNFW
     r_s::Float64
     r_t::Float64
     c::Union{Nothing, Float64}
+    xi::Float64 
 end 
 
 
-function TruncNFW(; r_t=nothing, trunc=nothing, kwargs...)
+function TruncNFW(; r_t=nothing, trunc=nothing, xi=1, kwargs...)
     nfw = NFW(; kwargs...)
 
     if trunc !== nothing && r_t !== nothing
@@ -270,41 +271,41 @@ function TruncNFW(; r_t=nothing, trunc=nothing, kwargs...)
         throw(ArgumentError("Must specify either trunc or r_t"))
     end
 
-    return TruncNFW(nfw.M_s, nfw.r_s, r_t, nfw.c)
+    return TruncNFW(nfw.M_s, nfw.r_s, r_t, nfw.c, xi)
 end
 
 
 function density(profile::TruncNFW, r::Real)
     nfw = NFW(profile.M_s, profile.r_s, profile.c)
-    return density(nfw, r) * exp(-(r/profile.r_t))
+    return density(nfw, r) * exp(-(r/profile.r_t)^profile.xi)
 end
 
-function mass(profile::TruncNFW, r::Real)
-    x = r / profile.r_s
-    t = profile.r_t / profile.r_s
-    B = (1+1/t)*exp(1/t)
-    return profile.M_s * ( B * expinti(-(x+1)/t) + exp(-x/t)/(1+x) - B*expinti(-1/t) - 1 )
-end
+#function mass(profile::TruncNFW, r::Real)
+#    x = r / profile.r_s
+#    t = profile.r_t / profile.r_s
+#    B = (1+1/t)*exp(1/t)
+#    return profile.M_s * ( B * expinti(-(x+1)/t) + exp(-x/t)/(1+x) - B*expinti(-1/t) - 1 )
+#end
+#
+#
+#function mass(profile::TruncNFW)
+#    t = profile.r_t / profile.r_s
+#    A = -(1+1/t)*exp(1/t)*expinti(-1/t) - 1
+#
+#    return profile.M_s * A
+#end
 
 
-function mass(profile::TruncNFW)
-    t = profile.r_t / profile.r_s
-    A = -(1+1/t)*exp(1/t)*expinti(-1/t) - 1
-
-    return profile.M_s * A
-end
-
-
-function potential(profile::TruncNFW, r::Real)
-    Φ_in = - G * mass(profile, r) / r
-
-    Φ0 = -G * profile.M_s / profile.r_s
-    x = r / profile.r_s
-    t = profile.r_t / profile.r_s
-    Φ_out = Φ0 * (1/(1+x)*exp(-x/t) + expinti(-(1+x)/t)*exp(1/t)/t)
-
-    return Φ_in + Φ_out
-end
+#function potential(profile::TruncNFW, r::Real)
+#    Φ_in = - G * mass(profile, r) / r
+#
+#    Φ0 = -G * profile.M_s / profile.r_s
+#    x = r / profile.r_s
+#    t = profile.r_t / profile.r_s
+#    Φ_out = Φ0 * (1/(1+x)*exp(-x/t) + expinti(-(1+x)/t)*exp(1/t)/t)
+#
+#    return Φ_in + Φ_out
+#end
 
 
 

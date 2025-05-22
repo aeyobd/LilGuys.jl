@@ -94,7 +94,7 @@ All properties are in code units.
 end
 
 radii(prof::MassProfile) = prof.radii
-masses(prof::MassProfile) = prof.mass
+masses(prof::MassProfile) = prof.M_in
 circular_velocity(prof::MassProfile) = @. √(G*prof.M_in / prof.radii)
 
 
@@ -233,7 +233,8 @@ function MassScalars(snap, prof::MassProfile)
         W=W,
         L=L,
         N_bound=N_bound,
-        bound_mass = bound_mass
+        bound_mass = bound_mass,
+        time = snap.time,
    )
 end
 

@@ -62,6 +62,10 @@ function get_args()
             help = "Today's time in Gyr (for time indicator"
             arg_type = Float64
             default = NaN
+        "--time-scale"
+            help = "scale for time"
+            arg_type = Float64
+            default = 1
     end
 
     args = parse_args(s)
@@ -301,7 +305,8 @@ function animate_dm(args)
             dm_power=dm_power,
             colors=color_rgba,
             scalings=scalings,
-            time_today = args["time-today"]
+            time_today = args["time-today"],
+            time_scale = args["time-scale"]
         )
     finally
         # Ensure all files are closed
@@ -330,6 +335,7 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
          scalebar::Float64,
          dm_power::Float64,
          time_today::Float64,
+         time_scale::Float64,
     )
     ks_sorted = get_sorted_keys(files)
 
@@ -357,7 +363,7 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
             add_scalebar!(ax, xrange, yrange, scalebar)
         end
         if !isnan(time_today)
-            time = attrs(files[1][ks_sorted[frame]])["time"] * T2GYR - time_today
+            time = attrs(files[1][ks_sorted[frame]])["time"] * T2GYR * time_scale - time_today
             add_time!(ax, time)
         end
 
