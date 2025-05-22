@@ -10,13 +10,15 @@ using CairoMakie, Arya
 using LilGuys
 
 
-const white = Makie.RGBA{Float32}(1.0f0, 1.0f0, 1.0f0, 1.0f0)
+const white = colorant"#ffffff"
+const grey = colorant"#bebebe"
 const yellow = COLORS[9]
 const orange = COLORS[2]
 const red = COLORS[4]
 const pink = colorant"#fcb1ed"
 const blue = colorant"#add3f3"
 const green = colorant"#5cffc4"
+const purple  = colorant"#c274ff"
 # Define default colors
 const DEFAULT_COLORS = [
     white,
@@ -66,6 +68,10 @@ function get_args()
             help = "scale for time"
             arg_type = Float64
             default = 1
+        "--idx-max"
+            help = "last snapshot to animate"
+            arg_type=Int
+            default = -1
     end
 
     args = parse_args(s)
@@ -230,7 +236,7 @@ function parse_colors(colors)
     if !(colors[1] isa String)
         return colors
     end
-    parsed_colors = []
+    parsed_colors = Makie.RGBA{Float32}[]
     for color in colors
         if color == "white" 
             push!(parsed_colors, white)
@@ -242,6 +248,12 @@ function parse_colors(colors)
             push!(parsed_colors, red)
         elseif color == "pink"
             push!(parsed_colors, pink)
+        elseif color == "blue"
+            push!(parsed_colors, blue)
+        elseif color == "purple"
+            push!(parsed_colors, purple)
+        elseif color == "grey"
+            push!(parsed_colors, grey)
         else
             error("Invalid color: $color")
         end
@@ -306,7 +318,8 @@ function animate_dm(args)
             colors=color_rgba,
             scalings=scalings,
             time_today = args["time-today"],
-            time_scale = args["time-scale"]
+            time_scale = args["time-scale"],
+            idx_max = args["idx-max"],
         )
     finally
         # Ensure all files are closed
@@ -336,8 +349,9 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
          dm_power::Float64,
          time_today::Float64,
          time_scale::Float64,
+         idx_max::Integer,
     )
-    ks_sorted = get_sorted_keys(files)
+    ks_sorted = get_sorted_keys(files, idx_max)
 
     Σ_static = [static_files[i]["density"][:, :] * scalings[length(files) + i] for i in eachindex(static_files)]
 
@@ -445,7 +459,7 @@ function remap_intensity(X, power)
 end
 
 
-function get_sorted_keys(files)
+function get_sorted_keys(files, idx_max)
     num_files = length(files)
     ks_list = [collect(keys(f)) for f in files]
 
@@ -461,12 +475,17 @@ function get_sorted_keys(files)
     sorted_order = sortperm(idxs)
     ks_sorted = ks[sorted_order]
     idxs_sorted = sort(idxs)
+
+    if idx_max > 0
+        ks_sorted = ks_sorted[idxs_sorted .<= idx_max]
+    end
     return ks_sorted
 end
 
 function add_time!(ax, time; font="Arial", fontsize=7.5)
     label = @sprintf("today %+2.1f Gyr", time)
-    label = replace(label, "-" => "–") # nicer minus sign
+    label = replace(label, "-" => "– ") # nicer minus sign
+    label = replace(label, "+" => "+ ") # correct spacing
 
     text!(ax, 0.95, 0.05, text=label, color=:grey, align=(:right, :bottom),
         font=font, fontsize=fontsize, space=:relative)

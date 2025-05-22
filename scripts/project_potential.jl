@@ -90,6 +90,10 @@ function parse_times_in_args!(args)
         times = [parse(Float64, t) for t in times_in]
     end
 
+    if length(times) == 0 
+        error("no times specified")
+    end
+
     args["times"] = times
 
     return args
