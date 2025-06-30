@@ -187,7 +187,7 @@ function MassProfile(snap::Snapshot;
     end
 
     idx_skip = skip:skip:length(r)
-    counts = sqrt.(idx_skip)
+    counts = idx_skip
     r = r[idx_skip]
     M = M[idx_skip]
     M_err = @. 1/sqrt(counts) * M

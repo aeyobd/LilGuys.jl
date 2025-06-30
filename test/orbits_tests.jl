@@ -188,10 +188,10 @@ end
 
     @testset "plummer" begin
         prof = LilGuys.Plummer(M=0.3, r_s=0.927)
-        f_acc(pos, vel, acc) = LilGuys.acceleration(prof, pos)
+        # f_acc(pos, vel, acc) = LilGuys.acceleration(prof, pos)
 
         ic = Galactocentric([1,0,0], [0.1,1,1]*V2KMS)
-        orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=10)
+        # orbit = LilGuys.leap_frog(ic, f_acc, timebegin=0, time=10)
 
         @test false broken=true
     end

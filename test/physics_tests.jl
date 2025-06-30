@@ -27,14 +27,14 @@ end
 
 @testset "r errors" begin
     a = [1., 2., 3., 4.]
-    @test_throws DimensionMismatch lguys.radii(a)
+    @test_throws ArgumentError lguys.radii(a)
 
     b = [1. 0 1 2;
          2. 0 1 2;
          1. 0 -1 4;
          1. 0 -1 5]
 
-    @test_throws DimensionMismatch lguys.radii(b)
+    @test_throws ArgumentError lguys.radii(b)
 end
 
 

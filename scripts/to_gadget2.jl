@@ -39,5 +39,5 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     args = get_args()
-    main()
+    main(args)
 end

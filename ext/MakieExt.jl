@@ -387,7 +387,7 @@ macro savefig(name, fig=nothing)
 
 
     return quote
-        local dir, filepath, filename
+        local dir, filepath, filename, fig
 
         if isdefined(@__MODULE__, :FIGDIR)
             dir = (@__MODULE__).FIGDIR
@@ -406,13 +406,14 @@ macro savefig(name, fig=nothing)
         end
 
         filepath = joinpath(dir, filename)
+        fig = $fig
 
 
         @info "Saving figure to $filename.pdf and ---.png in $dir"
-        Makie.save(filepath * ".pdf", $fig, pt_per_unit=1)
-        Makie.save(filepath * ".png", $fig, pt_per_unit=1)
+        Makie.save(filepath * ".pdf", fig, pt_per_unit=1)
+        Makie.save(filepath * ".png", fig, pt_per_unit=1)
 
-        $fig
+        fig
     end 
 end
 

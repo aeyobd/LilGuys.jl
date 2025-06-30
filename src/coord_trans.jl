@@ -302,7 +302,7 @@ end
 
 
 
-function _heliocen_to_galcen_position(x_vec::Vector{F}; frame=GalactocentricFrame()) where {F<:Real}
+function _heliocen_to_galcen_position(x_vec::Vector{F}; frame=default_gc_frame) where {F<:Real}
     sun_gc = [-1, 0, 0] .* frame.d
 
     R_mat = _coordinate_R(frame)
