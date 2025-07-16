@@ -288,6 +288,8 @@ public
 
 function plot_xyz end
 function plot_xyz! end
+function axis_xyz end
+function limits_xyz end
 function plot_log_Σ! end
 function plot_log_Σ end
 function plot_Γ! end
@@ -308,6 +310,7 @@ public AgamaPotential
 public sample_potential
 function AgamaPotential end
 function sample_potential end
+function agama_orbit end
 
 
 

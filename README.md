@@ -1,5 +1,5 @@
 # LilGuys
-LIttLe Galaxies Undergoing milkY way Stripping
+Dwarf galaxies are just 'lilguys. 
 
 ## Notes about structure and conventions
 
@@ -11,14 +11,35 @@ the units file will contain methods to covert to physical units
 
 1. `Point` - a point in 3D space
 2. `PhasePoint` - a point in 6D phase space
-2. `Particle` - points
+3. `Particle` - points
+4. `ICRS`, `GSR`, `Cartesian`, `Galactocentric`: Sky coordinate types
+5. `StellarDensityProfile`, `StellarMassProfile`
+6. `DensityProfile`, `StellarDensityProfile3D`, `MassProfile`
 
 
 ### Strucutre
-- units.j
-- coordinates.jl: contains methods to convert between galactocentric and geocentric frames
-- gravity.jl: gravitational methods: profiles, forces, and potentials
-- 
+- `units.jl` A few basic unit conversions and our code unit definitions
+- `utils.jl`
+- `interface.jl`
+- `measurements.jl`
+- `io.jl`
+  - `snapshot.jl`
+  - `output.jl`
+
+- `coordinates.jl`: contains methods to convert between galactocentric and geocentric frames
+  - `coord_trans.jl`
+  - `project.jl`
+  - `spherical.jl`
+
+- `gravity.jl`: gravitational methods: profiles, forces, and potentials
+- `physics.jl`
+- `stellar_density_3d.jl`
+- `density_2d.jl`
+- `density_3d.jl`
+- `analytic_profiles.jl`
+- `nfw.jl`
+- `scaling_relations.jl`
+- `potentials.jl`, `orbits.jl`
 
 
 ## Naming conventions and types
@@ -29,16 +50,130 @@ Technically, scalar fields should be 1xN matrices (as julia vectors are Nx1), wh
 
 For single scalars (mathematically $\in \R$), I like single letters like $r$ (radius), $\Phi$ (potential), $s$ (scalar velocity), $m$ (mass) and so on. Especially as this is a mathematical project, I think this is okay for now, but more verbose names can be added later.
 
-As the two most common vectors ($\mathbf{x}$ and $\mathbf{v}$) have overloaded names (V is potential, x is a coordinate), I will use three letter abbreviations for 
-- `x_vec`
-- `v_vec`
-- `a_vec`
-pluralizing to `x_vecs`, for 3xN matrices of points, etc.
-Subscripts are added after to (`x_vec_i` pluralizing to `x_vecs_i` so dimensionality are contained in the same group (vecs)).
-
 
 ### Functions
 
-Function names are snake case, and for the most part should be verb clauses. This helps avoid accidentally overriding functions which represent common variables like radius `r`. So, most physical quantity calculations begin with `calc_r`, etc. 
+Common functions (sometimes imported)  like `mean`, `std`, and `norm` are noun clauses.
 
-Common functions (sometimes imported)  like `mean`, `std`, and `norm` are noun clauses but these are exceptions in this project.
+
+
+### Examples
+
+Observables (below) may also specify symmetric errors as `_err` or assymetric errors with `_em` and `_ep`.  However, these are only used in stored files, otherwise represented by internal `Measurement` type
+
+- `ra`: Right ascension (ICRS J2000) in degrees
+- `dec`: Declination (ICRS J2000) in degrees
+- `distance`: heliocentric distance in kpc
+- `pmra`: Corrected proper motion in right ascension (mas/yr). Name is technically inconsistent with underscore rule but kept for consistency with Gaia
+- `pmdec`: Corrected proper motion in declination (mas/yr).
+- `radial_velocity`: Heliocentric line-of-sight radial velocity of a stars (km/s). 
+- `position_angle`: Position angle of satillite major axis in degrees (North to East). 
+- `ellipticity`: Ellipticity of satellite density profile (1 - b/a?)
+- `xi`, `eta`: tangent plane coordinates (ra / dec) in arcminutes. Based on `ra` and `dec` and presently assumed centre (probably from `observations/galaxyname/observed_properties.toml` or simulation centre)
+- `R_h`: Half light radius of satellite in *arcminutes*
+- `R_ell`: elliptical radius in units of arcminutes
+- `sigma_v`: LOS velocity dispersion (in arcminutes)
+
+
+
+Generic quantities
+
+lengths
+
+- `log` as prefix, always log 10
+- `R` 2D radius / projected radius (vector)
+- `radius`
+- `radii` (`r` internally) 3D radius vector
+- `log_R`, `log_radii` like above but log10
+- `position`, `positions` 3xN vector of positions
+- `r_h`
+- `R_h`
+- `break_radius`
+
+speeds
+
+- `velocities` 3xN vector of velocities 
+- `v_circ` circular velocity (from enclosed mass)
+
+acceleration / force
+
+- `accelerations`
+- `force`
+
+masses
+
+- `mass` total or enclosed mass
+- `masses` point particle masses
+- `mass_enclosed`
+- `M` (attribute/scale)
+
+2d densities
+
+- `surface_density`
+- `log_surface_density`
+
+3D densities
+
+- `density`
+- `log_density`
+
+energy
+
+- `energy`
+- `binding_energy`
+- `surface_density`
+- `potential`, `potential_ext` Gravitational potential energy $\Phi$.
+
+
+
+momentum
+
+- `angular_momentum`
+
+
+
+# Development
+
+![image-20250512164547349](/Users/daniel/Library/Application Support/typora-user-images/image-20250512164547349.png)
+
+Clean and basic tests
+
+- units (100%)
+- utils (93%) 
+- interface (94%)
+
+TO check
+
+- io 
+- snapshot
+- output
+- coord_trans
+- spherical
+- physics
+- gravity
+- analytic_profiles
+- nfw
+- scaling_relations
+- project
+- Centres.jl
+- density_2d
+- measurements (basic)
+- MassQuantiles
+- MassWithinRadii
+
+Needs tests:
+
+- mass_profile_3d
+- MakieExt
+- *Shrinking spheres robust tests*
+- Coordinate constructors more tests
+- cylindrical coordinate frame & tests
+- velocity anisotropy first tests
+
+More features
+
+- Create working density centres (fuzzy centres)
+- First tests for potentials
+- first tests for orbits
+- more tests for project.jl
+- FITS metadata

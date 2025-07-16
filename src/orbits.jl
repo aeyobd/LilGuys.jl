@@ -135,48 +135,51 @@ end
 Resamples an orbit to a new time array
 """
 function resample(a::Orbit, time::AbstractVector{<:Real})
-    if a.time[2] < a.time[1]
+    if a.times[2] < a.times[1]
         a = reverse(a)
     end
-    x = LilGuys.lerp(a.time, a.positions[1, :]).(time)
-    y = LilGuys.lerp(a.time, a.positions[2, :]).(time)
-    z = LilGuys.lerp(a.time, a.positions[3, :]).(time)
-    v_x = LilGuys.lerp(a.time, a.velocities[1, :]).(time)
-    v_y = LilGuys.lerp(a.time, a.velocities[2, :]).(time)
-    v_z = LilGuys.lerp(a.time, a.velocities[3, :]).(time)
+    x = LilGuys.lerp(a.times, a.positions[1, :]).(time)
+    y = LilGuys.lerp(a.times, a.positions[2, :]).(time)
+    z = LilGuys.lerp(a.times, a.positions[3, :]).(time)
+    v_x = LilGuys.lerp(a.times, a.velocities[1, :]).(time)
+    v_y = LilGuys.lerp(a.times, a.velocities[2, :]).(time)
+    v_z = LilGuys.lerp(a.times, a.velocities[3, :]).(time)
 
-    return Orbit(time=time, positions=[x y z]', velocities=[v_x v_y v_z]')
+    return Orbit(times=time, positions=[x y z]', velocities=[v_x v_y v_z]')
 end
 
 
 """
-    leap_frog(gc, acceleration; params...)
+    apfrog(acceleration, gc; params...)
 
-Computes the orbit of a Galactocentric object using the leap frog method.
+Computes the orbit of a Galactocentric object using the leapfrog integration method.
 
 Parameters:
 - `gc::Galactocentric`: the initial conditions
 - `acceleration::Function`: the acceleration function. should take a position vector, velocity vector, and the current time (for maximum flexibility).
 - `dt_max::Real=0.1`: the maximum timestep
 - `dt_min::Real=0.001`: the minimum timestep, will exit if timestep is below this
-- `time::Real=-10/T2GYR`: the time to integrate to
-- `timebegin::Real=0`: the time to start integrating from
+- `timerange::Real=(0, -10/T2GYR)`: the initial and time to integrate to
 - `timestep::Symbol=:adaptive`: the timestep to use, either `:adaptive` or a real number
 - `η::Real=0.003`: the adaptive timestep parameter. Adaptive timestep is based on sqrt(η*r/a) where a is the magnitude of the current acceleration and r is the distance from the origin.
 
 """
-function leap_frog(gc, f_acc; 
-        dt_max=0.1, dt_min=0.001, timebegin=0, time=-10/T2GYR, 
-        timestep=:adaptive, η=0.003, reuse_acceleration=true
+function leapfrog(f_acc, gc::Galactocentric; 
+        dt_max=0.1, dt_min=0.001, timerange=(0, -10/T2GYR), 
+        timestep=:adaptive, η=0.003, reuse_acceleration=true,
+        method = step_kdk,
     )
+
 
     if timestep isa Real
         dt_min = timestep
     end
 
-    t = timebegin
+    time_i, time_f = timerange
+    integration_time = time_f - time_i
+    t = time_i
 
-    Nt = round(Int, abs(time / dt_min))
+    Nt = round(Int, abs(integration_time / dt_min))
 
     # setup matricies
     positions = Vector{Vector{Float64}}()
@@ -187,9 +190,9 @@ function leap_frog(gc, f_acc;
     push!(positions, [gc.x, gc.y, gc.z])
     push!(velocities, [gc.v_x, gc.v_y, gc.v_z] / V2KMS)
     push!(accelerations, f_acc(positions[1], velocities[1], t))
-    push!(times, 0.)
+    push!(times, t)
     is_done = false
-    backwards = time < 0
+    backwards = time_f < time_i
 
     for i in 1:Nt
         pos = positions[i]
@@ -212,8 +215,8 @@ function leap_frog(gc, f_acc;
         end
 
         # last step ends at end of range
-        if (backwards && t + dt <= time ) || (!backwards && t + dt >= time)
-            dt = time - t 
+        if (backwards && t + dt <= time_f ) || (!backwards && t + dt >= time_f)
+            dt = time_f - t 
             is_done = true
         end
 
@@ -221,7 +224,7 @@ function leap_frog(gc, f_acc;
             acc = f_acc(pos, vel, t)
         end
 
-        pos_new, vel_new, acc = step_kdk(pos, vel, acc, f_acc, dt, t)
+        pos_new, vel_new, acc = method(pos, vel, acc, f_acc, dt, t)
 
         push!(positions, pos_new)
         push!(velocities, vel_new)
@@ -242,12 +245,22 @@ end
 
 
 
-function step_kdk(position::AbstractVector{<:Real}, velocity::AbstractVector{<:Real}, acceleration::AbstractVector{<:Real}, f::Function, dt::Real, t::Real=0)
-    vel_h = velocity + dt/2 * acceleration
-    pos_new = position + dt * vel_h
-    acc = f(position, velocity, t + dt)
-    vel_new = vel_h + 1/2 * dt * acc
 
-    return pos_new, vel_new, acc
+function step_kdk(position::AbstractVector{<:Real}, velocity::AbstractVector{<:Real}, acceleration::AbstractVector{<:Real}, f::Function, dt::Real, t::Real=0)
+
+    vel_h = velocity + acceleration * dt/2 # half kick
+    pos_new = position + vel_h * dt # full drift
+    acc_new = f(pos_new, velocity, t + dt) # acc_new (assuming vel. independ)
+    vel_new = vel_h + acc_new * dt/2 # half kick
+
+    return pos_new, vel_new, acc_new
 end
 
+function step_dkd(position::AbstractVector{<:Real}, velocity::AbstractVector{<:Real}, acceleration::AbstractVector{<:Real}, f::Function, dt::Real, t::Real=0)
+    pos_h = position + velocity * dt/2  # half drift
+    acc_h = f(pos_h, velocity, t + dt/2)
+    vel_new = velocity + acc_h * dt # kick
+    pos_new = pos_h +  vel_new * dt/2 # half drift
+
+    return pos_new, vel_new, acc_h
+end
