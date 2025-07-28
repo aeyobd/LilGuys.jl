@@ -262,7 +262,10 @@ public to_frame, resample, leap_frog, resample, stresses, accelerations
 export Orbit
 
 include("orbits.jl")
-# include("potentials.jl")
+include("potentials.jl")
+public
+    ChandrashakarDynamicalFriction,
+    Potential
 
 
 include("centres/Centres.jl")

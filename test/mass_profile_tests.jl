@@ -117,6 +117,8 @@ end
         @test lguys.mass(halo) ≈ M rtol=1e-2
 
         @test sc.N_bound ≈ N
+        count_tol = diff(profile.counts)[end-1]
+        @test profile.counts[end] ≈ N atol=count_tol
         # everything is zeroed here
         @test sc.K ≈ 0
         @test sc.bound_mass ≈ M
@@ -128,7 +130,15 @@ end
 
         r = lguys.radii(profile)
         M_exp = lguys.mass.(halo, r)
-        @test_χ2 profile.M_in M_exp
+        @test_χ2 profile.M_in M_exp 
+
+        M_in_end = profile.M_in[end-3]
+        @test LilGuys.sym_error(M_in_end) / LilGuys.middle(M_in_end) ≈ 1/sqrt(profile.counts[end-3])
+
+        m0 = snap.masses[1]
+
+        @test profile.counts .* m0 ≈ LilGuys.middle.(profile.M_in)
+
 
         # errors tend to be overestimated here...
         v_circ_exp = lguys.v_circ.(halo, lguys.radii(profile))

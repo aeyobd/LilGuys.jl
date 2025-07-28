@@ -76,5 +76,15 @@ function leapfrog(pot::Agama.Potential, coord::LilGuys.Galactocentric; agama_uni
 end
 
 
+function LilGuys.density(pot::Agama.Potential, x)
+    return Agama.density(pot, x)
+end
+
+function LilGuys.acceleration(pot::Agama.Potential, x)
+    return Agama.acceleration(pot, x)
+end
+
+
+
 
 end # module
