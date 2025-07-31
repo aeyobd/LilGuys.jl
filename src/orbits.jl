@@ -264,3 +264,87 @@ function step_dkd(position::AbstractVector{<:Real}, velocity::AbstractVector{<:R
 
     return pos_new, vel_new, acc_h
 end
+
+
+
+"""
+    peri_apo(orbit::Orbit)
+
+Calculate the global peri and apocentre.
+"""
+function peri_apo(orbit)
+    rs = radii(orbit)
+    return minimum(rs), maximum(rs)
+end
+
+
+
+"""
+    all_peris_apos(orbit)
+    all_peris_apos(times, radii)
+
+Compute all the pericentres and apocentres in the orbit
+
+If an orbit is passed, assumes methods times(orbit) and radii(orbit) are defined.
+
+Returns a 4-tuple of the pericentres, indices of pericentres, apocentres, indices of apocentres. 
+"""
+function all_peris_apos(ts::AbstractVector{<:Real}, rs::AbstractVector{<:Real})
+    peris = Float64[]
+    idx_peris = Int[]
+    apos = Float64[]
+    idx_apos = Int[]
+
+    Nt = length(ts)
+
+    for i in 2:Nt-1
+        r = rs[i]
+        last_r = rs[i-1]
+        next_r = rs[i+1]
+
+        if (last_r >= r) && (r <= next_r)
+            # r is a local minimum
+            push!(idx_peris, i)
+            push!(peris, r)
+        elseif (last_r <= r) && (r >= next_r)
+            # is a maximum
+            push!(idx_apos, i)
+            push!(apos, r)
+        end
+    end
+
+    return peris, idx_peris, apos, idx_apos
+end
+
+function all_peris_apos(orbit)
+    return all_peris_apos(times(orbit), radii(orbit))
+end
+
+
+"""
+    last_time_peri(ts, rs)
+
+Compute the last pericentre and time of. Returns a tuple of the time of last pericentre and the pericentre, or NaNs if no solution is found. 
+"""
+function last_time_peri(ts::AbstractVector{<:Real}, rs::AbstractVector{<:Real})
+    time = NaN
+    peri = NaN
+
+    Nt = length(ts)
+
+    for i in 2:Nt-1
+        r = rs[i]
+        last_r = rs[i-1]
+        next_r = rs[i+1]
+
+        if (last_r >= r) && (r <= next_r)
+            # r is a local minimum
+            time = ts[i]
+            peri = r
+            break
+        end
+    end
+
+    return time, peri
+end
+

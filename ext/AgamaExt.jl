@@ -85,6 +85,12 @@ function LilGuys.acceleration(pot::Agama.Potential, x)
 end
 
 
+function LilGuys.times(o::Agama.Orbit)
+    return o.times
+end
 
+function LilGuys.radii(o::Agama.Orbit)
+    return radii(o.positions)
+end
 
 end # module
