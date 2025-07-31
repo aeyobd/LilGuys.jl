@@ -130,7 +130,7 @@ end
 A Plummer profile. The density profile is given by
 
 ``
-\Sigma(r) = \frac{M}{4\pi r_s^2} \left(1 + \frac{r^2}{r_s^2}\right)^{-2}
+\Sigma(r) = \frac{M}{\pi r_s^2} \left(1 + \frac{r^2}{r_s^2}\right)^{-2}
 ``
 
 where M is the total mass and r_s is the scale radius. 

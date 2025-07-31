@@ -454,3 +454,34 @@ end
 function effective_sample_size(data::AbstractVector{<:Real}, weights::AbstractVector{<:Real})
     return effective_sample_size(weights)
 end
+
+
+"""
+    sexadecimal_to_decimal(ra, dec)
+
+Given coordinates of the form hours:minutes:seconds and deg:min:sec for RA and Dec,
+retrun the decimal expressions.
+"""
+function sexadecimal_to_decimal(ra::String, dec::String)
+    h, m, s = parse.(Float64, split(ra, ":"))
+
+    ra_deg = 360 / 24 * (h + m/60 + s/60^2)
+
+    d, m, s = parse.(Float64, split(dec, ":"))
+
+    dec_deg = d + m/60 + s/60^2
+
+    return ra_deg, dec_deg
+
+end
+
+
+"""
+    mag_to_L(m1[, m2])
+
+Converts a relative magnitude to a luminosity ratio.
+M2 defaults to the V band luminosity of the sun 4.83 (nasa fact sheet).
+"""
+function mag_to_L(m1, m2=4.83)
+    return 10 ^ (2/5 * (m2-m1))
+end
