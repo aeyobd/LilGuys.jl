@@ -129,6 +129,18 @@ function reverse(a::Orbit)
     return Orbit(times=time, positions=positions, velocities=velocities, accelerations=accelerations)
 end
 
+"""
+    getindex(a::Orbit, idx)
+
+Return an orbit only with timesteps selected by the given range or filter
+"""
+function Base.getindex(a::Orbit, idx)
+    time = a.times[idx]
+    positions = a.positions[:, idx]
+    velocities = a.velocities[:, idx]
+    accelerations = a.accelerations === nothing ? nothing : getindex(a.accelerations, :, idx)
+    return Orbit(times=time, positions=positions, velocities=velocities, accelerations=accelerations)
+end
 
 """
     resample(a::Orbit, time::AbstractVector)
@@ -287,7 +299,7 @@ Compute all the pericentres and apocentres in the orbit
 
 If an orbit is passed, assumes methods times(orbit) and radii(orbit) are defined.
 
-Returns a 4-tuple of the pericentres, indices of pericentres, apocentres, indices of apocentres. 
+Returns a 5-tuple of the pericentres, indices of pericentres, apocentres, indices of apocentres, and the pericentre error maximum.
 """
 function all_peris_apos(ts::AbstractVector{<:Real}, rs::AbstractVector{<:Real})
     peris = Float64[]
@@ -295,6 +307,7 @@ function all_peris_apos(ts::AbstractVector{<:Real}, rs::AbstractVector{<:Real})
     apos = Float64[]
     idx_apos = Int[]
 
+    max_err = 0
     Nt = length(ts)
 
     for i in 2:Nt-1
@@ -306,14 +319,17 @@ function all_peris_apos(ts::AbstractVector{<:Real}, rs::AbstractVector{<:Real})
             # r is a local minimum
             push!(idx_peris, i)
             push!(peris, r)
+
+            max_err = max(max_err, last_r - r, next_r - r)
         elseif (last_r <= r) && (r >= next_r)
             # is a maximum
             push!(idx_apos, i)
             push!(apos, r)
+            max_err = max(max_err, r - last_r, r - next_r)
         end
     end
 
-    return peris, idx_peris, apos, idx_apos
+    return peris, idx_peris, apos, idx_apos, max_err
 end
 
 function all_peris_apos(orbit)

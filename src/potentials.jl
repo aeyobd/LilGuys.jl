@@ -2,11 +2,11 @@
 """ Abstract type representing a force modifying particles in an orbit"""
 abstract type Potential end
 
-function potential(p::Potential, pos::Vector{F})
+function potential(p::Potential, pos)
     error("calc_Φ not implemented for this potential")
 end
 
-function acceleration(p::Potential, pos::Vector{F})
+function acceleration(p::Potential, pos, vel=nothing, t=nothing)
     error("calc_Φ not implemented for this potential")
 end
 
@@ -15,11 +15,11 @@ struct CompositePotential <: Potential
     potentials::Vector{Potential}
 end
 
-function potential(pot::CompositePotential, pos)
-    return sum(potential(p, pos) for p in pot)
+function potential(pot::CompositePotential, pos::AbstractVector{<:Real})
+    return sum(potential(p, pos) for p in pot.potentials)
 end
 function acceleration(pot::CompositePotential, pos, vel, t)
-    return sum(acceleration(p, pos, vel, t) for p in pot)
+    return sum(acceleration(p, pos, vel, t) for p in pot.potentials)
 end
 
 Base.@kwdef struct ChandrashakarDynamicalFriction <: Potential

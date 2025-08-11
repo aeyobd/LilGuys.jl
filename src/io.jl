@@ -101,8 +101,7 @@ end
 
 Takes a vector of scalar structs and converts them to a dataframe
 """
-function to_frame(A::AbstractVector{<:T}) where T
-    cols = propertynames(A[1])
+function to_frame(A::AbstractVector{<:T}, cols=propertynames(A[1])) where T
     df = DataFrame()
     for col in cols
         val = getproperty.(A, col)
@@ -124,6 +123,11 @@ function to_frame(A::AbstractVector{<:T}) where T
     return df
 end
 
+
+function to_frame(A::AbstractVector{<:Galactocentric})
+    cols=[:x, :y, :z, :v_x, :v_y, :v_z]
+    return to_frame(A, cols)
+end
 
 """
     to_structs(df, type)
@@ -249,18 +253,19 @@ end
 
 
 """
-    read_structs_from_hdf5(filename, T)
+    read_structs_from_hdf5(filename, T; use_measurements, idxs)
 
 Reads a vector of structs from an HDF5 file. 
 Expects each struct to be stored in a separate group and
 T to be initializable by kwdef by the combination of 
 values stored in each group.
+
 """ 
-function read_structs_from_hdf5(filename::String, T; use_measurements=:auto)
+function read_structs_from_hdf5(filename::String, T; use_measurements=:auto, idxs=(:))
     structs = Pair{String, T}[]
 
     h5open(filename, "r") do f
-        for k in keys(f)
+        for k in keys(f)[idxs]
             @debug "reading key $k"
 
             s = read_struct_from_hdf5(f, T, group=k, use_measurements=use_measurements)
@@ -274,6 +279,9 @@ end
 
 """
     read_ordered_structs(filename, T; kwargs...)
+
+Reads in ordered structs from a file. i.e. expects the keys
+to be integer indices. 
 """
 function read_ordered_structs(filename::String, T; kwargs...)
     structs = read_structs_from_hdf5(filename, T; kwargs...)
@@ -328,6 +336,8 @@ function write_struct_to_hdf5(h5::HDF5.File, obj; group="")
             set_vector!(h5, group * "/" * String(field), val)
         elseif field == :annotations
             set_attrs!(h5, val)
+        elseif isnothing(val)
+            @debug "skipping $field as empty"
         else
             set_vector!(h5, group * "/" * String(field), val)
         end

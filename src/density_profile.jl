@@ -67,7 +67,7 @@ end
 
 
 """
-    DensityProfile(snap; bins=100, filt_bound=true)
+    DensityProfile(snap; bins=100, filt_bound=:simple)
 
 Given a snapshot, computes the density, circular velocity, and energy; 
 returning an DensityProfileobject.
@@ -78,11 +78,11 @@ Note: does not include binning error currently.
 """
 function DensityProfile(snap::Snapshot;
         bins=nothing,
-        filt_bound=true,
+        filt_bound=:simple,
     )
 
-    if filt_bound
-        filt = bound_particles(snap)
+    if filt_bound != :false
+        filt = bound_particles(snap, method=filt_bound)
         snap = snap[filt]
     end
 

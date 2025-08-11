@@ -121,17 +121,17 @@ module Ludlow
 
     See also [`c_ludlow`](@ref), [`solve_rmax`](@ref)
     """
-    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000])
+    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000], z=0)
         dc = 10 ^ (0 + δlogc)
 
-        f(M200) = LilGuys.v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, 0.))) - Vcmax
+        f(M200) = LilGuys.v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, z))) - Vcmax
 
         M200 = find_zero(f, interval)
-        return M200, c_ludlow(M200, 0.) * dc
+        return M200, c_ludlow(M200, z) * dc
     end
 
     """
-    solve_rm(Vcmax, δlogc=0; kwargs...)
+    solve_rmax(Vcmax, δlogc=0; kwargs...)
 
     Solves for the radius of maximum circular velocity given the maximum
     circular velocity in code units and an optional offset to the concentration mass

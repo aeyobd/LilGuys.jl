@@ -234,8 +234,13 @@ Return a filter for particles that are bound to the snapshot.
 function bound_particles(snap::Snapshot; method=:simple, kwargs...)
     if method == :simple
         return specific_energy(snap) .>= 0
+    elseif method == :nbody
+        ϵ = -potential_nbody(snap) .- 1/2 .* speeds(snap).^2
+        return ϵ .>= 0
     elseif method == :recursive_1D
         return bound_particles_recursive_1D(snap; kwargs...)
+    elseif method == :recursive_3D
+        return bound_particles_recursive_3D(snap; kwargs...)
     else
         throw(ArgumentError("Method $method not known"))
     end
@@ -259,10 +264,10 @@ function bound_particles_recursive_1D(snap::Snapshot; maxiter=300)
     dN = sum(.!filt)
 
     for i in 1:maxiter
+        @debug "bound particles iteration $(i-1), dutting $dN particles"
         if sum(filt) == 0
             break
         end
-
         ϕ = potential_spherical_discrete(r[filt], m[filt])
         ϵ = @. -1/2 * v[filt]^2 - ϕ
         filt_2 = ϵ .> 0
@@ -283,3 +288,43 @@ function bound_particles_recursive_1D(snap::Snapshot; maxiter=300)
     return filt
 end
 
+
+"""
+    bound_particles_recursive_3D(snap)
+
+Find particles which are bound recursively removing unbound particles and updating the potential.
+"""
+function bound_particles_recursive_3D(snap::Snapshot; maxiter=300)
+    v = speeds(snap)
+
+    ϕ = potential_nbody(snap)
+    ϵ = @. -1/2 * v^2 - ϕ
+    filt = ϵ .> 0
+    dN = sum(.!filt)
+
+    for i in 1:maxiter
+        if sum(filt) == 0
+            break
+        end
+        snap_new = snap[filt]
+
+        ϕ = potential_nbody(snap_new)
+        ϵ = @. -1/2 * v[filt]^2 - ϕ
+        filt_2 = ϵ .> 0
+
+        idx_dropped = eachindex(filt)[filt][.!filt_2]
+        filt[idx_dropped] .= false
+
+        dN = length(idx_dropped)
+
+        @debug "bound particles iteration $i, dutting $dN particles"
+        if dN == 0
+            break
+        end
+        if i == maxiter
+            @warn "Maximum iterations reached"
+        end
+    end
+
+    return filt
+end

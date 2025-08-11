@@ -102,6 +102,8 @@ dictionary. Assumed to be uncertainties of the form key_err or
 key_em, key_ep.
 """
 function get_uncertainty(d::AbstractDict, key::String)
+    local δx
+
     if key * "_em" ∈ keys(d)
         δx = max(d[key*"_em"], d[key * "_ep"])
     elseif key * "_err" ∈ keys(d)
