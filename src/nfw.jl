@@ -6,8 +6,8 @@ import SpecialFunctions: expint
 """
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 """
-function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
-    f(r) = mean_density(profile, r) - δ*ρ_crit
+function solve_R200(profile::GeneralNFW, z; δ=200, tol=1e-3)
+    f(r) = mean_density(profile, r) - δ*ρ_crit * (1+z)^3
 
     R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])
 
@@ -18,28 +18,28 @@ function solve_R200(profile::GeneralNFW; δ=200, tol=1e-3)
     return R200
 end
 
-function R200(profile::GeneralNFW)
-    return solve_R200(profile)
+function R200(profile::GeneralNFW, z=0.)
+    return solve_R200(profile, z)
 end
 
-function M200(profile::GeneralNFW)
-    return mass(profile, R200(profile))
+function M200(profile::GeneralNFW, z=0.)
+    return mass(profile, R200(profile, z))
 end
 
 
 """
 NFW concentration parameter = r_s / r_200
 """
-function concentration(profile::GeneralNFW)
-    r200 = solve_R200(profile)
+function concentration(profile::GeneralNFW, z::Real=0.)
+    r200 = solve_R200(profile, z)
     c = r200 / profile.r_s
 
     return c
 end
 
 
-function concentration(M200::Real, r_s::Real)
-    return R200(M200) / r_s
+function concentration(M200::Real, r_s::Real, z=0.)
+    return R200(M200, z) / r_s
 end
 
 function solve_r_circ_max(profile::GeneralNFW)
@@ -79,7 +79,7 @@ struct NFW <: GeneralNFW
     c::Union{Nothing, Float64}
 end
 
-function NFW(; c=nothing, kwargs...)
+function NFW(; c=nothing, z=0.0, kwargs...)
     arg_names = Set(keys(kwargs))
     valid_kwargs = [:M_s, :r_s, :M200, :v_circ_max, :r_circ_max]
 
@@ -93,11 +93,11 @@ function NFW(; c=nothing, kwargs...)
         M_s, r_s = kwargs[:M_s], kwargs[:r_s]
     elseif (arg_names == Set([:M200]) ) && (c !== nothing)
         M200 = kwargs[:M200]
-        M_s, r_s = _NFW_from_M200_c(M200, c)
+        M_s, r_s = _NFW_from_M200_c(M200, c, z)
     elseif arg_names == Set([:M200, :r_s])
         M200, r_s = kwargs[:M200], kwargs[:r_s]
         M_s, r_s = _NFW_from_M200_r_s(M200, r_s; c=c)
-        c = R200(M200) / r_s
+        c = R200(M200, z) / r_s
     elseif arg_names == Set([:v_circ_max, :r_circ_max])
         v_circ_max, r_circ_max = kwargs[:v_circ_max], kwargs[:r_circ_max]
         M_s, r_s = _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
@@ -106,15 +106,15 @@ function NFW(; c=nothing, kwargs...)
     end
 
     if c === nothing
-        c = concentration(NFW(M_s, r_s, nothing))
+        c = concentration(NFW(M_s, r_s, nothing), z)
     end
 
     return NFW(M_s, r_s, c)
 end
 
 
-function _NFW_from_M200_c(M200, c)
-    Rvir = R200(M200)
+function _NFW_from_M200_c(M200, c, z=0.)
+    Rvir = R200(M200, z)
     r_s = Rvir / c
     M_s = M200 / A_NFW(c)
     return M_s, r_s
@@ -127,9 +127,9 @@ function _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
 end
 
 
-function _NFW_from_M200_r_s(M200, r_s; c=nothing)
+function _NFW_from_M200_r_s(M200, r_s, z=0.; c=nothing)
     if c === nothing
-        c = R200(M200) / r_s
+        c = R200(M200, z) / r_s
     end
     M_s = M200 / A_NFW(c)
     return M_s, r_s
@@ -152,6 +152,10 @@ const α_nfw = 2.1625815870646098348565536696032645735
 renormalized hubble constant from Plank collaboration (2018)
 """
 const h_hubble = 0.674
+
+"""
+the critical density of the universe in code units
+"""
 const ρ_crit = 277.5366*h_hubble^2 / 1e10 # code units, 10^10 M_sun / kpc^3
 
 
@@ -235,8 +239,8 @@ function M200(profile::NFW)
 end
 
 
-function R200(M200::Real)
-    return (3 * M200 / (4π * 200 * ρ_crit))^(1/3)
+function R200(M200::Real, z::Real=0.0)
+    return (3 * M200 / (4π * 200 * ρ_crit))^(1/3) / (1+z)
 end
 
 

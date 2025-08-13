@@ -67,34 +67,34 @@ module Ludlow
     using ..LilGuys
     import Roots: find_zero
 
-	h = 0.674 #pm 0.05
-	Ω_m0 = 0.315
-	Ω_Λ0 = 1 - Ω_m0
-	σ8 = 0.811
+    h = 0.674 #pm 0.05
+    Ω_m0 = 0.315
+    Ω_Λ0 = 1 - Ω_m0
+    σ8 = 0.811
 
-	n_s = 0.965
-	
-	ρ_crit = 277.5366*h^2 # M⊙/kpc = (3H^2 / 8πG)
+    n_s = 0.965
+    
+    ρ_crit = 277.5366*h^2 # M⊙/kpc = (3H^2 / 8πG)
 
-	const G = 4.30091e-6 # km^2/s^2 kpc / M⊙
+    const G = 4.30091e-6 # km^2/s^2 kpc / M⊙
 
-	Ω_Λ(z) = Ω_Λ0 / (Ω_Λ0 + Ω_m0 * (1+z)^3)
-	Ω_m(z) = 1 - Ω_Λ(z)
+    Ω_Λ(z) = Ω_Λ0 / (Ω_Λ0 + Ω_m0 * (1+z)^3)
+    Ω_m(z) = 1 - Ω_Λ(z)
 
-	Ψ(z) = Ω_m(z)^(4/7) - Ω_Λ(z) + (1 + Ω_m(z)/2) * (1 + Ω_Λ(z)/70)
-	D(z) = Ω_m(z) / Ω_m0 * Ψ(0) / Ψ(z) * (1+z)^-1
+    Ψ(z) = Ω_m(z)^(4/7) - Ω_Λ(z) + (1 + Ω_m(z)/2) * (1 + Ω_Λ(z)/70)
+    D(z) = Ω_m(z) / Ω_m0 * Ψ(0) / Ψ(z) * (1+z)^-1
 
-	ξ(M) = 1/(h * M/1e10) # with M in M⊙
-	σ(M, z) = D(z) * 22.26*ξ(M)^0.292 / (1 + 1.53*ξ(M)^0.275 + 3.36*ξ(M)^0.198)
+    ξ(M) = 1/(h * M/1e10) # with M in M⊙
+    σ(M, z) = D(z) * 22.26*ξ(M)^0.292 / (1 + 1.53*ξ(M)^0.275 + 3.36*ξ(M)^0.198)
 
-	c_0(z) = 3.395 * (1+z)^-0.215
-	β(z) = 0.307 * (1+z)^0.540
-	γ_1(z) = 0.628  * (1+z)^-0.047
-	γ_2(z) = 0.317 * (1+z)^-0.893
-	a(z) = 1/(1+z)
-	ν_0(z) = 1/D(z) * (4.135 - 0.564/a(z) - 0.210/a(z)^2 + 0.0557/a(z)^3 - 0.00348/a(z)^4)
-	δ_sc = 1.686
-	ν(M, z) = δ_sc / σ(M, z)
+    c_0(z) = 3.395 * (1+z)^-0.215
+    β(z) = 0.307 * (1+z)^0.540
+    γ_1(z) = 0.628  * (1+z)^-0.047
+    γ_2(z) = 0.317 * (1+z)^-0.893
+    a(z) = 1/(1+z)
+    ν_0(z) = 1/D(z) * (4.135 - 0.564/a(z) - 0.210/a(z)^2 + 0.0557/a(z)^3 - 0.00348/a(z)^4)
+    δ_sc = 1.686
+    ν(M, z) = δ_sc / σ(M, z)
 
 
     """
@@ -121,12 +121,12 @@ module Ludlow
 
     See also [`c_ludlow`](@ref), [`solve_rmax`](@ref)
     """
-    function solve_M200_c(Vcmax, δlogc=0; interval=[0.001, 1000], z=0)
+    function solve_M200_c(Vcmax, δlogc=0; z=0, interval=0.0)
         dc = 10 ^ (0 + δlogc)
 
-        f(M200) = LilGuys.v_circ_max(NFW(M200=M200, c=dc * c_ludlow(M200, z))) - Vcmax
+        f(log_M200) = LilGuys.v_circ_max(NFW(M200=10^log_M200, z=z, c=dc * c_ludlow(10^log_M200, z))) - Vcmax
 
-        M200 = find_zero(f, interval)
+        M200 = 10 ^ find_zero(f, interval)
         return M200, c_ludlow(M200, z) * dc
     end
 

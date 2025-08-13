@@ -119,7 +119,7 @@ function mass end
 Scales the profile by a factor in radius (and optionally mass).
 """
 function scale(profile::AbstractProfile, radius_scale::Real, mass_scale::Real=1)
-    raise(NotImplementedError()) 
+    throw(NotImplementedError()) 
 end
 
 
