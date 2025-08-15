@@ -385,36 +385,5 @@ function _galcen_to_heliocen_velocity(galcen::Galactocentric)
 end
 
 
-"""Galactocentric rotation matrix"""
-function _coordinate_R(frame::GalactocentricFrame)
-    η = deg2rad(frame.η)
-    α = deg2rad(frame.ra)
-    δ = deg2rad(frame.dec)
 
-    return Rx_mat(-η) * Ry_mat(δ) * Rz_mat(-α)
-end
-
-
-"""Inverse Galactocentric rotation matrix"""
-function _coordinate_R_inv(frame::GalactocentricFrame)
-    η = deg2rad(frame.η)
-    α = deg2rad(frame.ra)
-    δ = deg2rad(frame.dec)
-
-    return Rz_mat(α) * Ry_mat(-δ) * Rx_mat(η)
-end
-
-
-"""Galactocentric height rotation matrix"""
-function _coordinate_H(frame::GalactocentricFrame)
-    θ = asin(frame.z_sun / frame.d)
-    return Ry_mat(θ)
-end
-
-
-"""Inverse Galactocentric height rotation matrix"""
-function _coordinate_H_inv(frame::GalactocentricFrame)
-    θ = asin(frame.z_sun / frame.d)
-    return Ry_mat(-θ)
-end
 

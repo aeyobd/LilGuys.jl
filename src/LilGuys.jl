@@ -86,6 +86,20 @@ public
     coord_from_file,
     coords_from_df
 
+
+public 
+    to_tangent, 
+    angular_distance, 
+    unit_vector,
+    cartesian_to_sky, 
+    rotate_sky, 
+    Rx_mat, 
+    Ry_mat, 
+    Rz_mat
+
+include("spherical.jl")
+
+
 export 
     ICRS, 
     GSR, 
@@ -122,18 +136,6 @@ public
 
 include("output.jl")
 
-
-public 
-    to_tangent, 
-    angular_distance, 
-    unit_vector,
-    cartesian_to_sky, 
-    rotate_sky, 
-    Rx_mat, 
-    Ry_mat, 
-    Rz_mat
-
-include("spherical.jl")
 
 
 public transform

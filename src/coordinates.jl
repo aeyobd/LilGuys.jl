@@ -116,6 +116,47 @@ function Base.propertynames(coord::AbstractSkyCoord)
 end
 
 
+
+"""Galactocentric rotation matrix"""
+function _coordinate_R(ra, dec, η_in)
+    η = deg2rad(η_in)
+    α = deg2rad(ra)
+    δ = deg2rad(dec)
+
+    return Rx_mat(-η) * Ry_mat(δ) * Rz_mat(-α)
+end
+
+
+
+
+"""Inverse Galactocentric rotation matrix"""
+function _coordinate_R_inv(ra, dec,η_in)
+    η = deg2rad(η_in)
+    α = deg2rad(ra)
+    δ = deg2rad(dec)
+
+    return Rz_mat(α) * Ry_mat(-δ) * Rx_mat(η)
+end
+
+
+
+
+
+"""Galactocentric height rotation matrix"""
+function _coordinate_H(z_sun, d)
+    θ = asin(z_sun / d)
+    return Ry_mat(θ)
+end
+
+
+"""Inverse Galactocentric height rotation matrix"""
+function _coordinate_H_inv(z_sun, d)
+    θ = asin(z_sun / d)
+    return Ry_mat(-θ)
+end
+
+
+
 """
 A type representing a Galactic coordinate frame specification
 """
@@ -137,8 +178,30 @@ A type representing a Galactic coordinate frame specification
 
     """ solar motion wrt galactic standard of rest in km/s"""
     v_sun::Vector{F} =  [12.9, 245.6, 7.78] # ± [3.0, 1.4, 0.08]
+
+    # for galactocentric transformations
+    _H::Matrix{F} = _coordinate_H(z_sun, d)
+    _H_inv::Matrix{F} = _coordinate_H_inv(z_sun, d)
+    _R::Matrix{F} = _coordinate_R(ra, dec, η)
+    _R_inv::Matrix{F} = _coordinate_R_inv(ra, dec, η)
 end
 
+function _coordinate_H_inv(frame::GalactocentricFrame)
+    return frame._H_inv
+end
+
+"""Galactocentric height rotation matrix"""
+function _coordinate_H(frame::GalactocentricFrame)
+    return frame._H
+end
+
+function _coordinate_R_inv(frame::GalactocentricFrame)
+    return frame._R_inv
+end
+
+function _coordinate_R(frame::GalactocentricFrame)
+    return frame._R
+end
 
 
 @doc raw"""
