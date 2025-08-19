@@ -43,6 +43,8 @@ function calc_centre!(state::StaticState, snap)
         state.centre = centre_of_mass(snap)
     elseif state.method == "potential"
         state.centre = centre_weighted_potential(snap)
+    elseif state.method == "most_bound"
+        state.centre = centre_most_bound(snap)
     end
     return state
 end
@@ -78,6 +80,14 @@ end
 
 function centre_of_mass(snap::Snapshot)
     return weighted_centre(snap, snap.masses)
+end
+
+
+function centre_most_bound(snap::Snapshot)
+    idx = argmin(snap.potential)
+    return Centre(snap.positions[:, idx], 0., 
+                  snap.velocities[:, idx], 0., 
+                  snap.accelerations[:, idx], 0.)
 end
 
 

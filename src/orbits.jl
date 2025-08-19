@@ -59,6 +59,19 @@ Base.length(a::Orbit) = length(a.times)
 
 """ Loads an orbit from a CSV file. Expected columns are `time`, `x`, `y`, `z`, `v_x`, `v_y`, `v_z`. """
 function Orbit(filename::String)
+    _, ext = splitext(filename)
+    if ext ∈ [".hdf5", ".h5"]
+        return _orbit_from_hdf5(filename)
+    elseif ext ∈ [".csv"]
+        return _orbit_from_csv(filename)
+    else
+        throw(InputError("filename type $ext not known. Currently hdf5, h5, and csv are reconized"))
+    end
+
+end
+
+
+function _orbit_from_csv(filename)
     df = CSV.read(filename, DataFrame)
     positions = hcat(df.x, df.y, df.z)'
     velocities = hcat(df.v_x, df.v_y, df.v_z)'
@@ -74,7 +87,24 @@ function Orbit(filename::String)
         velocities = velocities,
         accelerations = accelerations,
     )
+
 end
+
+
+function _orbit_from_hdf5(filename)
+    h5 = HDF5.h5open(filename)
+    pos = get_vector(h5, "positions")
+    vels = get_vector(h5, "velocities")
+
+    times = get_vector(h5, "times")
+
+    return Orbit(
+        times = times,
+        positions = pos,
+        velocities = vels,
+       )
+end
+    
 
 
 """ Converts an orbit to a DataFrame """

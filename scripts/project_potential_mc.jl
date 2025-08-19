@@ -1,19 +1,18 @@
 #!/usr/bin/env julia
 import Pkg
-using Logging, LoggingExtras
 
+using Logging, LoggingExtras
 using ArgParse
 
-using LilGuys
-using StatsBase: midpoints
-
-using LinearAlgebra: cross
+using StatsBase: Histogram, fit, normalize
 using HDF5
 using CSV, DataFrames
+using PyCall
 
-@info "loading agama"
-using PythonCall
+using LilGuys
+
 agama = pyimport("agama")
+
 
 include("script_utils.jl")
 
@@ -60,6 +59,16 @@ function get_args()
             help="Number of bins (same for both dimensions)"
             default=1001
             arg_type=Int
+
+        "-N", "--n_samples"
+            help = "number of samples to use"
+            default=1_000_000
+            arg_type=Int
+
+        "--r_max"
+            help = "maximum radius to sample to"
+            default = 1e3
+            arg_type = Float64
     end
 
     args = parse_args(s)
@@ -115,18 +124,53 @@ end
 
 
 
-function main()
-    args = get_args()
 
-    logfile = splitext(args["output"])[1] * ".log"
-    @assert logfile != args["output"]
-
-    logger = TeeLogger(global_logger(), FileLogger(logfile))
-
-    with_logger(logger) do
-        read_and_project(args)
-    end
+function project_points(x, y, xybins)
+    h1 = fit(Histogram, (x, y), xybins )
+    h1 = normalize(h1, mode=:density)
+    return h1.weights
 end
+
+
+function sample_potential(pot, time; N, r_max)
+    py"""
+    import numpy as np
+    import agama
+
+    def f(x):
+        return np.maximum($pot.density(x, t=$time), 0)
+    """
+
+    results = py"agama.sampleNdim(f, $N, np.repeat(-$r_max, 3), np.repeat($r_max, 3))" 
+
+    return results[1]', results[2]
+
+end
+
+
+function get_xy_samples(pot, time; N, r_max, x_vec, y_vec)
+
+    positions, M = sample_potential(pot, time, N=N, r_max=r_max)
+
+    A = [x_vec y_vec]'
+    xy = A * positions
+
+    return xy[1, :], xy[2, :], M
+end
+
+
+
+function write_single(h5f, h, xbins, ybins, time, x_vec, y_vec, snap)
+    attrs = HDF5.attributes(h5f)
+    attrs["x_vec"] = x_vec
+    attrs["y_vec"] = y_vec
+    attrs["time"] = time
+    attrs["snapshot"] = snap
+    h5f["xbins"] = xbins |> collect
+    h5f["ybins"] = ybins |> collect
+    h5f["density"] = h
+end
+
 
 function read_and_project(args)
     times = args["times"]
@@ -148,99 +192,39 @@ function read_and_project(args)
         idx = 1:args["skip"]:length(times)
     end
 
+    r_max = args["r_max"]
+
     h5open(args["output"], "w") do f
-        if length(idx) == 1
-            h = project_agama_potential(pot, bins, time=times[1], x_vec=args["x_vec"], y_vec=args["y_vec"])
-            write_single(f, h, xbins, ybins, times[1], args["x_vec"], args["y_vec"], idx[1])
-        else
-            for frame in eachindex(idx)
-                i = idx[frame]
-                @info "processing frame $frame / $(length(idx))"
-                h = project_agama_potential(pot, bins, time=times[i], x_vec=args["x_vec"], y_vec=args["y_vec"])
+        for frame in eachindex(idx)
+            i = idx[frame]
+            @info "processing frame $frame / $(length(idx))"
+            x, y, M = get_xy_samples(pot, times[i], r_max=r_max, N=args["n_samples"], x_vec=args["x_vec"], y_vec=args["y_vec"])
 
-                dset = "snap$i"
 
-                create_group(f, dset)
-                write_single(f[dset], h, xbins, ybins, times[i], args["x_vec"], args["y_vec"], i)
-            end
+            h = project_points(x, y, bins) * M / args["n_samples"]
+            dset = "snap$i"
+
+            create_group(f, dset)
+            write_single(f[dset], h, xbins, ybins, times[i], args["x_vec"], args["y_vec"], i)
         end
     end
 end
 
 
-function write_single(h5f, h, xbins, ybins, time, x_vec, y_vec, snap)
-    attrs = HDF5.attributes(h5f)
-    attrs["x_vec"] = x_vec
-    attrs["y_vec"] = y_vec
-    attrs["time"] = time
-    attrs["snapshot"] = snap
-    h5f["xbins"] = xbins |> collect
-    h5f["ybins"] = ybins |> collect
-    h5f["density"] = h
-end
 
+function main()
+    args = get_args()
 
-"""
-Projects the potential at a given time onto a 2D plane.
+    logfile = splitext(args["output"])[1] * ".log"
+    @assert logfile != args["output"]
 
-"""
-function project_agama_potential(potential, bins; x_vec=[0,1,0], y_vec=[0,0,1], time=0)
-    xbins, ybins = bins
-    xm, ym = midpoints(xbins), midpoints(ybins)
-    Nx, Ny = length(xm), length(ym)
-    
-    alpha, beta, gamma = vectors_to_euler_angles(x_vec, y_vec)
+    logger = TeeLogger(global_logger(), FileLogger(logfile))
 
-    Σ_disk = Matrix{Float64}(undef, Nx, Ny)
-
-    pos = [repeat(xm, Ny) repeat(ym, inner=Nx)]
-
-    density = potential.projectedDensity(pos, alpha=alpha, beta=beta, gamma=gamma, t=time)
-
-    for i in 1:Ny
-        # zero index for python
-        idx_i = (i-1)*Nx
-        idx_f = idx_i + Nx - 1
-        Σ_disk[:, i] .= pyconvert(Vector{Float64}, density[idx_i:idx_f])
+    with_logger(logger) do
+        read_and_project(args)
     end
-
-    print_edge_max(Σ_disk)
-    
-    return Σ_disk
 end
 
-
-function print_edge_max(Σ)
-    Σ_0 = maximum(Σ)
-
-    Σ_edge_max = -Inf
-    N, M = size(Σ)
-    for idx in [(:, 1), (:, M), (1, :), (N, :)]
-        Σ_edge_max = max(maximum(Σ[idx...]), Σ_edge_max)
-    end
-
-    Σ_rel = Σ_edge_max / Σ_0
-
-    @info "maximum edge relative density: $Σ_rel"
-end
-
-
-
-function vectors_to_euler_angles(xhat::Vector{<:Real}, yhat::Vector{<:Real})
-    # Compute the zhat vector
-    zhat = cross(xhat, yhat)
-
-    # Construct the rotation matrix
-    R = hcat(xhat, yhat, zhat)' # transposed so that R * xhat -> x, etc.
-
-    # Extract Euler angles for ZYX convention
-    # atan(y, x) or atan(sin, cos)
-    alpha = atan(R[3,1], -R[3,2])
-    beta = atan(sqrt(R[3,1]^2 + R[3,2]^2), R[3,3])
-    gamma = atan(R[1,3], R[2,3])
-
-    return alpha, beta, gamma
-end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__

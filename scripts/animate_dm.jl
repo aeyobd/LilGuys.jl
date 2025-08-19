@@ -366,7 +366,7 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
             aspect = DataAspect(),
          )
 
-        image!(ax, xrange, yrange, rgb_image)
+        image!(ax, xrange, yrange, rgb_image, interpolate=false)
 
         hidespines!(ax)
         resize_to_layout!(fig)

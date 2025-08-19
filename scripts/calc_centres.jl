@@ -63,9 +63,8 @@ function get_kwargs(args)
         kwargs[:dx_atol] = args["atol"]
         kwargs[:r_max] = args["r_max"]
     elseif args["method"] == "MostBound"
-        statetype = LilGuys.MostBoundState
-        kwargs[:percen] = args["percentile"]
-        kwargs[:f_min] = args["f_min"]
+        statetype = LilGuys.StaticState
+        kwargs[:method] = "most_bound"
     elseif args["method"] == "Potential"
         statetype = LilGuys.StaticState
         kwargs[:method] = "potential"
