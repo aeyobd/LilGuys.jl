@@ -84,7 +84,7 @@ function Λ_default(r, r_s)
         ϵ = 2.2r_s - 14
     end
     Λ = r / ϵ
-    return Λ
+    return max(Λ, 1) # should not be less than 1
 end
 
 

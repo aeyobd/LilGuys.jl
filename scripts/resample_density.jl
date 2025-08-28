@@ -96,6 +96,7 @@ function interpolate_density(f_in, f_ref, snap; snaps_in, times_in, timescale, o
     # find nearest input snapshots
     i_1, i_2 = get_closest_values(times_in, time / timescale)
 
+
     s_1 = f_in[snaps_in[i_1]]
     s_2 = f_in[snaps_in[i_2]]
 
@@ -103,7 +104,9 @@ function interpolate_density(f_in, f_ref, snap; snaps_in, times_in, timescale, o
     t_2 = attrs(s_2)["time"]
 
     # interpolate density between snapshots
-    x = (time - t_1) / (t_2 - t_1)
+    x = (time/timescale - t_1) / (t_2 - t_1)
+
+    @info "interpolating $x betweeen $i_1, $i_2"
 
     Σ1 = s_1["density"][:, :]
     Σ2 = s_2["density"][:, :]
@@ -197,8 +200,8 @@ function interpolate_to_grid(Σ, x, y, xnew, ynew)
     Σ_new = Matrix{eltype(Σ)}(undef, length(xnew_m), length(ynew_m))
 
 
-    for i in eachindex(xnew_m)
-        Σ_new[i, :] = Σ_interp.(xnew_m[i], ynew_m)
+    for j in eachindex(ynew_m)
+        Σ_new[:, j] .= Σ_interp.(xnew_m, ynew_m[j])
     end
 
     return Σ_new

@@ -65,7 +65,7 @@ function get_args()
             arg_type = Float64
             default = NaN
         "--time-scale"
-            help = "scale for time"
+            help = "additional scale for time. Only used for display timestamp."
             arg_type = Float64
             default = 1
         "--idx-max"
@@ -372,13 +372,17 @@ function animate_multiple(files::Vector{HDF5.File}, static_files::Vector{HDF5.Fi
         resize_to_layout!(fig)
         hidedecorations!(ax)
 
+        time = attrs(files[1][ks_sorted[frame]])["time"]
+        for file in files
+            @assert isapprox(time, attrs(file[ks_sorted[frame]])["time"], rtol=1e-3) "all files should have same density timestamps"
+        end
+
         # Add scalebar if needed
         if scalebar > 0
             add_scalebar!(ax, xrange, yrange, scalebar)
         end
         if !isnan(time_today)
-            time = attrs(files[1][ks_sorted[frame]])["time"] * T2GYR * time_scale - time_today
-            add_time!(ax, time)
+            add_time!(ax, time * T2GYR * time_scale - time_today * time_scale)
         end
 
         # Save frame
@@ -423,13 +427,15 @@ function combine_densities(files::Vector{HDF5.File}, Σ_static, scalings, colors
 
     densities = []
     for i in eachindex(files)
-        density = files[i]["/$(key)/density"][:, :] * scalings[i]
+        group = files[i]["/$key"]
+        density = group["density"][:, :] * scalings[i]
         # Map intensities with individual color
         color_R, color_G, color_B = map_intensities(density, colors[i])
         push!(densities, density)
 
-        xbins = files[i]["/$(key)/xbins"][:]
-        ybins = files[i]["/$(key)/ybins"][:]
+        xbins = group["xbins"][:]
+        ybins = group["ybins"][:]
+        close(group)
     end
 
     for i in eachindex(Σ_static)

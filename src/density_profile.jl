@@ -147,7 +147,7 @@ function DensityProfile(snap::Snapshot, weights::AbstractVector{<:Real};
     for i in 1:length(Nb)
         filt = log_r_snap .>= log_r_bins[i]
         filt .&= log_r_snap .< log_r_bins[i+1]
-        w = snap.weights[filt]
+        w = weights[filt]
         counts[i] = sum(filt)
         ess[i] = effective_sample_size(w)
     end

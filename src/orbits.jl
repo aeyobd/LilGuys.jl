@@ -72,7 +72,7 @@ end
 
 
 function _orbit_from_csv(filename)
-    df = CSV.read(filename, DataFrame)
+    df = CSV.read(filename, DataFrame, ntasks=1)
     positions = hcat(df.x, df.y, df.z)'
     velocities = hcat(df.v_x, df.v_y, df.v_z)'
     if "a_x" ∈ names(df)
