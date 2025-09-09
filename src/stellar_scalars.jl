@@ -64,9 +64,9 @@ function half_light_radius(snap)
 end
 
 function half_light_Radius(snap)
-    R_h_xy = LilGuys.quantile(radii(snap.positions[1:2, :]), snap.weights, 0.5)
-    R_h_yz = LilGuys.quantile(radii(snap.positions[2:3, :]), snap.weights, 0.5)
-    R_h_xz = LilGuys.quantile(radii(snap.positions[[1,3], :]), snap.weights, 0.5)
+    R_h_xy = LilGuys.quantile(radii(snap.positions[1:2, :] .- snap.x_cen[1:2]), snap.weights, 0.5)
+    R_h_yz = LilGuys.quantile(radii(snap.positions[2:3, :].- snap.x_cen[2:3]), snap.weights, 0.5)
+    R_h_xz = LilGuys.quantile(radii(snap.positions[[1,3], :] .- snap.x_cen[[1, 3]]), snap.weights, 0.5)
 
     return mean([R_h_xy, R_h_yz, R_h_xz])
 end
