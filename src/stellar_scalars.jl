@@ -17,6 +17,9 @@
 
     "snapshot time"
     time::F
+
+    "half light radius (3D)"
+    r_h::F = NaN
 end
 
 
@@ -51,10 +54,22 @@ function StellarScalars(snap::Snapshot;
         r_max_sigma = r_max,
         bound_mass = bound_mass,
         time = snap.time,
+        r_h = half_light_radius(snap),
        )
 end
 
 
+function half_light_radius(snap)
+    return LilGuys.quantile(radii(snap), snap.weights, 0.5)
+end
+
+function half_light_Radius(snap)
+    R_h_xy = LilGuys.quantile(radii(snap.positions[1:2, :]), snap.weights, 0.5)
+    R_h_yz = LilGuys.quantile(radii(snap.positions[2:3, :]), snap.weights, 0.5)
+    R_h_xz = LilGuys.quantile(radii(snap.positions[[1,3], :]), snap.weights, 0.5)
+
+    return mean([R_h_xy, R_h_yz, R_h_xz])
+end
 
 
 
