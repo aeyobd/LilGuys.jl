@@ -155,7 +155,7 @@ returning an MassProfile object.
 
 `bins` may be an integer, array, or function and is passed to `histogram`
 """
-function MassProfile(snap::Snapshot;
+function MassProfile(snap::Snapshot, weights=nothing;
         bins=nothing,
         filt_bound=:recursive_1D,
         quantiles=[0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999],
@@ -163,7 +163,11 @@ function MassProfile(snap::Snapshot;
     )
 
     r = radii(snap)
-    m = snap.masses
+    if isnothing(weights)
+        m = snap.masses
+    else
+        m = weights
+    end
 
     if filt_bound != :false
         filt = bound_particles(snap, method=filt_bound)
@@ -176,7 +180,7 @@ function MassProfile(snap::Snapshot;
     end
 
     idx = sortperm(r)
-    m = snap.masses[idx]
+    m = m[idx]
     r = r[idx]
     M = cumsum(m)
 

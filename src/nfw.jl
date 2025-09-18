@@ -5,9 +5,10 @@ import SpecialFunctions: expint
 
 """
 The virial radius, i.e. the radius where the mean inner density is 200 times 
+the critical density of the universe at redshift ``z``.
 """
-function solve_R200(profile::GeneralNFW, z; δ=200, tol=1e-3)
-    f(r) = mean_density(profile, r) - δ*ρ_crit * (1+z)^3
+function solve_R200(profile::GeneralNFW, z; delta=200, tol=1e-3)
+    f(r) = mean_density(profile, r) - delta*ρ_crit * (1+z)^3
 
     R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])
 
@@ -18,12 +19,12 @@ function solve_R200(profile::GeneralNFW, z; δ=200, tol=1e-3)
     return R200
 end
 
-function R200(profile::GeneralNFW, z=0.)
-    return solve_R200(profile, z)
+function R200(profile::GeneralNFW, z=0.; delta=200)
+    return solve_R200(profile, z; delta=delta)
 end
 
-function M200(profile::GeneralNFW, z=0.)
-    return mass(profile, R200(profile, z))
+function M200(profile::GeneralNFW, z=0.; delta=200)
+    return mass(profile, R200(profile, z; delta=delta))
 end
 
 
@@ -79,7 +80,7 @@ struct NFW <: GeneralNFW
     c::Union{Nothing, Float64}
 end
 
-function NFW(; c=nothing, z=0.0, kwargs...)
+function NFW(; c=nothing, z=0.0, delta=200, kwargs...)
     arg_names = Set(keys(kwargs))
     valid_kwargs = [:M_s, :r_s, :M200, :v_circ_max, :r_circ_max]
 
@@ -93,10 +94,10 @@ function NFW(; c=nothing, z=0.0, kwargs...)
         M_s, r_s = kwargs[:M_s], kwargs[:r_s]
     elseif (arg_names == Set([:M200]) ) && (c !== nothing)
         M200 = kwargs[:M200]
-        M_s, r_s = _NFW_from_M200_c(M200, c, z)
+        M_s, r_s = _NFW_from_M200_c(M200, c, z; delta=delta)
     elseif arg_names == Set([:M200, :r_s])
         M200, r_s = kwargs[:M200], kwargs[:r_s]
-        M_s, r_s = _NFW_from_M200_r_s(M200, r_s; c=c)
+        M_s, r_s = _NFW_from_M200_r_s(M200, r_s, z; c=c, delta=delta)
         c = R200(M200, z) / r_s
     elseif arg_names == Set([:v_circ_max, :r_circ_max])
         v_circ_max, r_circ_max = kwargs[:v_circ_max], kwargs[:r_circ_max]
@@ -113,8 +114,8 @@ function NFW(; c=nothing, z=0.0, kwargs...)
 end
 
 
-function _NFW_from_M200_c(M200, c, z=0.)
-    Rvir = R200(M200, z)
+function _NFW_from_M200_c(M200, c, z=0.; delta=200)
+    Rvir = R200(M200, z; delta=200)
     r_s = Rvir / c
     M_s = M200 / A_NFW(c)
     return M_s, r_s
@@ -127,9 +128,9 @@ function _NFW_from_v_circ_max_r_circ_max(v_circ_max, r_circ_max)
 end
 
 
-function _NFW_from_M200_r_s(M200, r_s, z=0.; c=nothing)
+function _NFW_from_M200_r_s(M200, r_s, z=0.; c=nothing, delta=200)
     if c === nothing
-        c = R200(M200, z) / r_s
+        c = R200(M200, z; delta=delta) / r_s
     end
     M_s = M200 / A_NFW(c)
     return M_s, r_s
@@ -227,7 +228,10 @@ end
 
 
 """
+    R200(nfw, z=0)
+
 The virial radius, i.e. the radius where the mean inner density is 200 times 
+the mean density of the universe at redshift `z`. We assume `R200` is in comoving coordinates.
 """
 function R200(profile::NFW)
     return profile.r_s * profile.c
@@ -239,8 +243,8 @@ function M200(profile::NFW)
 end
 
 
-function R200(M200::Real, z::Real=0.0)
-    return (3 * M200 / (4π * 200 * ρ_crit))^(1/3) / (1+z)
+function R200(M200::Real, z::Real=0.0; delta=200)
+    return (3 * M200 / (4π * delta * ρ_crit))^(1/3) / (1+z)
 end
 
 

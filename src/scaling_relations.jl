@@ -134,13 +134,15 @@ module Ludlow
     solve_rmax(Vcmax, δlogc=0; kwargs...)
 
     Solves for the radius of maximum circular velocity given the maximum
-    circular velocity in code units and an optional offset to the concentration mass
+    circular velocity in code units and an optional offset to the concentration mass.
+    `r_max` is in physical units if redshift is included.
+
     relation, `δlogc`. Calls `solve_M200_c` to solve for the mass and
     concentration of the halo, passing along kwargs.
     """
-    function solve_rmax(v_circ_max, δlogc=0; kwargs...)
-        M200, c = solve_M200_c(v_circ_max, δlogc; kwargs...)
-        return r_circ_max(NFW(M200=M200, c=c))
+    function solve_rmax(v_circ_max, δlogc=0; z=0, kwargs...)
+        M200, c = solve_M200_c(v_circ_max, δlogc; z=z, kwargs...)
+        return r_circ_max(NFW(M200=M200, c=c, z=z))
     end
 
 end

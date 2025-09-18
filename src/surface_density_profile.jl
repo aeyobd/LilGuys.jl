@@ -373,11 +373,13 @@ function filter_by_bin(prof::SurfaceDensityProfile, bin_selection::UnitRange)
     prof_new = deepcopy(prof)
     prof_new.log_R = prof.log_R[filt]
     prof_new.log_R_bins = prof.log_R_bins[edge_filt]
-    prof_new.counts = prof.counts[filt]
     prof_new.log_Sigma = prof.log_Sigma[filt]
 
     if length(prof.Gamma) > 0
         prof_new.Gamma = prof.Gamma[filt]
+    end
+    if length(prof.counts) > 0
+        prof_new.counts = prof.counts[filt]
     end
 
     return prof_new
@@ -386,7 +388,7 @@ end
 
 
 function filter_empty_bins(prof::SurfaceDensityProfile)
-    idxs = find_longest_consecutive_finite(log_surface_density(prof))
+    idxs = find_longest_consecutive_true(isfinite.(log_surface_density(prof)))
 
     return filter_by_bin(prof, idxs)
 end
@@ -401,11 +403,11 @@ end
 """
     find_longest_consequtive_finite(x)
 
-Returns the longest consecutive sequence of finite elements in x
+Returns the longest consecutive sequence of true elements in x
 as a int-range.
-Returns nothing if there are no finite elements in x.
+Returns an empty range if no true elements
 """
-function find_longest_consecutive_finite(x)
+function find_longest_consecutive_true(x)
     max_len = 0
     max_start = 0
     max_end = 0
@@ -413,7 +415,7 @@ function find_longest_consecutive_finite(x)
     current_start = 0
 
     for i in eachindex(x)
-        if isfinite(x[i])
+        if x[i]
             if current_len == 0
                 current_start = i
             end

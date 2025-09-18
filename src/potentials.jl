@@ -28,6 +28,7 @@ Base.@kwdef struct ChandrashakarDynamicalFriction <: Potential
     ρ::Function
     M::Real
     Λ::Union{Real, Nothing} = nothing
+    ϵ::Real = ϵ_default(r_s)
 end
 
 
@@ -37,7 +38,7 @@ end
 
 
 function acceleration(p::ChandrashakarDynamicalFriction, pos, vel, t=nothing)
-    return a_dyn_friction(pos, vel; r_s=p.r_s, σv=p.σv, ρ=p.ρ, M=p.M, Λ=p.Λ)
+    return a_dyn_friction(pos, vel; r_s=p.r_s, σv=p.σv, ρ=p.ρ, M=p.M, Λ=p.Λ, ϵ=p.ϵ)
 end
 
 
@@ -62,7 +63,7 @@ If the coloumb integral is not given, then the satellite scale radius should be 
 
 where $r$ is the current radius of the satellite.
 """
-function a_dyn_friction(pos, vel; σv, ρ, M, Λ=nothing, r_s=nothing)
+function a_dyn_friction(pos, vel; σv, ρ, M, Λ=nothing, r_s=nothing, ϵ=ϵ_default(r_s))
     v = radii(vel)
     
     X = v / (√2 * σv(pos))
@@ -70,19 +71,24 @@ function a_dyn_friction(pos, vel; σv, ρ, M, Λ=nothing, r_s=nothing)
 
     r = LilGuys.radii(pos)
     if isnothing(Λ)
-        Λ = Λ_default(r, r_s)
+        Λ = Λ_default(r, ϵ)
     end
 
     return -4π*G^2 * M * ρ(pos) * max(log(Λ), 0) * fX * vel ./ v^3
 end
 
 
-function Λ_default(r, r_s)
+function ϵ_default(r_s)
     if r_s < 8
         ϵ = 0.45r_s
     else
         ϵ = 2.2r_s - 14
     end
+    return ϵ
+end
+
+
+function Λ_default(r, ϵ)
     Λ = r / ϵ
     return max(Λ, 1) # should not be less than 1
 end
