@@ -716,6 +716,7 @@ end
     guess_b_n(n)
 
 Returns a guess for the value of $b_n$ given $n$.
+Valid for n > 0.36, otherwise returns 0.5
 """
 function guess_b_n(n::Real)
     if n > 0.36

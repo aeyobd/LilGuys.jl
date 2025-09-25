@@ -62,8 +62,8 @@ function main(args)
     m = energy_df.mass[filt]
 
 
-    bins, hist, _ = lguys.histogram(radii, r_bins, weights=m)
-    ρ = lguys.calc_ρ_from_hist(bins, hist)
+    bins, hist, _ = lguys.histogram(radii, r_bins, weights=m, errors=:weighted)
+    ρ = lguys.density_from_hist(bins, hist)
     ψ = lguys.lerp(radii, ψ).(r_bin_mids)
 
     f = lguys.DistributionFunction(ρ, ψ, r_bin_mids; force_positive=args["positive"])

@@ -333,15 +333,16 @@ struct CoredNFW <: GeneralNFW
     r_s::Float64
     r_c::Float64
     r_t::Float64
+    xi::Float64 
     c::Union{Nothing, Float64}
 end
 
-function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s)
+function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s, xi=3)
     if c === nothing
-        c = concentration(CoredNFW(M_s, r_s, r_c, r_t, nothing))
+        c = concentration(CoredNFW(M_s, r_s, r_c, r_t, xi, nothing))
     end
 
-    return CoredNFW(M_s, r_s, r_c, r_t, c)
+    return CoredNFW(M_s, r_s, r_c, r_t, xi, c)
 end
 
 function get_ρ_s(profile::CoredNFW)
@@ -354,29 +355,30 @@ end
 function density(profile::CoredNFW, r::Real)
     r_c, r_s = profile.r_c, profile.r_s
     ρ_s = get_ρ_s(profile)
-    return ρ_s/3 * (r_c / r_s + r / r_s)^(-1) * (1 + r / r_s)^(-2) * exp(-r/profile.r_t)
+    f = (r_c/r_s + r/r_s)^(-1) * (1 + r/r_s)^(-2)
+    return ρ_s/3 * f * exp(-(r/profile.r_t)^profile.xi)
 end
 
-function mass(profile::CoredNFW, r::Real)
-    # result from sagemath, maybe I will do this integral one day
-    c = profile.r_c
-    s = profile.r_s
-    t = profile.r_t
-    ρ_s = get_ρ_s(profile)
-    Ei(x) = -expint(-x)
-    M(r) =  4π * (ρ_s/3) * (
-             (c^2*r*s^3 + c^2*s^4)*t*Ei(-(c + r)/t)*exp(c/t)
-             - (c*s^5 - s^6)*t * exp(-r/t)
-             - (
-                (2*c*r*s^4 - s^6 + (2*c - r)*s^5)*t*Ei(-(r + s)/t) 
-                + (c*r*s^5 - s^7 + (c - r)*s^6)*Ei(-(r + s)/t)
-                )*exp(s/t)
-         )/(
-                     (c^2*r - (2*c - r)*s^2 + s^3 + (c^2 - 2*c*r)*s)*t
-                )
-
-    return M(r) - M(0)
-end
+#function mass(profile::CoredNFW, r::Real)
+#    # result from sagemath, maybe I will do this integral one day
+#    c = profile.r_c
+#    s = profile.r_s
+#    t = profile.r_t
+#    ρ_s = get_ρ_s(profile)
+#    Ei(x) = -expint(-x)
+#    M(r) =  4π * (ρ_s/3) * (
+#             (c^2*r*s^3 + c^2*s^4)*t*Ei(-(c + r)/t)*exp(c/t)
+#             - (c*s^5 - s^6)*t * exp(-r/t)
+#             - (
+#                (2*c*r*s^4 - s^6 + (2*c - r)*s^5)*t*Ei(-(r + s)/t) 
+#                + (c*r*s^5 - s^7 + (c - r)*s^6)*Ei(-(r + s)/t)
+#                )*exp(s/t)
+#         )/(
+#                     (c^2*r - (2*c - r)*s^2 + s^3 + (c^2 - 2*c*r)*s)*t
+#                )
+#
+#    return M(r) - M(0)
+#end
 
 
 function mass(profile::CoredNFW)
