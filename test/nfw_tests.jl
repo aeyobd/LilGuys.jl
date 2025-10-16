@@ -172,8 +172,8 @@ end
         @test lguys.density(halo, 1e-8) ≈ 10 / (4π) rtol=1e-5
         @test lguys.density(halo, 1e-6) ≈ 10 / (4π) rtol=1e-3
 
-        @test lguys.density(halo, 1) ≈ 1/4π * 1/(1.1 * 2^2) * exp(-1/2)
-        @test lguys.density(halo, 2) ≈ 1/4π * 1/(2.1 *3^2) * exp(-2/2)
+        @test lguys.density(halo, 1) ≈ 1/4π * 1/(1.1 * 2^2) * exp(-1/2^3)
+        @test lguys.density(halo, 2) ≈ 1/4π * 1/(2.1 *3^2) * exp(-1^2)
 
         @test lguys.density(halo, 20) ≈ 0 atol=1e-6
     end

@@ -11,7 +11,7 @@ include("script_utils.jl")
 function get_args()
     s = ArgParseSettings(
         description="projects a snapshot onto the sky to mock gaia observations",
-        version="0.1.0"
+        version="0.1.1"
     )
 
     @add_arg_table s begin
@@ -38,6 +38,9 @@ function get_args()
         "-d", "--distance"
             help="distance at which to set snapshot from sun before projecting onto sky"
             arg_type=Float64
+        "-c", "--centre"
+            help="push the centre to the start of the dataframe?"
+            action=:store_true
         "--scale"
             help="file to halo rescaling used.toml"
     end
@@ -59,6 +62,8 @@ function get_kwargs(args)
     if args["distance"] !== nothing
         kwargs[:set_to_distance] = args["distance"]
     end
+
+    kwargs[:add_centre] = args["centre"]
     return kwargs
 end
 

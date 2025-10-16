@@ -7,7 +7,7 @@ import SpecialFunctions: expint
 The virial radius, i.e. the radius where the mean inner density is 200 times 
 the critical density of the universe at redshift ``z``.
 """
-function solve_R200(profile::GeneralNFW, z; delta=200, tol=1e-3)
+function solve_R200(profile::GeneralNFW, z=0; delta=200, tol=1e-3)
     f(r) = mean_density(profile, r) - delta*ρ_crit * (1+z)^3
 
     R200 = find_zero(f, [0.1profile.r_s, 1000profile.r_s])

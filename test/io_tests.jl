@@ -94,7 +94,7 @@ end
 
 
 @testset "frame_to_scalar_structs" begin
-    df = lguys.DataFrame(:delta_t=>[1,2], :r_break=>[0.5, 0.8], :sigma_v=>[NaN, 0.5], :r_max_sigma=>[2., 3,], :bound_mass=>[100, 150], :time=>[0.2, 0.5])
+    df = lguys.DataFrame(:delta_t=>[1,2], :r_break=>[0.5, 0.8], :sigma_v=>[NaN, 0.5], :r_max_sigma=>[2., 3,], :bound_mass=>[100, 150], :time=>[0.2, 0.5], :r_h=>[0.5, NaN])
 
     ss = lguys.to_structs(df, StellarScalars)
 

@@ -4,7 +4,7 @@ import LinearAlgebra: ×
 """
     radii(x[, y])
 
-The magnitude of a 3-vector or each vector in a matrix. Or, the distance between vecotrs x and y.
+The magnitude of a N-vector or each vector in a matrix. Or, the distance between vecotrs x and y.
 """
 function radii(x::AbstractMatrix{T}) where T<:Real
     return _radii(x)

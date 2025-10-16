@@ -54,12 +54,17 @@ function main(args)
 
     @assert typeof(prof_in) == typeof(prof_out) "Input and output profiles must be of the same type, got $(typeof(prof_in)) and $(typeof(prof_out)) respectively."
 
-    if prof_out isa LilGuys.ExpCusp
+    if (prof_out isa LilGuys.ExpCusp) || (prof_out isa LilGuys.Exp2D)
         m_scale = prof_out.M / prof_in.M
     else
         m_scale = prof_out.M_s / prof_in.M_s
     end
-    r_scale = prof_out.r_s / prof_in.r_s
+
+    if prof_out isa LilGuys.Exp2D
+        r_scale = prof_out.R_s / prof_in.R_s
+    else
+        r_scale = prof_out.r_s / prof_in.r_s
+    end
 
     scaled = LilGuys.rescale(snap, m_scale, r_scale)
 

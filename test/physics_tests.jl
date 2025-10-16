@@ -25,18 +25,6 @@ end
     @test lguys.radii(b) ≈ [√6, 0, √3]
 end
 
-@testset "r errors" begin
-    a = [1., 2., 3., 4.]
-    @test_throws ArgumentError lguys.radii(a)
-
-    b = [1. 0 1 2;
-         2. 0 1 2;
-         1. 0 -1 4;
-         1. 0 -1 5]
-
-    @test_throws ArgumentError lguys.radii(b)
-end
-
 
 @testset "r (snap)" begin
     pos = [1.  0  0.5;

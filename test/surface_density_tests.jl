@@ -399,15 +399,15 @@ end
 
 
 
-@testset "find longest consecutive_finite" begin
+@testset "find longest consecutive true" begin
     @testset "simple cases" begin
         x = [1, NaN, 2, 3, 0, -1, Inf, 2, 3, NaN, 7, 8, 9]
-        @test LilGuys.find_longest_consecutive_finite(x) == 3:6
+        @test LilGuys.find_longest_consecutive_true(isfinite.(x)) == 3:6
 
         x = [0.23, -99.42, 5]
-        @test LilGuys.find_longest_consecutive_finite(x) == 1:3
+        @test LilGuys.find_longest_consecutive_true(isfinite.(x)) == 1:3
 
-        @test LilGuys.find_longest_consecutive_finite([]) === 1:0
+        @test LilGuys.find_longest_consecutive_true([]) === 1:0
     end
 
 end

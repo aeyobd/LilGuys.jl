@@ -10,7 +10,7 @@ include("script_utils.jl")
 function get_args()
     s = ArgParseSettings(
         description="Calculate the 2D density profile of a sample of stars in a fits file",
-        version="0.1.0"
+        version="0.1.1"
     )
 
     @add_arg_table s begin
@@ -112,13 +112,13 @@ function main()
 
     filt = .!isnan.(r_ell)
 
-    if args["simulation"]
+    if "distance" ∈ names(sample)
         distance = LilGuys.mean(sample.distance, weights)
         @info "distance: $(distance)"
 
         rv_filt = sample.r_ell .< args["rv-max-radius"]
-
         σv = LilGuys.std(sample.radial_velocity[rv_filt], weights[rv_filt])
+
         @info "σv: $(σv)"
     else
         distance = NaN

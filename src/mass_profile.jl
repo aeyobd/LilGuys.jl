@@ -206,6 +206,21 @@ function MassProfile(snap::Snapshot, weights=nothing;
 end
 
 
+"""
+    scale(prof::MassProfile, radius_scale[, mass_scale])
+
+Scales the mass profile by the given factors, returining a new instance
+"""
+function scale(prof::MassProfile, radius_scale, mass_scale=1)
+    prof_new = MassProfile(
+        radii = prof.radii * radius_scale,
+        M_in = prof.M_in * mass_scale,
+        counts = prof.counts,
+        time = prof.time
+       )
+end
+
+
 function MassScalars(snap, prof::MassProfile)
     K = kinetic_energy(snap)
 

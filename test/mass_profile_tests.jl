@@ -77,7 +77,7 @@ end
 
 
 @testset "Mass Scalars" begin
-    halo = lguys.TruncNFW(M_s=2, r_s=5, trunc=10)
+    halo = lguys.TruncNFW(M_s=2.0, r_s=5, trunc=10)
     W_exp = lguys.potential_energy(halo)
 
     snap = LilGuys.sample_potential(halo, 10000)
