@@ -17,6 +17,7 @@ Base.Broadcast.broadcastable(p::AbstractProfile) = Ref(p)
 const RECOGNIZED_PROFILES = (
     :Plummer,
     :Exp2D,
+    :DoubleExp2D,
     :Exp3D,
     :LogCusp2D,
     :ExpCusp,
@@ -164,6 +165,29 @@ end
 
 function Exp2D(M::Real, R_s::Real)
     return Exp2D(promote(M, R_s)...)
+end
+
+
+@doc raw"""
+    DoubleExp2D(M, R_s)
+
+An exponential disk profile in 2D. The density profile is given by
+
+``
+\Sigma = \Sigma_1 \, \exp(-R/R_1)  + \Sigma_2 \, \exp(-R/R_2)
+``
+
+where M is the total mass and R_i is the scale radius, and Σ_i = M_i / (2π * R_i^2)
+"""
+@kwdef struct DoubleExp2D{F<:Real} <: SphericalProfile
+    M_1::F = 1
+    R_1::F = 1
+    M_2::F = 0
+    R_2::F = 2
+end
+
+function DoubleExp2D(M_1::Real, R_1::Real, M_2::Real, R_2::Real)
+    return Exp2D(promote(M_1, R_1, M_2, R_2)...)
 end
 
 
@@ -383,6 +407,21 @@ end
 #     K_n is the modified second kind of bessel function
 # end
 
+
+############ DoubleExp2D
+#
+function LilGuys.density(prof::DoubleExp2D, r::Real)
+	return LilGuys.density(LilGuys.Exp2D(prof.M_1, prof.R_1, ), r) + LilGuys.density(LilGuys.Exp2D(prof.M_2, prof.R_2), r)
+end
+
+function LilGuys.surface_density(prof::DoubleExp2D, r::Real)
+	return LilGuys.surface_density(LilGuys.Exp2D(prof.M_1, prof.R_1), r) + LilGuys.surface_density(LilGuys.Exp2D(prof.M_2, prof.R_2), r)
+end
+
+
+function scale(prof::DoubleExp2D, radius_scale::Real, mass_scale::Real)
+    return DoubleExp2D(prof.M_1*mass_scale, prof.R_1*radius_scale, prof.M_2*mass_scale, prof.R_2*radius_scale)
+end
 
 ############ Exp3D
 

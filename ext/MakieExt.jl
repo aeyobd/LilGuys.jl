@@ -318,7 +318,7 @@ Plot a density profile from a LilGuys.SurfaceDensityProfile using Makie.
     strokecolor = @inherit markerstrokecolor
     linewidth = @inherit linewidth
 
-    Makie.MakieCore.mixin_generic_plot_attributes()...
+    Makie.mixin_generic_plot_attributes()...
 end
 
 

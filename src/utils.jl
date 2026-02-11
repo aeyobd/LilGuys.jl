@@ -73,14 +73,23 @@ function collapse_errors(d::Dict{String, <:Any})
     ks = keys(d) 
     for (key, val) in d
         if [key * "_em", key*"_ep"] ⊆ ks
-            m = d_new[key] |> float
-            em = pop!(d_new, key*"_em") |> float
-            ep = pop!(d_new, key*"_ep") |> float
-            d_new[key] = Measurement.(m, em, ep)
+            if (val isa Real) || (length(val) > 0)
+                m = d_new[key] |> float
+                em = pop!(d_new, key*"_em") |> float
+                ep = pop!(d_new, key*"_ep") |> float
+                d_new[key] = Measurement.(m, em, ep)
+            else
+                pop!(d_new, key*"_em")
+                pop!(d_new, key*"_ep")
+            end
         elseif key * "_err" ∈ ks
-            m = d_new[key] |> float
-            e = pop!(d_new, key*"_err") |> float
-            d_new[key] = Measurement.(m, e)
+            if (val isa Real) || (length(val) > 0)
+                m = d_new[key] |> float
+                e = pop!(d_new, key*"_err") |> float
+                d_new[key] = Measurement.(m, e)
+            else
+                pop!(d_new, key*"_err")
+            end
         end
     end
     return d_new
