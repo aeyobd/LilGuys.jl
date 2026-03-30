@@ -46,6 +46,32 @@ end
 
 
 """
+    from_tangent(ξ, η, α_0, δ_0)
+
+The inverrse transformation of `to_tangent(α, δ, α_0, δ_0)`. 
+Given the tangent plane coordinates in degrees, `ξ, η`, and the 
+centre skycoordinate of the tangent plane `α_0, δ_0`, returns the 
+sky coordinates of the original coordinate `α, δ`. 
+
+All quantities are in degrees.
+"""
+function from_tangent(ξ::Real, η::Real, α_0::Real, δ_0::Real)
+    ξ_rad = deg2rad(ξ)
+    η_rad = deg2rad(η)
+    α_0_rad = deg2rad(α_0)
+    δ_0_rad = deg2rad(δ_0)
+
+    denom = cos(δ_0_rad) - η_rad*sin(δ_0_rad)
+    α_rad = α_0_rad + atan(ξ_rad, denom)
+    δ_rad = atan((η_rad*cos(δ_0_rad) + sin(δ_0_rad)) * cos(α_rad - α_0_rad) / denom)
+
+    α = mod(rad2deg(α_rad), 360)
+    δ = rad2deg(δ_rad)
+
+    α, δ
+end
+
+"""
     angular_distance(α1, δ1, α2, δ2)
 
 Compute the angular distance in degrees between two points on the sky, 

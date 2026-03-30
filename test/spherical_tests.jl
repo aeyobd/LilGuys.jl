@@ -150,6 +150,28 @@ end
 end
 
 
+@testset "from_tangent" begin
+    @testset "random" begin
+        for _ in 1:1000
+            α_0 = rand() * 360
+            δ_0 = 90 - rand() * 180
+            α_1 = rand() * 360
+            δ_1 = 90 - rand() * 180
+
+            xi, eta =  lguys.to_tangent(α_1, δ_1, α_0, δ_0)
+            α_2, δ_2 =  lguys.from_tangent(xi, eta, α_0, δ_0)
+
+            if isnan(xi)
+                @test isnan(α_2) && isnan(δ_2)
+            else
+                @test α_2 ≈ α_1 rtol=1e-8
+                @test δ_2 ≈ δ_1 rtol=1e-8
+            end
+        end
+    end
+end
+
+
 @testset "rotate_sky" begin
     @testset "simple cases" begin
         ra = [0, 90, 180, 270]

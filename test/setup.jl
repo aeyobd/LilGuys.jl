@@ -1,7 +1,7 @@
 using Test
 using Makie # need for makie ext
 using PythonCall # needed for fits IO
-import Agama
+#import Agama
 import LilGuys as lguys
 
 using LilGuys
