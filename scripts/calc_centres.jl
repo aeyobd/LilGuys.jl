@@ -62,6 +62,8 @@ function get_kwargs(args)
         kwargs[:f_min] = args["f_min"]
         kwargs[:dx_atol] = args["atol"]
         kwargs[:r_max] = args["r_max"]
+        kwargs[:filter_unbound] =  args["cut_unbound"]
+        kwargs[:r_max] = args["r_max"]
     elseif args["method"] == "MostBound"
         statetype = LilGuys.StaticState
         kwargs[:method] = "most_bound"

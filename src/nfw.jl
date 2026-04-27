@@ -337,11 +337,43 @@ struct CoredNFW <: GeneralNFW
     c::Union{Nothing, Float64}
 end
 
-function CoredNFW(; r_c, r_s, M_s, c=nothing, r_t=100r_s, xi=3)
+function CoredNFW(; c=nothing, r_t=nothing, xi=3, kwargs...)
+    arg_names = Set(keys(kwargs))
+    valid_kwargs = [:M_s, :r_s, :v_circ_max, :r_circ_max, :r_c, :core]
+
+    for arg in arg_names
+        if !(arg ∈ valid_kwargs)
+            throw(ArgumentError("Invalid keyword argument, $arg"))
+        end
+    end
+
+    if arg_names == Set([:r_circ_max, :v_circ_max, :core])
+
+        halo_i = CoredNFW(M_s=1, r_s=1, r_c=kwargs[:core])
+        r_s = kwargs[:r_circ_max] / r_circ_max(halo_i)
+        r_c = r_s * kwargs[:core]
+        halo_ii = CoredNFW(M_s=1, r_s=r_s, r_c=r_c)
+        v_scale = kwargs[:v_circ_max] / v_circ_max(halo_ii)
+        M_s = v_scale^2
+    elseif arg_names == Set([:r_s, :M_s, :r_c])
+        r_c = kwargs[:r_c]
+        r_s = kwargs[:r_s]
+        M_s = kwargs[:M_s]
+    elseif arg_names == Set([:r_s, :M_s, :core])
+        r_c = kwargs[:r_s] * kwargs[:core]
+        r_s = kwargs[:r_s]
+        M_s = kwargs[:M_s]
+    else
+        throw(ArgumentError("Invalid keyword argument combination: $arg_names"))
+    end
+
+    if r_t === nothing
+        r_t = 20 * r_s
+    end
+
     if c === nothing
         c = concentration(CoredNFW(M_s, r_s, r_c, r_t, xi, nothing))
     end
-
     return CoredNFW(M_s, r_s, r_c, r_t, xi, c)
 end
 
@@ -358,27 +390,6 @@ function density(profile::CoredNFW, r::Real)
     f = (r_c/r_s + r/r_s)^(-1) * (1 + r/r_s)^(-2)
     return ρ_s/3 * f * exp(-(r/profile.r_t)^profile.xi)
 end
-
-#function mass(profile::CoredNFW, r::Real)
-#    # result from sagemath, maybe I will do this integral one day
-#    c = profile.r_c
-#    s = profile.r_s
-#    t = profile.r_t
-#    ρ_s = get_ρ_s(profile)
-#    Ei(x) = -expint(-x)
-#    M(r) =  4π * (ρ_s/3) * (
-#             (c^2*r*s^3 + c^2*s^4)*t*Ei(-(c + r)/t)*exp(c/t)
-#             - (c*s^5 - s^6)*t * exp(-r/t)
-#             - (
-#                (2*c*r*s^4 - s^6 + (2*c - r)*s^5)*t*Ei(-(r + s)/t) 
-#                + (c*r*s^5 - s^7 + (c - r)*s^6)*Ei(-(r + s)/t)
-#                )*exp(s/t)
-#         )/(
-#                     (c^2*r - (2*c - r)*s^2 + s^3 + (c^2 - 2*c*r)*s)*t
-#                )
-#
-#    return M(r) - M(0)
-#end
 
 
 function mass(profile::CoredNFW)

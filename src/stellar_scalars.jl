@@ -43,8 +43,9 @@ function StellarScalars(snap::Snapshot;
     )
 
     # scalars
-    bound_mass = sum(snap.weights[bound_particles(snap)])
-    σ_v_1d = σv_1d(snap, r_max=r_max)
+    filt = bound_particles(snap)
+    bound_mass = sum(snap.weights[filt])
+    σ_v_1d = σv_1d(snap[filt], r_max=r_max)
     r_break = break_radius(σ_v_1d, delta_t)
 
     return StellarScalars(
@@ -54,7 +55,7 @@ function StellarScalars(snap::Snapshot;
         r_max_sigma = r_max,
         bound_mass = bound_mass,
         time = snap.time,
-        r_h = half_light_radius(snap),
+        r_h = half_light_radius(snap[filt]),
        )
 end
 
